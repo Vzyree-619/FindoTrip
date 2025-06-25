@@ -1,0 +1,64 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL") // Use your MongoDB connection string
+}
+
+generator client {
+  provider = "prisma-client-js"
+  
+}
+
+model HotelBooking {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  destination String
+  checkIn     DateTime
+  checkOut    DateTime
+  adults      Int
+  childs   Int  // Correct field name to match the form
+  rooms       Int 
+  createdAt   DateTime @default(now())
+}
+
+ model CarRental {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  pickupLocation String
+  pickupDate     DateTime
+  dropoffDate    DateTime
+  createdAt      DateTime @default(now())
+}
+
+model Tours {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  location    String
+  tourDate    DateTime
+  createdAt   DateTime @default(now())
+}
+
+model Activities {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  activity    String
+  activityDate DateTime
+  createdAt   DateTime @default(now())
+}
+
+
+//hotel registration form
+model Hotel {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  hotelName           String
+  hotelEmail          String   @unique
+  hotelPhone          String
+  hotelWebsite        String?
+  location           String
+  numRooms           Int
+  category           Int
+  facilities         String[]
+  images             String[]
+  mapUrl             String
+  cancellationPolicy String?
+  suitePrice         Float
+  DeluxeDouble       Float
+  DeluxeTwin         Float
+  createdAt          DateTime @default(now())
+}
+
