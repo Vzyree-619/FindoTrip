@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { gsap } from "gsap";
-import { Link } from "@remix-run/react";
+// import { Link } from "@remix-run/react";
 import PropTypes from "prop-types";
 
 const cars = [

@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "@remix-run/react";
-import NavBar from "../components/navigation/NavBar";
+import NavBar from "../../components/navigation/NavBar";
 import { useState } from "react";
 
 const cars = [

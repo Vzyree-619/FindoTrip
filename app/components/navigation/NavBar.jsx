@@ -45,7 +45,7 @@ const NavBar = () => {
           <Link to="/Blogs">Blogs</Link>
         </li>
         <li>
-          <button className="border border-green-500 text-green-500 px-4 py-1 rounded-md hover:bg-green-500 hover:text-white">Sign In</button>
+          <Link to="/auth" className="border border-green-500 text-green-500 px-4 py-1 rounded-md hover:bg-green-500 hover:text-white">Sign In</Link>
         </li>
         <li>
           <button className="border border-red-500 text-red-500 px-4 py-1 rounded-md hover:bg-red-500 hover:text-white" onClick={() => setShowRegisterModal(true)}>

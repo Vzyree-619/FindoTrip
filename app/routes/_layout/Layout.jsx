@@ -1,6 +1,7 @@
 // app/components/Layout.jsx
-import { Link } from 'react-router-dom';
+// import { Link } from 'react-router-dom';
 // import ExpensesList from '../components/expenses/ExpensesList';
+import PropTypes from 'prop-types';
 
 const Layout = ({ children }) => {
   return (
@@ -13,6 +14,10 @@ const Layout = ({ children }) => {
       <main>{children}</main>
     </div>
   );
+};
+
+Layout.propTypes = {
+  children: PropTypes.node
 };
 
 export default Layout;

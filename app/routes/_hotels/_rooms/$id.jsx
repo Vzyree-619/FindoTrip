@@ -1,12 +1,5 @@
-import NavBar from "../components/navigation/NavBar"
-import HomePage from '../components/RoomPages/HomePage'
-import PopularAttractions from '../components/RoomPages/PopularAttractions'
-import GuestRooms from "../components/RoomPages/GuestRooms"
-import Apartments from "../components/RoomPages/Apartments"
-import FAQ from "../components/RoomPages/Faq"
-import SubscriptionForm from '../components/HomePage/SubscriptionForm'
-import Footer from "../components/Footer"
-import { useNavigate } from "@remix-run/react";
+import { useParams } from "@remix-run/react";
+import NavBar from "../../../components/navigation/NavBar";
 
 const rooms = [
   {
@@ -59,42 +52,44 @@ const rooms = [
   }
 ];
 
-export default function Room() {
-    const navigate = useNavigate();
+export default function RoomDetail() {
+  const { id } = useParams(); // Restore dynamic ID retrieval
+  console.log('Room ID:', id); // Log the room ID
+  const room = rooms.find(r => r.id === parseInt(id));
+  console.log('Found Room:', room); // Log the found room
 
-    const handleRoomClick = (room) => {
-        navigate(`/Room/${room.id}`);
-    };
+  if (!room) {
+    return <div>Room not found</div>;
+  }
 
-    return (
-        <>
-        <NavBar/>
-      {/* <div>
-           <img className='w-[100vw] rounded h-[75vh] object-cover object-[50%_35%]' src="homePage.png" alt="homeImg" />
-      </div> */}
-      <HomePage/>
-      <PopularAttractions/>
+  return (
+    <>
+      <NavBar />
       <div className="p-4">
-        <h1 className="text-2xl font-bold mb-6">Guest Rooms</h1>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-          {rooms.map((room) => (
-            <div key={room.id} className="bg-white shadow rounded-lg overflow-hidden">
-              <img src={room.image} alt={room.title} className="w-full h-40 object-cover" />
-              <div className="p-4">
-                <h2 className="text-lg font-semibold">{room.title}</h2>
-                <p className="text-gray-500">{room.location}</p>
-                <p className="text-sm text-blue-600">Starting from PKR {room.price}</p>
-                <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-2" onClick={() => handleRoomClick(room)}>View Details</button>
-              </div>
-            </div>
-          ))}
+        <h1 className="text-2xl font-bold mb-4">{room.title} - Details</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <img src={room.image} alt={room.title} className="w-full h-40 object-cover rounded mb-4" />
+          </div>
+          <div>
+            <p className="mb-2">Location: {room.location}</p>
+            <p className="mb-2">Price: PKR {room.price}</p>
+            <h3 className="font-semibold mt-2">Amenities:</h3>
+            <ul className="list-disc pl-5">
+              {room.amenities.map((amenity, i) => (
+                <li key={i}>{amenity}</li>
+              ))}
+            </ul>
+            <h3 className="font-semibold mt-2">Room Types:</h3>
+            <ul className="list-disc pl-5">
+              {room.roomTypes.map((type, i) => (
+                <li key={i}>{type.name} - {type.price} - {type.description}</li>
+              ))}
+            </ul>
+            <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-2">Chat with Us</button>
+          </div>
         </div>
       </div>
-      <Apartments/>
-      <FAQ/>
-<SubscriptionForm/>
-<Footer/>
-
-        </>
-    )
-}
+    </>
+  );
+} 

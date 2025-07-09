@@ -1,4 +1,4 @@
-import NavBar from "../components/navigation/NavBar";
+import NavBar from "../../components/navigation/NavBar";
 import { useState } from "react";
 
 export default function CarPay() {

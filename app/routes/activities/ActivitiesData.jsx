@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLoaderData } from '@remix-run/react';
-import { getActivitiesData } from '../data/input.server';
-
+import { getActivitiesData } from '../../data/input.server';
+React;
 export default function ActivitiesData() {
   const data = useLoaderData();
 

@@ -1,8 +1,8 @@
 
 import React from 'react';
 import { useLoaderData } from '@remix-run/react';
-import { getTourData } from '../data/input.server';
-
+import { getTourData } from '../../data/input.server';
+React;
 export default function TourData() {
   const data = useLoaderData();
 

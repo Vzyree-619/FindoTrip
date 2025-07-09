@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLoaderData } from '@remix-run/react';
-import { getHotelData } from '../data/input.server';
-
+import { getHotelData } from '../../data/input.server';
+React;
 export default function HotelData() {
   // Fetch data using Remix loader
   const data = useLoaderData();

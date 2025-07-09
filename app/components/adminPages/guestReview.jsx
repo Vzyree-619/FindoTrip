@@ -19,9 +19,16 @@ export default function GuestReviews() {
             6.2
           </span>
           <p className="text-lg font-semibold">Pleasant · 5 reviews</p>
-          <a href="#" className="text-blue-600 hover:underline text-sm">
+          <button
+            type="button"
+            className="text-blue-600 hover:underline text-sm bg-transparent border-none p-0 cursor-pointer"
+            aria-label="Read all reviews"
+            onClick={() => {
+              // TODO: handle read all reviews action
+            }}
+          >
             Read all reviews
-          </a>
+          </button>
         </div>
   
         {/* Categories */}

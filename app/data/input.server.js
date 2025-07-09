@@ -2,10 +2,10 @@
 
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
-import { MongoClient, GridFSBucket } from 'mongodb';
+// import { MongoClient, GridFSBucket } from 'mongodb';
 
 
-console.log("DATABASE_URL:", process.env.DATABASE_URL);
+// console.log("DATABASE_URL:", process.env.DATABASE_URL);
 export async function addData({ destination, checkIn, checkOut, adults, childs, rooms }) {
   try {
     // Insert a single document (not a transaction)
@@ -218,7 +218,7 @@ export async function getCarData() {
 }
 
 //tour data get 
-export async function getCarData() {
+export async function getToursData() {
   try {
     const result = await prisma.$runCommandRaw({
       find: "Tours",

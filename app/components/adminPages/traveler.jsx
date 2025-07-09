@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PropTypes from "prop-types";
 import { FaComments, FaChevronDown, FaChevronRight } from "react-icons/fa";
 
 export default function TravelersAsking({ travelersAsking = [] }) {
@@ -30,7 +31,15 @@ export default function TravelersAsking({ travelersAsking = [] }) {
           <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md">
             <div
               className="flex items-center justify-between cursor-pointer"
+              role="button"
+              tabIndex={0}
               onClick={() => toggleAnswer(index)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggleAnswer(index);
+                }
+              }}
             >
               <div className="flex items-center space-x-2">
                 <span className="text-gray-500">
@@ -51,3 +60,12 @@ export default function TravelersAsking({ travelersAsking = [] }) {
     </div>
   );
 }
+
+TravelersAsking.propTypes = {
+  travelersAsking: PropTypes.arrayOf(
+    PropTypes.shape({
+      question: PropTypes.string.isRequired,
+      answer: PropTypes.string.isRequired,
+    })
+  ),
+};

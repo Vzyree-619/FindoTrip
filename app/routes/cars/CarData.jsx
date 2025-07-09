@@ -37,8 +37,8 @@
 // }
 import React from 'react';
 import { useLoaderData } from '@remix-run/react';
-import { getCarData } from '../data/input.server';
-
+import { getCarData } from '../../data/input.server';
+React;
 export default function CarData() {
   const data = useLoaderData();
 

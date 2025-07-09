@@ -48,6 +48,7 @@
 import { MdEmojiPeople } from "react-icons/md";
 import { Link } from "@remix-run/react";
 import { FaUser } from "react-icons/fa";
+import PropTypes from "prop-types";
 
 export default function Pricing({ hotel }) {
   if (!hotel) {
@@ -131,3 +132,19 @@ export default function Pricing({ hotel }) {
     </div>
   );
 }
+
+Pricing.propTypes = {
+  hotel: PropTypes.shape({
+    rooms: PropTypes.arrayOf(
+      PropTypes.shape({
+        type: PropTypes.string,
+        guests: PropTypes.number,
+        price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      })
+    ),
+    suitePrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    DeluxeDouble: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    DeluxeTwin: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  }),
+};
+

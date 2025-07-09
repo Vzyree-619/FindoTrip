@@ -121,14 +121,16 @@ export default function TourPackages() {
             alt="Tour Location"
             className="w-full h-full object-cover md:rounded-r-xl"
           />
-          <div 
+          <button
             ref={exploreBtnRef}
-            className="absolute top-4 right-4 flex items-center text-sm bg-white px-3 py-1 rounded-full shadow cursor-pointer"
+            type="button"
+            className="absolute top-4 right-4 flex items-center text-sm bg-white px-3 py-1 rounded-full shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500"
             onClick={handleExplore}
+            aria-label="Explore next tour package"
           >
             <span className="mr-1">Explore</span>
             <ChevronRight className="w-4 h-4" />
-          </div>
+          </button>
           <h1
             ref={headingRef}
             className="absolute bottom-4 left-4 text-white text-xl font-semibold drop-shadow-lg"
