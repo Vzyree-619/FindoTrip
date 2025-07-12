@@ -21,7 +21,11 @@ const NavBar = () => {
       {/* Logo */}
       <div className="text-xl font-bold text-green-600">
         <Link to="/">
-          <img src="/FindoTripLogo.png" alt="Findo Trip Logo" className="h-10 w-auto" />
+          <img
+            src="/FindoTripLogo.png"
+            alt="Findo Trip Logo"
+            className="h-10 w-auto"
+          />
         </Link>
       </div>
 
@@ -42,13 +46,18 @@ const NavBar = () => {
           <Link to="/Tours">Tours</Link>
         </li>
         <li className="hover:text-green-500 cursor-pointer">
-          <Link to="/Blogs">Blogs</Link>
+          <Link to="/blog">Blogs</Link>
         </li>
         <li>
-          <button className="border border-green-500 text-green-500 px-4 py-1 rounded-md hover:bg-green-500 hover:text-white">Sign In</button>
+          <button className="border border-green-500 text-green-500 px-4 py-1 rounded-md hover:bg-green-500 hover:text-white">
+            Sign In
+          </button>
         </li>
         <li>
-          <button className="border border-red-500 text-red-500 px-4 py-1 rounded-md hover:bg-red-500 hover:text-white" onClick={() => setShowRegisterModal(true)}>
+          <button
+            className="border border-red-500 text-red-500 px-4 py-1 rounded-md hover:bg-red-500 hover:text-white"
+            onClick={() => setShowRegisterModal(true)}
+          >
             Register
           </button>
         </li>
@@ -58,11 +67,26 @@ const NavBar = () => {
       {showRegisterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-xs relative">
-            <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-800" onClick={() => setShowRegisterModal(false)}>&times;</button>
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
+              onClick={() => setShowRegisterModal(false)}
+            >
+              &times;
+            </button>
             <h2 className="text-xl font-bold mb-4 text-center">Register As</h2>
             <div className="flex flex-col gap-4">
-              <Link to="/signup?type=user" className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 text-center">User</Link>
-              <Link to="/signup?type=provider" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-center">Service Provider</Link>
+              <Link
+                to="/signup?type=user"
+                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 text-center"
+              >
+                User
+              </Link>
+              <Link
+                to="/signup?type=provider"
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-center"
+              >
+                Service Provider
+              </Link>
             </div>
           </div>
         </div>
@@ -84,13 +108,20 @@ const NavBar = () => {
             <Link to="/Tours">Tours</Link>
           </li>
           <li className="hover:text-green-500 cursor-pointer">
-            <Link to="/Blogs">Blogs</Link>
+            <Link to="/blog">Blogs</Link>
           </li>
           <li>
-            <button className="border border-green-500 text-green-500 px-4 py-1 rounded-md w-full hover:bg-green-500 hover:text-white">Sign In</button>
+            <button className="border border-green-500 text-green-500 px-4 py-1 rounded-md w-full hover:bg-green-500 hover:text-white">
+              Sign In
+            </button>
           </li>
           <li>
-            <button className="border border-red-500 text-red-500 px-4 py-1 rounded-md w-full hover:bg-red-500 hover:text-white" onClick={() => setShowRegisterModal(true)}>Register</button>
+            <button
+              className="border border-red-500 text-red-500 px-4 py-1 rounded-md w-full hover:bg-red-500 hover:text-white"
+              onClick={() => setShowRegisterModal(true)}
+            >
+              Register
+            </button>
           </li>
         </ul>
       </div>
