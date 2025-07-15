@@ -50,7 +50,7 @@ const NavBar = () => {
         </li>
         <li>
           <button className="border border-green-500 text-green-500 px-4 py-1 rounded-md hover:bg-green-500 hover:text-white">
-            Sign In
+             <Link to="/login"> Sign In</Link>
           </button>
         </li>
         <li>
@@ -112,7 +112,8 @@ const NavBar = () => {
           </li>
           <li>
             <button className="border border-green-500 text-green-500 px-4 py-1 rounded-md w-full hover:bg-green-500 hover:text-white">
-              Sign In
+             
+            <Link to="/login"> Sign In</Link>
             </button>
           </li>
           <li>
