@@ -37,16 +37,16 @@ const NavBar = () => {
       {/* Desktop Menu */}
       <ul className="hidden md:flex space-x-6 font-semibold items-center">
         <li className="hover:text-green-500 cursor-pointer">
-          <Link to="/Room">Rooms</Link>
+          <Link to="/rooms">Rooms</Link>
         </li>
         <li className="hover:text-green-500 cursor-pointer">
-          <Link to="/CarRent">Car Rentals</Link>
+          <Link to="/car_rentals">Car Rentals</Link>
         </li>
         <li className="hover:text-green-500 cursor-pointer">
-          <Link to="/Tours">Tours</Link>
+          <Link to="/tours">Tours</Link>
         </li>
         <li className="hover:text-green-500 cursor-pointer">
-          <Link to="/blog">Blogs</Link>
+          <Link to="/blogs">Blogs</Link>
         </li>
         <li>
           <button className="border border-green-500 text-green-500 px-4 py-1 rounded-md hover:bg-green-500 hover:text-white">
@@ -99,16 +99,16 @@ const NavBar = () => {
       >
         <ul className="space-y-4 font-semibold">
           <li className="hover:text-green-500 cursor-pointer">
-            <Link to="/Room">Rooms</Link>
+            <Link to="/rooms">Rooms</Link>
           </li>
           <li className="hover:text-green-500 cursor-pointer">
-            <Link to="/CarRent">Car Rentals</Link>
+            <Link to="/car_rentals">Car Rentals</Link>
           </li>
           <li className="hover:text-green-500 cursor-pointer">
-            <Link to="/Tours">Tours</Link>
+            <Link to="/tours">Tours</Link>
           </li>
           <li className="hover:text-green-500 cursor-pointer">
-            <Link to="/blog">Blogs</Link>
+            <Link to="/blogs">Blogs</Link>
           </li>
           <li>
             <button className="border border-green-500 text-green-500 px-4 py-1 rounded-md w-full hover:bg-green-500 hover:text-white">
