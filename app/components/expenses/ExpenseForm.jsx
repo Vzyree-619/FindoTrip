@@ -319,31 +319,31 @@ export default function ExpenseForm() {
       <form method="post" action="/input" encType="multipart/form-data" className="space-y-4">
         <div>
           <input type="hidden" name="formType" value="hotel" />
-          <label className="block text-sm font-medium text-gray-700">Hotel Name</label>
+          <label htmlFor="HotelName" className="block text-sm font-medium text-gray-700">Hotel Name</label>
           <input type="text" name="hotelName" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" required />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Hotel Email</label>
+          <label htmlFor="HotelEmail" className="block text-sm font-medium text-gray-700">Hotel Email</label>
           <input type="email" name="hotelEmail" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" required />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Hotel Phone Number</label>
+          <label htmlFor="HotelPhoneNumber" className="block text-sm font-medium text-gray-700">Hotel Phone Number</label>
           <input type="tel" name="hotelPhone" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" required />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Hotel Website</label>
+          <label htmlFor="HotelWebsite" className="block text-sm font-medium text-gray-700">Hotel Website</label>
           <input type="url" name="hotelWebsite" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Location</label>
+          <label htmlFor="Location" className="block text-sm font-medium text-gray-700">Location</label>
           <input type="text" name="location" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" required />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Number of Rooms</label>
+          <label htmlFor="NumberofRooms" className="block text-sm font-medium text-gray-700">Number of Rooms</label>
           <input type="number" name="numRooms" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" required />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Hotel Category</label>
+          <label htmlFor="HotelCategory" className="block text-sm font-medium text-gray-700">Hotel Category</label>
           <select name="category" className="block w-full p-2 mt-1 border border-gray-300 rounded-md">
             <option value="1">1 Star</option>
             <option value="2">2 Stars</option>
@@ -353,7 +353,7 @@ export default function ExpenseForm() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Facilities</label>
+          <label htmlFor="Facilities" className="block text-sm font-medium text-gray-700">Facilities</label>
           <div className="grid grid-cols-2 gap-2">
             <label><input type="checkbox" name="facilities" value="WiFi" /> WiFi</label>
             <label><input type="checkbox" name="facilities" value="Parking" /> Parking</label>
@@ -375,7 +375,7 @@ export default function ExpenseForm() {
 
         {/* Image/Iframe URL Input Fields */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">Image URLs or Embedded Iframes</label>
+          <label htmlFor="ImageUrls" className="block text-sm font-medium text-gray-700">Image URLs or Embedded Iframes</label>
           {imageUrls.map((url, index) => (
             <div key={index} className="flex items-center gap-2 mt-2">
               <input
@@ -406,7 +406,7 @@ export default function ExpenseForm() {
 
         {/* Preview Images/Iframes Section */}
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700">Previews</label>
+          <label htmlFor="Previews" className="block text-sm font-medium text-gray-700">Previews</label>
           <div className="grid grid-cols-2 gap-2 mt-2">
             {imageUrls.map((url, index) => (
               url ? (
@@ -458,25 +458,25 @@ export default function ExpenseForm() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Google Maps Embed Iframe</label>
+          <label htmlFor="GoogleMaps" className="block text-sm font-medium text-gray-700">Google Maps Embed Iframe</label>
           <input type="text" name="mapUrl" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" placeholder="Paste the iframe embed code here" required />
           <p className="mt-1 text-xs text-gray-500">To get the iframe: Open Google Maps, search for your location, click "Share" '' "Embed a map" Copy the iframe code.</p>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Cancellation Policy</label>
+          <label htmlFor="Cancellation" className="block text-sm font-medium text-gray-700">Cancellation Policy</label>
           <textarea name="cancellationPolicy" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Suite/Luxury Room Price</label>
+          <label htmlFor="Suite/Luxury" className="block text-sm font-medium text-gray-700">Suite/Luxury Room Price</label>
           <input type="number" name="suitePrice" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" required />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Deluxe Double Room</label>
+          <label htmlFor="DeluxeDouble" className="block text-sm font-medium text-gray-700">Deluxe Double Room</label>
           <input type="number" name="DeluxeDouble" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" required />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Deluxe Twin Room</label>
-          <input type="number" name="DeluxeTwin" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" required />
+          <label htmlFor="DeluxeTwin" className="block text-sm font-medium text-gray-700">Deluxe Twin Room</label>
+          <input id="DeluxeTwin" type="number" name="DeluxeTwin" className="block w-full p-2 mt-1 border border-gray-300 rounded-md" required />
         </div>
         <button type="submit" className="w-full px-4 py-2 font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700">
           Submit

@@ -157,9 +157,7 @@ export default function CarRentalScroll() {
               <img
                 src={car.img}
                 alt={car.name}
-                layout="fill"
-                objectFit="contain"
-                className="rounded  h-[30vh] select-none"
+                className="rounded h-[30vh] select-none object-contain"
               />
             </div>
           

@@ -17,7 +17,7 @@ const NavBar = () => {
   }, [isOpen]);
 
   return (
-    <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center relative">
+    <nav className="bg-white shadow-md px-6 py-2 flex justify-between items-center relative">
       {/* Logo */}
       <div className="text-xl font-bold text-green-600">
         <Link to="/">
@@ -31,9 +31,9 @@ const NavBar = () => {
       </button>
 
       {/* Desktop Menu */}
-      <ul className="hidden md:flex space-x-6 font-semibold items-center">
+      <ul className="hidden md:flex space-x-6 font-normal items-center">
         <li className="hover:text-green-500 cursor-pointer">
-          <Link to="/Room">Rooms</Link>
+          <Link to="/hotels/rooms/Room">Rooms</Link>
         </li>
         <li className="hover:text-green-500 cursor-pointer">
           <Link to="/CarRent">Car Rentals</Link>
@@ -45,10 +45,10 @@ const NavBar = () => {
           <Link to="/Blogs">Blogs</Link>
         </li>
         <li>
-          <Link to="/auth" className="border border-green-500 text-green-500 px-4 py-1 rounded-md hover:bg-green-500 hover:text-white">Sign In</Link>
+          <Link to="/auth" className="border-2 items-center border-[#01502E] text-[#01502E] px-4 py-1 rounded-md hover:bg-[#01502E] hover:text-white">Sign In</Link>
         </li>
         <li>
-          <button className="border border-red-500 text-red-500 px-4 py-1 rounded-md hover:bg-red-500 hover:text-white" onClick={() => setShowRegisterModal(true)}>
+          <button className="border-2 border-red-500 text-red-500 px-4 py-1 rounded-md hover:bg-red-500 hover:text-white" onClick={() => setShowRegisterModal(true)}>
             Register
           </button>
         </li>

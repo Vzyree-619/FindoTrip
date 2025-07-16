@@ -3,13 +3,13 @@ import { Link } from "@remix-run/react";
 
 export default function Register() {
     return (
-      <div className="w-[99vw] overflow-hidden relative">
-        <div className="relative flex items-center justify-center p-6">
+      <div className="w-[99vw] overflow-hidden relative h-[60vh]">
+        <div className="relative flex items-center justify-center py-6">
           {/* Image */}
           <img
             src="/registration.jpg"
             alt="Registration"
-            className="w-[90vw] h-[70vh] rounded-lg shadow-md select-none object-cover"
+            className="w-[95vw] h-[70vh] rounded-lg shadow-md select-none object-cover"
             draggable={false}
           />
   

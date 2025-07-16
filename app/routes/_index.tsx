@@ -1,5 +1,5 @@
 // import type { MetaFunction } from "@remix-run/node";
-import InputForm from "~/components/HomePage/InputForm";
+import InputForm from "~/components/HomePage/InputForm/InputForm";
 import NavBar from "../components/navigation/NavBar";
 // import AddPage from "../components/HomePage/AddPage"
 import Footer from "../components/Footer";

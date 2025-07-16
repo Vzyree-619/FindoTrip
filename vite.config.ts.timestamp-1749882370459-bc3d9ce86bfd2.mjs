@@ -2,11 +2,14 @@
 import { vitePlugin as remix } from "file:///D:/findo-main/node_modules/@remix-run/dev/dist/index.js";
 import { defineConfig } from "file:///D:/findo-main/node_modules/vite/dist/node/index.js";
 import tsconfigPaths from "file:///D:/findo-main/node_modules/vite-tsconfig-paths/dist/index.mjs";
+import { flatRoutes } from "file:///D:/findo-main/node_modules/remix-flat-routes/dist/index.js";
 var vite_config_default = defineConfig({
   plugins: [
     remix({
+       routes: async (defineRoutes) => {
+        return flatRoutes('routes', defineRoutes);
+      },
       future: {
-         v3_flatRoutes: true,
         v3_fetcherPersist: true,
         v3_relativeSplatPath: true,
         v3_throwAbortReason: true,
