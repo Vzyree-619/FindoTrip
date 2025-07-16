@@ -14,7 +14,7 @@ export default function Room() {
       <NavBar />
 
       <Landing />
-      <AddPage />
+      {/* <AddPage /> */}
       <BlogSection onReadBlog={(blog) => navigate(`/blog/${blog.id}`)} />
       <FAQ />
       <SubscriptionForm />

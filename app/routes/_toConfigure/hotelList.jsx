@@ -87,7 +87,7 @@
 //                 ))}
 //               </div>
 
-//                 {/* { - Price and Button */} 
+//                 {/* { - Price and Button */}
 //           <div className="text-right flex flex-col items-start ">
 //             {/* Price */}
 //             <div className="mt-3">
@@ -109,7 +109,6 @@
 //             </div>
 //           </div>
 
-        
 //         </div>
 //       ))}
 //     </div>
@@ -120,7 +119,7 @@ import { useLoaderData } from "@remix-run/react";
 import { useState } from "react";
 import { FaStar } from "react-icons/fa";
 import HotelDetails from "./HotelDetails";
-import { getHotel } from "../data/input.server";
+import { getHotel } from "../../data/input.server";
 
 export async function loader() {
   try {
@@ -147,7 +146,10 @@ export default function HotelList() {
     <div className="max-w-5xl mx-auto p-4 space-y-4">
       {selectedHotel ? (
         // Show Hotel Details
-        <HotelDetails hotel={selectedHotel} onBack={() => setSelectedHotel(null)} />
+        <HotelDetails
+          hotel={selectedHotel}
+          onBack={() => setSelectedHotel(null)}
+        />
       ) : (
         // Show Hotel List
         hotels.map((hotel) => (
@@ -179,7 +181,8 @@ export default function HotelList() {
 
                 {/* Room Type */}
                 <p className="text-sm mt-2">
-                  <span className="font-semibold">Room Type:</span> {hotel.roomType}
+                  <span className="font-semibold">Room Type:</span>{" "}
+                  {hotel.roomType}
                 </p>
 
                 {/* Facilities */}
@@ -203,7 +206,9 @@ export default function HotelList() {
                         {hotel.originalPrice}
                       </span>
                     )}
-                    <span className="text-lg font-bold text-blue-600">{hotel.price}</span>
+                    <span className="text-lg font-bold text-blue-600">
+                      {hotel.price}
+                    </span>
                   </div>
 
                   {/* Availability Button */}

@@ -19,8 +19,7 @@
 //               <h2 className="text-xl font-semibold mb-2">Destination: {cars.pickupLocation}</h2>
 //               <p className="mb-1">Check-In: {cars.pickupDate}</p>
 //               <p className="mb-1">Check-Out: {cars.dropoffDate}</p>
-            
-             
+
 //             </div>
 //           ))
 //         ) : (
@@ -35,9 +34,9 @@
 // export async function loader() {
 //   return getCarData();
 // }
-import React from 'react';
-import { useLoaderData } from '@remix-run/react';
-import { getCarData } from '../data/input.server';
+import React from "react";
+import { useLoaderData } from "@remix-run/react";
+import { getCarData } from "../../data/input.server";
 
 export default function CarData() {
   const data = useLoaderData();
@@ -53,13 +52,19 @@ export default function CarData() {
               className="p-4 bg-white rounded-lg shadow-md hover:shadow-xl transition duration-300"
             >
               <h2 className="text-xl font-semibold mb-2">
-                 Location: {car.pickupLocation || 'Unknown'}
+                Location: {car.pickupLocation || "Unknown"}
               </h2>
               <p className="mb-1">
-              PickUp Date: {car.pickupDate ? new Date(car.pickupDate).toLocaleDateString() : 'N/A'}
+                PickUp Date:{" "}
+                {car.pickupDate
+                  ? new Date(car.pickupDate).toLocaleDateString()
+                  : "N/A"}
               </p>
               <p className="mb-1">
-              DropOf Date: {car.dropoffDate ? new Date(car.dropoffDate).toLocaleDateString() : 'N/A'}
+                DropOf Date:{" "}
+                {car.dropoffDate
+                  ? new Date(car.dropoffDate).toLocaleDateString()
+                  : "N/A"}
               </p>
             </div>
           ))

@@ -1,5 +1,5 @@
 // app/components/Layout.jsx
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 // import ExpensesList from '../components/expenses/ExpensesList';
 
 const Layout = ({ children }) => {
@@ -7,7 +7,6 @@ const Layout = ({ children }) => {
     <div>
       <header>
         <h1>shared data page</h1>
-       
       </header>
       {/* <ExpensesList/> */}
       <main>{children}</main>

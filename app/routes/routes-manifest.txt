@@ -1,6 +1,0 @@
-car.$id.jsx
-carPay.jsx
-tour.$id.jsx
-tourPay.jsx
-blog.$id.jsx
-blogPay.jsx 

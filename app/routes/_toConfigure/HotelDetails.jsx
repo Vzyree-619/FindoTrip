@@ -1,9 +1,17 @@
 import { useState } from "react";
-import { FaWifi, FaHotTub, FaParking, FaSwimmingPool, FaUtensils, FaSnowflake, FaDumbbell } from "react-icons/fa";
-import TravelersAsking from "../components/adminPages/traveler";
-import GuestReviews from "../components/adminPages/guestReview";
-import Comment from "../components/adminPages/comments";
-import Priceing from "../components/hotelPages/Priceing";
+import {
+  FaWifi,
+  FaHotTub,
+  FaParking,
+  FaSwimmingPool,
+  FaUtensils,
+  FaSnowflake,
+  FaDumbbell,
+} from "react-icons/fa";
+import TravelersAsking from "../../components/adminPages/traveler";
+import GuestReviews from "../../components/adminPages/guestReview";
+import Comment from "../../components/adminPages/comments";
+import Priceing from "../../components/hotelPages/Priceing";
 import HotelPage from "./HotelPage";
 
 export default function HotelDetails({ hotel, onBack }) {
@@ -14,7 +22,10 @@ export default function HotelDetails({ hotel, onBack }) {
 
   return (
     <div className="p-4">
-      <button onClick={onBack} className="mb-4 px-4 py-2 bg-gray-500 text-white rounded">
+      <button
+        onClick={onBack}
+        className="mb-4 px-4 py-2 bg-gray-500 text-white rounded"
+      >
         ← Back
       </button>
 
