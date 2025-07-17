@@ -1,4 +1,3 @@
-import NavBar from "../../components/navigation/NavBar";
 import Landing from "../../components/Blogs/Landing";
 import BlogSection from "../../components/Blogs/BlogSection";
 import AddPage from "../../components/Blogs/AddPage";
@@ -11,8 +10,6 @@ export default function Room() {
   const navigate = useNavigate();
   return (
     <>
-      <NavBar />
-
       <Landing />
       {/* <AddPage /> */}
       <BlogSection onReadBlog={(blog) => navigate(`/blog/${blog.id}`)} />

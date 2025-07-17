@@ -1,4 +1,3 @@
-import NavBar from "../../components/navigation/NavBar";
 import HomePage from "../../components/RoomPages/HomePage";
 import PopularAttractions from "../../components/RoomPages/PopularAttractions";
 import GuestRooms from "../../components/RoomPages/GuestRooms";
@@ -121,7 +120,6 @@ export default function Rooms() {
 
   return (
     <>
-      <NavBar />
       {/* <div>
            <img className='w-[100vw] rounded h-[75vh] object-cover object-[50%_35%]' src="homePage.png" alt="homeImg" />
       </div> */}
