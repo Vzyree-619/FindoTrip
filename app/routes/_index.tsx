@@ -14,7 +14,7 @@ export default function Index() {
   return (
    <>
 <div className="div overflow-y-hidden">
-<NavBar/>
+
 <InputForm />
 <AddPage/>
 <Stays/>
