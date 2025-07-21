@@ -34,7 +34,9 @@ const CommentSlider = () => {
       duration: 0.6,
       ease: "power2.inOut",
       onComplete: () => {
-        setIndex((prev) => (prev - 1 + commentsData.length) % commentsData.length);
+        setIndex(
+          (prev) => (prev - 1 + commentsData.length) % commentsData.length
+        );
         gsap.set(sliderRef.current, { x: "-100%", opacity: 0 });
         gsap.to(sliderRef.current, { x: "0%", opacity: 1, duration: 0.6 });
       },
@@ -50,7 +52,10 @@ const CommentSlider = () => {
         ❮
       </button>
 
-      <div ref={sliderRef} className="w-4/5 text-center p-6 bg-white rounded-lg shadow-lg">
+      <div
+        ref={sliderRef}
+        className="w-4/5 text-center p-6 bg-white rounded-lg shadow-lg"
+      >
         <h3 className="text-lg font-semibold">{commentsData[index].name}</h3>
         <p className="text-sm text-gray-500">{commentsData[index].country}</p>
         <p className="mt-2 text-gray-700">{commentsData[index].text}</p>

@@ -1,50 +1,52 @@
-import { Form } from "@remix-run/react";
-import { FaLock } from "react-icons/fa";
-
+import {
+  Form,
+  Link,
+  useActionData,
+  useSearchParams,
+  useTransition as useNavigation,
+} from "@remix-run/react";
+import { FaLock, FaUserPlus } from "react-icons/fa";
 
 function AuthForm() {
+  const [searchParams] = useSearchParams();
+  const navigation = useNavigation();
+  const validationErrors = useActionData();
+
+  const authMode = searchParams.get("mode") || "login";
+
+  const submitBtnCaption = authMode === "login" ? "Login" : "Create User";
+  const toggleBtnCaption =
+    authMode === "login" ? "Create a new user" : "Log in with existing user";
+
+  const isSubmitting = navigation.state !== "idle";
+
   return (
-    <Form
-      method="post"
-      className="max-w-md mx-auto mt-8 p-6 bg-blue-200 text-gray-900 rounded-lg shadow-lg text-center animate-fadeInUp"
-    >
-      <div className="w-16 h-16 flex items-center justify-center border-2 border-blue-600 rounded-full mb-4 mx-auto">
-        <FaLock className="text-xl text-blue-600" />
+    <Form method="post" className="form" id="auth-form">
+      <div className="icon-img">
+        {authMode === "login" ? <FaLock /> : <FaUserPlus />}
       </div>
-      <p className="mb-4">
-        <label htmlFor="email" className="block text-sm font-semibold mb-1">
-          Email Address
-        </label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          required
-          className="w-full px-4 py-2 border rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      <p>
+        <label htmlFor="email">Email Address</label>
+        <input type="email" id="email" name="email" required />
       </p>
-      <p className="mb-4">
-        <label htmlFor="password" className="block text-sm font-semibold mb-1">
-          Password
-        </label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          minLength={7}
-          className="w-full px-4 py-2 border rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      <p>
+        <label htmlFor="password">Password</label>
+        <input type="password" id="password" name="password" minLength={7} />
       </p>
-      <div className="flex flex-col gap-3">
-        <button className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition">
-          Login
+      {validationErrors && (
+        <ul>
+          {Object.values(validationErrors).map((error) => (
+            <li key={error}>{error}</li>
+          ))}
+        </ul>
+      )}
+      <div className="form-actions">
+        <button disabled={isSubmitting}>
+          {isSubmitting ? "Authenticating..." : submitBtnCaption}
         </button>
-        <a
-          href="/auth"
-          className="text-xs text-blue-600 hover:text-blue-800 transition"
-        >
-          Log in with existing user
-        </a>
+        <Link to={authMode === "login" ? "?mode=signup" : "?mode=login"}>
+          {toggleBtnCaption}
+        </Link>
       </div>
     </Form>
   );
