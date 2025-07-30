@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect } from "react";
+import { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { gsap } from "gsap";
 import { ChevronDown } from "lucide-react";
 
@@ -25,7 +25,10 @@ export default function FAQ() {
   const [openIndex, setOpenIndex] = useState(null);
   const answerRefs = useRef([]);
 
-  useLayoutEffect(() => {
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+  useIsomorphicLayoutEffect(() => {
     faqData.forEach((_, index) => {
       if (answerRefs.current[index]) {
         gsap.set(answerRefs.current[index], { height: 0, overflow: "hidden" });
