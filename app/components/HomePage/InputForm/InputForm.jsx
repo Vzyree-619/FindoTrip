@@ -69,7 +69,7 @@ export default function InputForm() {
 
   return (
     <div className="relative h-[70%]">
-        <div className="absolute  top-[35vh] left-[10vw] mx-auto z-10 flex justify-start font-bold text-2xl p-3 m-2">
+      <div className="absolute top-[16vh] left-[5vw] md:top-[30vh] md:left-[8vw] lg:top-[35vh] lg:left-[10vw] mx-auto z-10 flex justify-start font-bold text-2xl p-3 m-2">
         <h1 className="text-4xl text-white font-normal font-blauer sm:text-4xl md:text-5xl lg:text-6xl">
           The Best <br /> Experience Unlocked!
         </h1>
@@ -90,29 +90,36 @@ export default function InputForm() {
           </ul>
         </div>
       )}
-      <div className="absolute inset-0 top-[65%] mx-auto max-w-6xl">
-        <div className="flex w-fit mx-auto border border-orange-500 rounded-t-lg bg-white">
-          {activeButton.map((item, index) => (
-            <button
-              key={item.id}
-              onClick={() => setIsActiveTab(item.id)}
-              className={`py-2 px-4 lg:px-14 sm:px-8 md:px-10 text-sm font-medium h-[4vmax] lg:h-[3.5vmax]
-                ${index !== activeButton.length - 1 ? "border-r border-orange-500" : "rounded-tr"}
+      <div className="absolute inset-0 mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%]  lg:6xl sm:2xl ">
+        <form method="POST" action="/your-search-endpoint" className="w-full">
+          <div className="flex w-full lg:w-fit  mx-auto border border-orange-500 rounded-t-lg bg-white ">
+            {activeButton.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                onClick={() => setIsActiveTab(item.id)}
+                className={`h-[8vh] w-full md:h-[6vh] lg:px-14 sm:px-8 md:px-10 text-sm lg:font-medium  lg:h-[7vh] lg:w-fit
+                ${
+                  index !== activeButton.length - 1
+                    ? "border-r border-orange-500"
+                    : "rounded-tr"
+                }
                 ${index === 0 ? "rounded-tl" : ""}
                 ${
                   item.id === isActiveTab
                     ? "bg-green-900 text-white"
                     : "bg-white text-black"
                 }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="border border-orange-500 mx-auto max-w-5xl font-normal text-sm bg-white">
-          {activeTabMapping[isActiveTab]}
-        </div>
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="border border-orange-500 mx-auto max-w-5xl font-normal text-sm bg-white">
+            {activeTabMapping[isActiveTab]}
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -135,23 +142,29 @@ function Hotel({ formConfig }) {
         ))}
         <button
           type="submit"
-          className="font-medium block w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search
         </button>
       </div>
-      <div className="grid grid-flow-col w-full bg-white">
+      <div className="grid w-full grid-cols-1 border-x border-b border-orange-500 bg-white md:grid-cols-2 lg:grid-cols-3">
         {formConfig.hotel.fields.slice(1).map((field) => (
           <div
             key={field.name}
-            className="flex py-2 px-4 items-center border-r border-orange-500"
+            className="flex py-1 px-0 lg:px-2 md:py-2 md:px-4 items-center border-r border-orange-500 border-b"
           >
-            <div className="flex w-full justify-start text-left">
+            <div className="flex w-32 h-14 lg:h-auto md:w-full justify-start text-left">
               <DatePicker field={field} />
             </div>
           </div>
         ))}
         <Guests />
+        <button
+          type="submit"
+          className="md:hidden h-14  font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+        >
+          Search
+        </button>
       </div>
     </>
   );
@@ -174,23 +187,32 @@ function CarRental({ formConfig }) {
         ))}
         <button
           type="submit"
-          className="font-medium block w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search
         </button>
       </div>
-      <div className="grid grid-flow-col w-full bg-white">
+      <div className="grid w-full grid-cols-1 border-x border-b border-orange-500 bg-white md:grid-cols-2 lg:grid-cols-3">
         {formConfig.carRental.fields.slice(1).map((field) => (
-          <div
-            key={field.name}
-            className="flex py-2 px-4 items-center border-r border-orange-500"
-          >
-            <div className="flex w-full justify-start text-left">
-              <DatePicker field={field} />
+          <>
+            <div
+              key={field.name}
+              className="flex py-1 px-0 md:px-2 md:py-2 lg:px-4 items-center border-r border-orange-500 border-b"
+            >
+              <div className="flex w-32 h-14 lg:h-auto md:w-full justify-start text-left">
+                <DatePicker field={field} />
+              </div>
             </div>
-          </div>
+            {field.name === "pickupDate" && <Guests />}
+          </>
         ))}
-        <Guests />
+
+        <button
+          type="submit"
+          className="md:hidden h-14  font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+        >
+          Search
+        </button>
       </div>
     </>
   );
@@ -213,24 +235,30 @@ function Tours({ formConfig }) {
         ))}
         <button
           type="submit"
-          className="font-medium block w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search
         </button>
       </div>
-      <div className="grid grid-flow-col w-full bg-white">
+      <div className="grid w-full grid-cols-1 border-x border-b border-orange-500 bg-white md:grid-cols-2 lg:grid-cols-3">
         {formConfig.tours.fields.slice(1).map((field) => (
           <div
             key={field.name}
-            className="flex py-2 px-4 items-center border-r border-orange-500"
+            className="flex py-1 px-0 md:px-2 md:py-2 lg:px-4 items-center border-r border-orange-500 border-b"
           >
-            <div className="flex w-full justify-start text-left">
+            <div className="flex w-32 h-14 lg:h-auto md:w-full justify-start text-left">
               <DatePicker field={field} />
             </div>
           </div>
         ))}
         <TourDuration />
         <Guests />
+        <button
+          type="submit"
+          className="md:hidden h-14  font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+        >
+          Search
+        </button>
       </div>
     </>
   );
@@ -253,24 +281,30 @@ function Activities({ formConfig }) {
         ))}
         <button
           type="submit"
-          className="font-medium block w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search
         </button>
       </div>
-      <div className="grid grid-flow-col w-full bg-white">
+      <div className="grid w-full grid-cols-1 border-x border-b border-orange-500 bg-white md:grid-cols-2 lg:grid-cols-3">
         {formConfig.activities.fields.slice(1).map((field) => (
           <div
             key={field.name}
-            className="flex py-2 px-4 items-center border-r border-orange-500"
+            className="flex py-1 px-0 md:px-2 md:py-2 lg:px-4 items-center border-r border-orange-500 border-b"
           >
-            <div className="flex w-full justify-start text-left">
+            <div className="flex w-32 h-14 lg:h-auto md:w-full justify-start text-left">
               <DatePicker field={field} />
             </div>
           </div>
         ))}
         <ActivityTypes />
         <GroupSize />
+        <button
+          type="submit"
+          className="md:hidden h-14  font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+        >
+          Search
+        </button>
       </div>
     </>
   );
