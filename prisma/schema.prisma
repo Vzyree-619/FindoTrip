@@ -1,77 +1,274 @@
-datasource db {
-  provider = "mongodb"
-  url      = env("DATABASE_URL") // Use your MongoDB connection string
-}
-
 generator client {
   provider = "prisma-client-js"
-  
 }
 
-model HotelBooking {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  destination String
-  checkIn     DateTime
-  checkOut    DateTime
-  adults      Int
-  childs   Int  // Correct field name to match the form
-  rooms       Int 
-  createdAt   DateTime @default(now())
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
- model CarRental {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  pickupLocation String
-  pickupDate     DateTime
-  dropoffDate    DateTime
-  createdAt      DateTime @default(now())
+enum UserRole {
+  CUSTOMER
+  CAR_PROVIDER
+  TOUR_GUIDE
+  ADMIN
 }
 
-model Tours {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  location    String
-  tourDate    DateTime
-  createdAt   DateTime @default(now())
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
 }
 
-model Activities {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  activity    String
-  activityDate DateTime
-  createdAt   DateTime @default(now())
+enum AccommodationType {
+  HOTEL
+  APARTMENT
+  VILLA
+  LODGE
+  HOSTEL
+  RESORT
 }
-
-
-//hotel registration form
-model Hotel {
-  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
-  hotelName           String
-  hotelEmail          String   @unique
-  hotelPhone          String
-  hotelWebsite        String?
-  location           String
-  numRooms           Int
-  category           Int
-  facilities         String[]
-  images             String[]
-  mapUrl             String
-  cancellationPolicy String?
-  suitePrice         Float
-  DeluxeDouble       Float
-  DeluxeTwin         Float
-  createdAt          DateTime @default(now())
-}
-
 
 model User {
-  id       String    @id @default(auto()) @map("_id") @db.ObjectId
-  email    String    @unique
-  password String
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String
+  name              String
+  role              UserRole  @default(CUSTOMER)
+  phone             String?
+  avatar            String?
+  verified          Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  accommodations    Accommodation[]
+  cars              Car[]
+  tourGuide         TourGuide?
+  bookings          Booking[]
+  reviews           Review[]
   
+  @@index([email])
 }
 
+model Accommodation {
+  id              String              @id @default(cuid())
+  name            String
+  description     String              @db.Text
+  type            AccommodationType
+  address         String
+  city            String
+  country         String
+  latitude        Float?
+  longitude       Float?
+  pricePerNight   Float
+  maxGuests       Int
+  bedrooms        Int
+  bathrooms       Int
+  images          String[]
+  amenities       String[]
+  rating          Float               @default(0)
+  reviewCount     Int                 @default(0)
+  available       Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
-model CarProvider {
-   id       String    @id @default(auto()) @map("_id") @db.ObjectId
-  name   String    @unique
+  // Relations
+  ownerId         String
+  owner           User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  bookings        Booking[]
+  reviews         Review[]
+  unavailableDates UnavailableDate[]
+
+  @@index([city, country])
+  @@index([type])
+  @@index([pricePerNight])
+}
+
+model Car {
+  id              String    @id @default(cuid())
+  name            String
+  brand           String
+  model           String
+  year            Int
+  type            String    // Sedan, SUV, Van, Electric, etc.
+  description     String    @db.Text
+  pricePerDay     Float
+  seats           Int
+  transmission    String    // Auto, Manual
+  fuelType        String    // Petrol, Diesel, Electric, Hybrid
+  images          String[]
+  features        String[]  // AC, GPS, Bluetooth, etc.
+  location        String
+  city            String
+  country         String
+  latitude        Float?
+  longitude       Float?
+  rating          Float     @default(0)
+  reviewCount     Int       @default(0)
+  available       Boolean   @default(true)
+  licensePlate    String    @unique
+  insuranceExpiry DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  providerId      String
+  provider        User      @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  bookings        Booking[]
+  reviews         Review[]
+  unavailableDates UnavailableDate[]
+
+  @@index([city, country])
+  @@index([type])
+  @@index([pricePerDay])
+}
+
+model TourGuide {
+  id              String    @id @default(cuid())
+  bio             String    @db.Text
+  languages       String[]
+  specialties     String[]  // Historical, Cultural, Food, Adventure, etc.
+  experience      Int       // Years of experience
+  pricePerHour    Float
+  city            String
+  country         String
+  rating          Float     @default(0)
+  reviewCount     Int       @default(0)
+  toursCompleted  Int       @default(0)
+  certifications  String[]
+  available       Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings        Booking[]
+  reviews         Review[]
+  availability    GuideAvailability[]
+
+  @@index([city, country])
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  bookingNumber   String        @unique
+  checkIn         DateTime
+  checkOut        DateTime
+  guests          Int
+  totalPrice      Float
+  status          BookingStatus @default(PENDING)
+  specialRequests String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  accommodationId String?
+  accommodation   Accommodation? @relation(fields: [accommodationId], references: [id], onDelete: SetNull)
+  
+  carId           String?
+  car             Car?          @relation(fields: [carId], references: [id], onDelete: SetNull)
+  
+  tourGuideId     String?
+  tourGuide       TourGuide?    @relation(fields: [tourGuideId], references: [id], onDelete: SetNull)
+  
+  payment         Payment?
+  review          Review?
+
+  @@index([userId])
+  @@index([status])
+  @@index([checkIn, checkOut])
+}
+
+model Payment {
+  id              String    @id @default(cuid())
+  amount          Float
+  currency        String    @default("USD")
+  method          String    // Credit Card, PayPal, Stripe, etc.
+  transactionId   String    @unique
+  status          String    // Pending, Completed, Failed, Refunded
+  paidAt          DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  bookingId       String    @unique
+  booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model Review {
+  id              String    @id @default(cuid())
+  rating          Int       // 1-5 stars
+  comment         String    @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  bookingId       String    @unique
+  booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  accommodationId String?
+  accommodation   Accommodation? @relation(fields: [accommodationId], references: [id], onDelete: SetNull)
+  
+  carId           String?
+  car             Car?      @relation(fields: [carId], references: [id], onDelete: SetNull)
+  
+  tourGuideId     String?
+  tourGuide       TourGuide? @relation(fields: [tourGuideId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([rating])
+}
+
+model UnavailableDate {
+  id              String    @id @default(cuid())
+  date            DateTime
+  reason          String?
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  accommodationId String?
+  accommodation   Accommodation? @relation(fields: [accommodationId], references: [id], onDelete: Cascade)
+  
+  carId           String?
+  car             Car?      @relation(fields: [carId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+}
+
+model GuideAvailability {
+  id              String    @id @default(cuid())
+  dayOfWeek       Int       // 0-6 (Sunday-Saturday)
+  startTime       String    // HH:mm format
+  endTime         String    // HH:mm format
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  tourGuideId     String
+  tourGuide       TourGuide @relation(fields: [tourGuideId], references: [id], onDelete: Cascade)
+
+  @@index([tourGuideId])
+}
+
+model Wishlist {
+  id              String    @id @default(cuid())
+  userId          String
+  accommodationId String?
+  carId           String?
+  tourGuideId     String?
+  createdAt       DateTime  @default(now())
+
+  @@unique([userId, accommodationId])
+  @@unique([userId, carId])
+  @@unique([userId, tourGuideId])
 }
