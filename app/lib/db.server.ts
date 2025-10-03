@@ -1,5 +1,4 @@
-
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 
 let prisma: PrismaClient;
 
@@ -10,7 +9,7 @@ declare global {
 // This is needed because in development we don't want to restart
 // the server with every change, but we want to make sure we don't
 // create a new connection to the DB with every change either.
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === "production") {
   prisma = new PrismaClient();
 } else {
   if (!global.__db__) {
@@ -36,11 +35,15 @@ export async function getAccommodations(filters?: {
 }) {
   const where: any = { available: true };
 
-  if (filters?.city) where.city = { contains: filters.city, mode: 'insensitive' };
-  if (filters?.country) where.country = { contains: filters.country, mode: 'insensitive' };
+  if (filters?.city)
+    where.city = { contains: filters.city, mode: "insensitive" };
+  if (filters?.country)
+    where.country = { contains: filters.country, mode: "insensitive" };
   if (filters?.type) where.type = filters.type;
-  if (filters?.minPrice) where.pricePerNight = { ...where.pricePerNight, gte: filters.minPrice };
-  if (filters?.maxPrice) where.pricePerNight = { ...where.pricePerNight, lte: filters.maxPrice };
+  if (filters?.minPrice)
+    where.pricePerNight = { ...where.pricePerNight, gte: filters.minPrice };
+  if (filters?.maxPrice)
+    where.pricePerNight = { ...where.pricePerNight, lte: filters.maxPrice };
   if (filters?.guests) where.maxGuests = { gte: filters.guests };
 
   const accommodations = await prisma.accommodation.findMany({
@@ -59,7 +62,7 @@ export async function getAccommodations(filters?: {
       },
     },
     orderBy: {
-      rating: 'desc',
+      rating: "desc",
     },
   });
 
@@ -70,7 +73,7 @@ export async function getAccommodations(filters?: {
         const conflictingBookings = await prisma.booking.findFirst({
           where: {
             accommodationId: acc.id,
-            status: { in: ['CONFIRMED', 'PENDING'] },
+            status: { in: ["CONFIRMED", "PENDING"] },
             OR: [
               {
                 checkIn: { lte: filters.checkOut },
@@ -100,11 +103,16 @@ export async function getCars(filters?: {
 }) {
   const where: any = { available: true };
 
-  if (filters?.city) where.city = { contains: filters.city, mode: 'insensitive' };
-  if (filters?.country) where.country = { contains: filters.country, mode: 'insensitive' };
-  if (filters?.type) where.type = { contains: filters.type, mode: 'insensitive' };
-  if (filters?.minPrice) where.pricePerDay = { ...where.pricePerDay, gte: filters.minPrice };
-  if (filters?.maxPrice) where.pricePerDay = { ...where.pricePerDay, lte: filters.maxPrice };
+  if (filters?.city)
+    where.city = { contains: filters.city, mode: "insensitive" };
+  if (filters?.country)
+    where.country = { contains: filters.country, mode: "insensitive" };
+  if (filters?.type)
+    where.type = { contains: filters.type, mode: "insensitive" };
+  if (filters?.minPrice)
+    where.pricePerDay = { ...where.pricePerDay, gte: filters.minPrice };
+  if (filters?.maxPrice)
+    where.pricePerDay = { ...where.pricePerDay, lte: filters.maxPrice };
   if (filters?.seats) where.seats = { gte: filters.seats };
 
   const cars = await prisma.car.findMany({
@@ -123,7 +131,7 @@ export async function getCars(filters?: {
       },
     },
     orderBy: {
-      rating: 'desc',
+      rating: "desc",
     },
   });
 
@@ -134,7 +142,7 @@ export async function getCars(filters?: {
         const conflictingBookings = await prisma.booking.findFirst({
           where: {
             carId: car.id,
-            status: { in: ['CONFIRMED', 'PENDING'] },
+            status: { in: ["CONFIRMED", "PENDING"] },
             OR: [
               {
                 checkIn: { lte: filters.checkOut },
@@ -161,8 +169,10 @@ export async function getTourGuides(filters?: {
 }) {
   const where: any = { available: true };
 
-  if (filters?.city) where.city = { contains: filters.city, mode: 'insensitive' };
-  if (filters?.country) where.country = { contains: filters.country, mode: 'insensitive' };
+  if (filters?.city)
+    where.city = { contains: filters.city, mode: "insensitive" };
+  if (filters?.country)
+    where.country = { contains: filters.country, mode: "insensitive" };
   if (filters?.language) where.languages = { has: filters.language };
   if (filters?.specialty) where.specialties = { has: filters.specialty };
   if (filters?.maxPrice) where.pricePerHour = { lte: filters.maxPrice };
@@ -185,7 +195,7 @@ export async function getTourGuides(filters?: {
       },
     },
     orderBy: {
-      rating: 'desc',
+      rating: "desc",
     },
   });
 }
@@ -201,13 +211,16 @@ export async function createBooking(data: {
   tourGuideId?: string;
   specialRequests?: string;
 }) {
-  const bookingNumber = `BK${Date.now()}${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+  const bookingNumber = `BK${Date.now()}${Math.random()
+    .toString(36)
+    .substr(2, 9)
+    .toUpperCase()}`;
 
   return prisma.booking.create({
     data: {
       ...data,
       bookingNumber,
-      status: 'PENDING',
+      status: "PENDING",
     },
     include: {
       accommodation: true,
@@ -235,7 +248,7 @@ export async function getUserBookings(userId: string) {
       payment: true,
     },
     orderBy: {
-      createdAt: 'desc',
+      createdAt: "desc",
     },
   });
 }
@@ -246,7 +259,7 @@ export async function getProviderStats(providerId: string) {
     include: {
       bookings: {
         where: {
-          status: { in: ['CONFIRMED', 'COMPLETED'] },
+          status: { in: ["CONFIRMED", "COMPLETED"] },
         },
       },
     },
@@ -255,7 +268,11 @@ export async function getProviderStats(providerId: string) {
   const totalBookings = cars.reduce((sum, car) => sum + car.bookings.length, 0);
   const totalRevenue = cars.reduce(
     (sum, car) =>
-      sum + car.bookings.reduce((bookingSum, booking) => bookingSum + booking.totalPrice, 0),
+      sum +
+      car.bookings.reduce(
+        (bookingSum, booking) => bookingSum + booking.totalPrice,
+        0
+      ),
     0
   );
 
@@ -274,7 +291,7 @@ export async function getGuideStats(guideId: string) {
     include: {
       bookings: {
         where: {
-          status: { in: ['CONFIRMED', 'COMPLETED'] },
+          status: { in: ["CONFIRMED", "COMPLETED"] },
         },
       },
       reviews: true,
@@ -290,7 +307,9 @@ export async function getGuideStats(guideId: string) {
 
   return {
     totalTours: guide.toursCompleted,
-    upcomingTours: guide.bookings.filter((b) => b.status === 'CONFIRMED' && b.checkIn > new Date()).length,
+    upcomingTours: guide.bookings.filter(
+      (b) => b.status === "CONFIRMED" && b.checkIn > new Date()
+    ).length,
     totalRevenue,
     rating: guide.rating,
     reviewCount: guide.reviewCount,

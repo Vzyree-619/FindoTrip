@@ -3,7 +3,6 @@ import { useLoaderData } from "@remix-run/react";
 import { getHotelData } from "../../data/input.server";
 
 export default function HotelData() {
-  // Fetch data using Remix loader
   const data = useLoaderData();
 
   return (

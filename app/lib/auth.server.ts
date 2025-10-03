@@ -122,7 +122,7 @@ export async function register(
     },
   });
 
-  // If registering as a tour guide, create the tour guide profile
+
   if (role === 'TOUR_GUIDE') {
     await prisma.tourGuide.create({
       data: {
