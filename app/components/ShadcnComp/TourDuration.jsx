@@ -31,7 +31,7 @@ function TourDuration() {
       <DropdownMenu>
         <DropdownMenuTrigger className="flex h-14 lg:h-auto text-left items-center space-x-16 justify-between py-2.5 px-3 outline-none border-[#f97316] border-r border-b">
           <div className="text-start flex flex-col gap-1 leading-none">
-            <span className="text-sm leading-none font-normal  truncate max-w-[17ch]">
+            <span className="text-sm leading-none font-normal  max-w-[17ch]">
               {selectedWorkspace?.Days || "Tour Duration"}
             </span>
           </div>
@@ -203,7 +203,7 @@ function GroupSize() {
       <DropdownMenu>
         <DropdownMenuTrigger className="flex h-16 lg:h-auto text-left items-center space-x-16 justify-between py-2.5 px-3 outline-none border-[#f97316] border-r border-b">
           <div className="text-start flex flex-col gap-1 leading-none">
-            <span className="text-sm leading-none font-normal truncate max-w-[17ch]">
+            <span className="text-sm leading-none font-normal  min-w-[17ch]">
               {selectedGroup?.size || "Group Size"}
             </span>
           </div>

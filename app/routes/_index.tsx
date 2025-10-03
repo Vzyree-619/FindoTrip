@@ -1,5 +1,5 @@
 // import type { MetaFunction } from "@remix-run/node";
-import InputForm from "../components/HomePage/InputForm/InputForm";
+import InputForm from "../components/HomePage/InputForm";
 import NavBar from "../components/navigation/NavBar";
 // import AddPage from "../components/HomePage/AddPage"
 import Footer from "../components/Footer";
@@ -10,6 +10,7 @@ import FAQ from "../components/HomePage/Faq";
 import SubscriptionForm from "../components/HomePage/SubscriptionForm";
 import AddPage from "../components/HomePage/AddPage";
 import Stays from "../components/HomePage/Stays";
+
 export default function Index() {
   return (
     <>
@@ -28,3 +29,4 @@ export default function Index() {
     </>
   );
 }
+

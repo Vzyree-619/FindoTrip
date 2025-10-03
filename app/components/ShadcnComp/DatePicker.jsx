@@ -1,6 +1,6 @@
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Calendar } from "../../../ui/calendar";
-import { Button } from "../../../ui/button";
+import { Calendar } from "../ui/calendar";
+import { Button } from "../ui/button";
 
 import { useState } from "react";
 import { CalendarIcon } from "lucide-react";

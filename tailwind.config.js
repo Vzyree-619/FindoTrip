@@ -8,8 +8,8 @@ export default {
   "./index.html",],
   theme: {
 	extend: {
-		fontFamily:{
-			blauer: ['BlauerNue_Regular', 'sans-serif'],
+		fontFamily: {
+			blauer: ['BlauerNue', 'sans-serif'],
 		},
 		borderRadius: {
 			lg: 'var(--radius)',

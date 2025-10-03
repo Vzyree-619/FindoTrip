@@ -1,12 +1,13 @@
 /* eslint-disable react/prop-types */
 import { useActionData } from "@remix-run/react";
 import { useState } from "react";
-import DatePicker from "./ShadcnComp/DatePicker";
+import DatePicker from "../ShadcnComp/DatePicker";
 import TourDuration, {
   ActivityTypes,
   GroupSize,
   Guests,
-} from "./ShadcnComp/TourDuration";
+} from "../ShadcnComp/TourDuration";
+
 
 export default function InputForm() {
   const validationErrors = useActionData();
@@ -68,7 +69,7 @@ export default function InputForm() {
   ];
 
   return (
-    <div className="relative h-[70%]">
+    <div className="relative h-[70%] bg-url[(')]">
       <div className="absolute top-[16vh] left-[5vw] md:top-[30vh] md:left-[8vw] lg:top-[35vh] lg:left-[10vw] mx-auto z-10 flex justify-start font-bold text-2xl p-3 m-2">
         <h1 className="text-4xl text-white font-normal font-blauer sm:text-4xl md:text-5xl lg:text-6xl">
           The Best <br /> Experience Unlocked!
@@ -90,7 +91,7 @@ export default function InputForm() {
           </ul>
         </div>
       )}
-      <div className="absolute inset-0 mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%]  lg:6xl sm:2xl ">
+      <div className="absolute inset-0  mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%]  lg:6xl sm:2xl ">
         <form method="POST" action="/your-search-endpoint" className="w-full">
           <div className="flex w-full lg:w-fit  mx-auto border border-orange-500 rounded-t-lg bg-white ">
             {activeButton.map((item, index) => (

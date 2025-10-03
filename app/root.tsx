@@ -6,21 +6,12 @@ import {
   ScrollRestoration,
 } from "@remix-run/react";
 import type { LinksFunction } from "@remix-run/node";
-// import sharedStyles from '~/styles/shared.css'
-import "./tailwind.css";
+import tailwindStyles from "./tailwind.css?url";
+import fontStyles from "./styles/fonts.css?url";
 
 export const links: LinksFunction = () => [
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
-  {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
-  },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
-  },
-  
+  { rel: "stylesheet", href: tailwindStyles },
+  { rel: "stylesheet", href: fontStyles },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
