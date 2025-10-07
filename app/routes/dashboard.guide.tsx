@@ -1,7 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
-import { requireTourGuide } from "~/lib/auth.server";
-import { getGuideStats, prisma } from "~/lib/db.server";
+import { requireTourGuide } from "~/lib/auth/auth.server";
+import { getGuideStats, prisma } from "~/lib/db/db.server";
 import { Compass, DollarSign, Calendar, Star } from "lucide-react";
 import { format } from "date-fns";
 

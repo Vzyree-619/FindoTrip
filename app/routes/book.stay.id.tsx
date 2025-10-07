@@ -5,8 +5,8 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { useLoaderData, Form, useActionData } from "@remix-run/react";
-import { requireUserId } from "~/lib/auth.server";
-import { prisma, createBooking } from "~/lib/db.server";
+import { requireUserId } from "~/lib/auth/auth.server";
+import { prisma, createBooking } from "~/lib/db/db.server";
 import { Calendar, Users, DollarSign } from "lucide-react";
 import { differenceInDays, parseISO } from "date-fns";
 

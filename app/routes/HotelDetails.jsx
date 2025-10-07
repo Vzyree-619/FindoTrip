@@ -8,11 +8,11 @@ import {
   FaSnowflake,
   FaDumbbell,
 } from "react-icons/fa";
-import TravelersAsking from "../components/adminPages/traveler.jsx";
-import GuestReviews from "../components/adminPages/guestReview.jsx";
-import Comment from "../components/adminPages/comments.jsx";
-import Priceing from "../components/hotelPages/Priceing.jsx";
-import HotelPage from "./_toConfigure/HotelPage.jsx";
+import TravelersAsking from "~/components/features/admin/traveler";
+import GuestReviews from "~/components/features/admin/guestReview";
+import Comment from "~/components/features/admin/comments";
+import Priceing from "~/components/features/accommodations/Priceing";
+import HotelPage from "./_toConfigure/HotelPage";
 
 export default function HotelDetails({ hotel, onBack }) {
   const [showModal, setShowModal] = useState(false);

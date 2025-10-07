@@ -5,7 +5,7 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { Form, Link, useActionData, useSearchParams, useNavigation } from "@remix-run/react";
-import { login, createUserSession, getUserId } from "~/lib/auth.server";
+import { login, createUserSession, getUserId } from "~/lib/auth/auth.server";
 import { Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {

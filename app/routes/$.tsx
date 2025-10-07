@@ -1,7 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { Link, useLocation } from "@remix-run/react";
 import { Home, Search, ArrowLeft, MapPin } from "lucide-react";
-import { generateMeta } from "~/components/SEOHead";
+import { generateMeta } from "~/components/common/SEOHead";
 
 export const meta = () => generateMeta({
   title: "Page Not Found - FindoTrip",

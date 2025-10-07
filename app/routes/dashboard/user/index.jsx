@@ -1,4 +1,4 @@
-import NavBar from "../components/navigation/NavBar";
+import NavBar from "~/components/layout/navigation/NavBar";
 import { useState } from "react";
 import { FaUser, FaSuitcase, FaHeart, FaEnvelope, FaStar, FaCreditCard, FaChartBar, FaLifeRing, FaBell } from "react-icons/fa";
 

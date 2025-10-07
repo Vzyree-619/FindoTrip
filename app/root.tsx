@@ -9,16 +9,16 @@ import {
 import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useState, useEffect } from "react";
-import NavBar from "./components/navigation/NavBarWithAuth";
-import MobileNavigation from "./components/MobileNavigation";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { OfflineIndicator, OnlineIndicator } from "./components/LoadingStates";
-import { SkipToContent, ScreenReaderAnnouncement } from "./hooks/useAccessibility";
-import { useNetwork } from "./hooks/useNetwork";
-import { getUser } from "~/lib/auth.server";
-import { generateMeta, structuredDataTemplates, StructuredData } from "./components/SEOHead";
-import sharedStyles from "~/styles/shared.css";
-import "./tailwind.css";
+import NavBar from "~/components/layout/navigation/NavBarWithAuth";
+// Mobile navigation is now handled in NavBarWithAuth
+import { ErrorBoundary } from "~/components/common/ErrorBoundary";
+import { OfflineIndicator, OnlineIndicator } from "~/components/common/LoadingStates";
+import { SkipToContent, ScreenReaderAnnouncement } from "~/hooks/useAccessibility";
+import { useNetwork } from "~/hooks/useNetwork";
+import { getUser } from "~/lib/auth/auth.server";
+import { generateMeta, structuredDataTemplates, StructuredData } from "~/components/common/SEOHead";
+import "~/styles/shared.css";
+import "~/tailwind.css";
 
 export const meta: MetaFunction = () => generateMeta({
   title: "FindoTrip - Your Ultimate Travel Companion",
@@ -44,9 +44,6 @@ export const links: LinksFunction = () => [
   
   // Web app manifest
   { rel: "manifest", href: "/manifest.json" },
-  
-  // Stylesheets
-  { rel: "stylesheet", href: sharedStyles },
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -95,20 +92,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <SkipToContent />
         
         {/* Main navigation */}
-        <header className="sticky top-0 z-40 bg-white shadow-sm">
+        <header className="sticky top-0 z-50 bg-white shadow-sm">
           <NavBar user={data?.user} />
         </header>
         
-        {/* Mobile navigation */}
-        <MobileNavigation user={data?.user} />
+        {/* Mobile navigation is now handled in NavBar */}
         
         {/* Main content */}
         <main id="main-content" className="min-h-screen pb-16 lg:pb-0">
           {children}
         </main>
         
-        {/* Network status indicators */}
-        {!isOnline && <OfflineIndicator />}
+        {/* Network status indicators (debounced offline) */}
+        {/* Comment out the OfflineIndicator to prevent false offline detection */}
+        {/* {!isOnline && (
+          <div className="animate-fade-in">
+            <OfflineIndicator />
+          </div>
+        )} */}
         <OnlineIndicator show={showOnlineIndicator} />
         
         {/* Scripts and restoration */}

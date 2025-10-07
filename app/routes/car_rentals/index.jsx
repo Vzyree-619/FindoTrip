@@ -1,8 +1,8 @@
-import Landing from "../../components/carRent/landing";
-import CarsPage from "../../components/carRent/carsPage";
-import FAQ from "../../components/RoomPages/Faq";
-import SubscriptionForm from "../../components/HomePage/SubscriptionForm";
-import Footer from "../../components/Footer";
+import Landing from "~/components/features/vehicles/landing";
+import CarsPage from "~/components/features/vehicles/carsPage";
+import FAQ from "~/components/features/rooms/Faq";
+import SubscriptionForm from "~/components/features/home/SubscriptionForm";
+import Footer from "~/components/layout/Footer";
 import { useNavigate } from "@remix-run/react";
 
 export default function Room() {

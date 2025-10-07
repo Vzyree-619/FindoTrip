@@ -1,8 +1,8 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link, useNavigate } from "@remix-run/react";
 import { useState } from "react";
-import { prisma } from "~/lib/db.server";
-import { getUser } from "~/lib/auth.server";
+import { prisma } from "~/lib/db/db.server";
+import { getUser } from "~/lib/auth/auth.server";
 import {
   MapPin,
   Users,

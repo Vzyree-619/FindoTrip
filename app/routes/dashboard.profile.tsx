@@ -6,9 +6,9 @@ import {
 } from "@remix-run/node";
 import { useLoaderData, useActionData, Form, useNavigation } from "@remix-run/react";
 import { useState } from "react";
-import { requireUserId, getUser } from "~/lib/auth.server";
-import { prisma } from "~/lib/db.server";
-import { hashPassword, verifyPassword } from "~/lib/auth.server";
+import { requireUserId, getUser } from "~/lib/auth/auth.server";
+import { prisma } from "~/lib/db/db.server";
+import { hashPassword, verifyPassword } from "~/lib/auth/auth.server";
 import {
   User,
   Mail,

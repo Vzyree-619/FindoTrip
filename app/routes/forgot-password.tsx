@@ -6,8 +6,8 @@ import {
 import { Form, Link, useActionData, useNavigation } from "@remix-run/react";
 import { useState } from "react";
 import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { createPasswordResetToken } from "~/lib/auth.server";
-import { sendPasswordResetEmail } from "~/lib/email.server";
+import { createPasswordResetToken } from "~/lib/auth/auth.server";
+import { sendPasswordResetEmail } from "~/lib/email/email.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   // Just render the page

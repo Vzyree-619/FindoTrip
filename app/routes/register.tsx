@@ -6,8 +6,8 @@ import {
 } from "@remix-run/node";
 import { Form, Link, useActionData, useNavigation, useNavigate } from "@remix-run/react";
 import { useState } from "react";
-import { register, createUserSession, getUserId } from "~/lib/auth.server";
-import { sendWelcomeEmail } from "~/lib/email.server";
+import { register, createUserSession, getUserId } from "~/lib/auth/auth.server";
+import { sendWelcomeEmail } from "~/lib/email/email.server";
 import { 
   Mail, 
   Lock, 

@@ -5,8 +5,8 @@ import {
   type ActionFunctionArgs,
 } from "@remix-run/node";
 import { useLoaderData, useActionData, Form, Link } from "@remix-run/react";
-import { requireUserId } from "~/lib/auth.server";
-import { prisma } from "~/lib/db.server";
+import { requireUserId } from "~/lib/auth/auth.server";
+import { prisma } from "~/lib/db/db.server";
 import {
   Heart,
   MapPin,

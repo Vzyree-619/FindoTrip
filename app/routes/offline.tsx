@@ -1,7 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { Link } from "@remix-run/react";
 import { WifiOff, RefreshCw, Home, Search } from "lucide-react";
-import { generateMeta } from "~/components/SEOHead";
+import { generateMeta } from "~/components/common/SEOHead";
 
 export const meta = () => generateMeta({
   title: "You're Offline - FindoTrip",

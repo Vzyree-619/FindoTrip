@@ -4,8 +4,8 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
-import { requireUserId } from "~/lib/auth.server";
-import { prisma } from "~/lib/db.server";
+import { requireUserId } from "~/lib/auth/auth.server";
+import { prisma } from "~/lib/db/db.server";
 import {
   CheckCircle,
   Download,

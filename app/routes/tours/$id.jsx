@@ -1,5 +1,5 @@
 import { useParams } from "@remix-run/react";
-import NavBar from "../../components/navigation/NavBar";
+import NavBar from "~/components/layout/navigation/NavBar";
 import { useState } from "react";
 
 const tours = [

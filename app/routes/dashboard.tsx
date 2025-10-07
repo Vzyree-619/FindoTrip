@@ -4,8 +4,8 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { Outlet, useLoaderData, NavLink, Link } from "@remix-run/react";
-import { requireUserId, getUser } from "~/lib/auth.server";
-import { prisma } from "~/lib/db.server";
+import { requireUserId, getUser } from "~/lib/auth/auth.server";
+import { prisma } from "~/lib/db/db.server";
 import {
   User,
   Calendar,
@@ -26,25 +26,48 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw redirect("/login");
   }
 
-  // Get dashboard stats
-  const [bookingsCount, upcomingBookings, reviewsCount, favoritesCount] = await Promise.all([
-    prisma.booking.count({
+  // Get dashboard stats - combining all booking types
+  const [propertyBookings, vehicleBookings, tourBookings, reviewsCount, wishlists] = await Promise.all([
+    prisma.propertyBooking.findMany({
       where: { userId, status: { in: ["CONFIRMED", "COMPLETED"] } },
+      select: { id: true, status: true, checkIn: true },
     }),
-    prisma.booking.count({
-      where: { 
-        userId, 
-        status: "CONFIRMED",
-        checkIn: { gte: new Date() },
-      },
+    prisma.vehicleBooking.findMany({
+      where: { userId, status: { in: ["CONFIRMED", "COMPLETED"] } },
+      select: { id: true, status: true, startDate: true },
+    }),
+    prisma.tourBooking.findMany({
+      where: { userId, status: { in: ["CONFIRMED", "COMPLETED"] } },
+      select: { id: true, status: true, tourDate: true },
     }),
     prisma.review.count({
       where: { userId },
     }),
-    prisma.wishlist.count({
+    prisma.wishlist.findMany({
       where: { userId },
     }),
   ]);
+
+  // Calculate total bookings
+  const bookingsCount = propertyBookings.length + vehicleBookings.length + tourBookings.length;
+  
+  // Calculate upcoming bookings
+  const now = new Date();
+  const upcomingPropertyBookings = propertyBookings.filter(
+    b => b.status === "CONFIRMED" && b.checkIn >= now
+  ).length;
+  const upcomingVehicleBookings = vehicleBookings.filter(
+    b => b.status === "CONFIRMED" && b.startDate >= now
+  ).length;
+  const upcomingTourBookings = tourBookings.filter(
+    b => b.status === "CONFIRMED" && b.tourDate >= now
+  ).length;
+  const upcomingBookings = upcomingPropertyBookings + upcomingVehicleBookings + upcomingTourBookings;
+
+  // Calculate favorites count
+  const favoritesCount = wishlists.reduce((total, wishlist) => {
+    return total + wishlist.propertyIds.length + wishlist.vehicleIds.length + wishlist.tourIds.length;
+  }, 0);
 
   return json({
     user,

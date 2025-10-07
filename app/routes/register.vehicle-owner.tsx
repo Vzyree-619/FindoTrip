@@ -6,8 +6,8 @@ import {
 } from "@remix-run/node";
 import { Form, Link, useActionData, useNavigation, useLoaderData } from "@remix-run/react";
 import { useState } from "react";
-import { getUserId } from "~/lib/auth.server";
-import { prisma } from "~/lib/db.server";
+import { getUserId } from "~/lib/auth/auth.server";
+import { prisma } from "~/lib/db/db.server";
 import { 
   Car, 
   Upload, 
@@ -26,7 +26,7 @@ import {
   Truck,
   Bike
 } from "lucide-react";
-import { generateMeta } from "~/components/SEOHead";
+import { generateMeta } from "~/components/common/SEOHead";
 
 export const meta = () => generateMeta({
   title: "Fleet Setup - Vehicle Owner | FindoTrip",

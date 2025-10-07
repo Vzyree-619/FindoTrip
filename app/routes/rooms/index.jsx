@@ -1,10 +1,10 @@
-import HomePage from "../../components/RoomPages/HomePage";
-import PopularAttractions from "../../components/RoomPages/PopularAttractions";
-import GuestRooms from "../../components/RoomPages/GuestRooms";
-import Apartments from "../../components/RoomPages/Apartments";
-import FAQ from "../../components/RoomPages/Faq";
-import SubscriptionForm from "../../components/HomePage/SubscriptionForm";
-import Footer from "../../components/Footer";
+import HomePage from "~/components/features/rooms/HomePage";
+import PopularAttractions from "~/components/features/rooms/PopularAttractions";
+import GuestRooms from "~/components/features/rooms/GuestRooms";
+import Apartments from "~/components/features/rooms/Apartments";
+import FAQ from "~/components/features/rooms/Faq";
+import SubscriptionForm from "~/components/features/home/SubscriptionForm";
+import Footer from "~/components/layout/Footer";
 import { useNavigate } from "@remix-run/react";
 
 const rooms = [

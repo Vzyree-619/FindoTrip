@@ -1,6 +1,6 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
-import { prisma } from "~/lib/db.server";
+import { prisma } from "~/lib/db/db.server";
 import { MapPin, Users, Bed, Bath, Star, Calendar } from "lucide-react";
 
 export async function loader({ params }: LoaderFunctionArgs) {

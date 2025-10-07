@@ -1,8 +1,8 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useSearchParams, Link } from "@remix-run/react";
 import { useState } from "react";
-import { getAccommodations } from "~/lib/db.server";
-import PropertyCard from "~/components/hotelPages/PropertyCard";
+import { getAccommodations } from "~/lib/db/db.server";
+import PropertyCard from "~/components/features/accommodations/PropertyCard";
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {

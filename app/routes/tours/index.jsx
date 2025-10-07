@@ -1,6 +1,6 @@
-import Landing from "../../components/tours/Landing";
-import TourSection from "../../components/tours/TourSection";
-import OtherTours from "../../components/tours/OtherTours";
+import Landing from "~/components/features/tours/Landing";
+import TourSection from "~/components/features/tours/TourSection";
+import OtherTours from "~/components/features/tours/OtherTours";
 import { useNavigate } from "@remix-run/react";
 
 export default function Tours() {

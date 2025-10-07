@@ -6,8 +6,8 @@ import {
 } from "@remix-run/node";
 import { useLoaderData, useActionData, Form, Link } from "@remix-run/react";
 import { useState } from "react";
-import { requireUserId } from "~/lib/auth.server";
-import { prisma } from "~/lib/db.server";
+import { requireUserId } from "~/lib/auth/auth.server";
+import { getUserBookings } from "~/lib/utils/bookings.server";
 import {
   Calendar,
   MapPin,
@@ -25,29 +25,14 @@ import {
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
 
-  // Get all bookings
-  const bookings = await prisma.booking.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
+  // Get all bookings across all types
+  const bookings = await getUserBookings(userId);
 
-  // Get related data manually
-  const accommodationIds = bookings
-    .map(booking => booking.accommodationId)
-    .filter(Boolean) as string[];
-  
-  const accommodations = await prisma.accommodation.findMany({
-    where: { id: { in: accommodationIds } },
-  });
-
-  const payments = await prisma.payment.findMany({
-    where: { bookingId: { in: bookings.map(b => b.id) } },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const reviews = await prisma.review.findMany({
-    where: { bookingId: { in: bookings.map(b => b.id) } },
-  });
+  // For now, return empty arrays for related data
+  // These will need to be fetched based on booking type
+  const accommodations: any[] = [];
+  const payments: any[] = [];
+  const reviews: any[] = [];
 
   // Combine the data
   const bookingsWithRelations = bookings.map(booking => ({
@@ -84,65 +69,15 @@ export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent");
   const bookingId = formData.get("bookingId") as string;
+  const bookingType = formData.get("bookingType") as string;
 
   if (intent === "cancel") {
     try {
-      // Check if booking belongs to user and is cancellable
-      const booking = await prisma.booking.findUnique({
-        where: { id: bookingId },
-      });
-
-      if (!booking || booking.userId !== userId) {
-        return json({ error: "Booking not found" }, { status: 404 });
-      }
-
-      if (booking.status !== "CONFIRMED") {
-        return json({ error: "Booking cannot be cancelled" }, { status: 400 });
-      }
-
-      // Calculate refund based on cancellation policy
-      const checkInDate = new Date(booking.checkIn);
-      const now = new Date();
-      const hoursUntilCheckIn = (checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-      let refundAmount = 0;
-      let refundPercentage = 0;
-
-      if (hoursUntilCheckIn > 48) {
-        refundPercentage = 100;
-        refundAmount = booking.totalPrice;
-      } else if (hoursUntilCheckIn > 24) {
-        refundPercentage = 50;
-        refundAmount = booking.totalPrice * 0.5;
-      }
-
-      // Update booking status
-      await prisma.booking.update({
-        where: { id: bookingId },
-        data: { 
-          status: "CANCELLED",
-          cancelledAt: new Date(),
-        },
-      });
-
-      // Create refund payment record if applicable
-      if (refundAmount > 0) {
-        await prisma.payment.create({
-          data: {
-            bookingId,
-            amount: -refundAmount,
-            currency: "PKR",
-            method: "BANK_TRANSFER",
-            status: "PENDING",
-            transactionId: `REFUND-${Date.now()}`,
-          },
-        });
-      }
-
+      // TODO: Implement cancellation logic for different booking types
+      // For now, return a message that the feature is coming soon
       return json({ 
-        success: true, 
-        message: `Booking cancelled successfully. ${refundAmount > 0 ? `Refund of PKR ${refundAmount.toLocaleString()} will be processed within 5-7 business days.` : 'No refund applicable due to cancellation policy.'}` 
-      });
+        error: "Booking cancellation feature is being updated. Please contact support for assistance." 
+      }, { status: 501 });
 
     } catch (error) {
       return json({ error: "Failed to cancel booking" }, { status: 500 });

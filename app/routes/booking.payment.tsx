@@ -6,8 +6,8 @@ import {
 } from "@remix-run/node";
 import { Form, useLoaderData, useActionData, useNavigation, Link } from "@remix-run/react";
 import { useState } from "react";
-import { requireUserId } from "~/lib/auth.server";
-import { prisma } from "~/lib/db.server";
+import { requireUserId } from "~/lib/auth/auth.server";
+import { prisma } from "~/lib/db/db.server";
 import {
   CreditCard,
   Building2,

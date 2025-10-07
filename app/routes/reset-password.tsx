@@ -7,7 +7,7 @@ import {
 import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
 import { useState } from "react";
 import { Lock, ArrowLeft, CheckCircle, AlertCircle, Loader2, Check, X, XCircle } from "lucide-react";
-import { validatePasswordResetToken, resetPassword, createUserSession } from "~/lib/auth.server";
+import { validatePasswordResetToken, resetPassword, createUserSession } from "~/lib/auth/auth.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
