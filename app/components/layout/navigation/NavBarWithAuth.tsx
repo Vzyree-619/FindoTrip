@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Menu, X, User, LogOut, Settings, Heart, Calendar, ChevronDown } from "lucide-react";
-import { Link, Form } from "@remix-run/react";
+import { Link, Form, useLocation } from "@remix-run/react";
 
 interface NavBarUser {
   id: string;
@@ -18,6 +18,12 @@ const NavBar = ({ user }: NavBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+
+  // Helper function to check if a link is active
+  const isActive = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -66,18 +72,54 @@ const NavBar = ({ user }: NavBarProps) => {
       </button>
 
       {/* Desktop Menu */}
-      <ul className="hidden md:flex space-x-6 font-semibold items-center">
-        <li className="hover:text-[#01502E] cursor-pointer transition">
-          <Link to="/accommodations/search">Stays</Link>
+      <ul className="hidden md:flex space-x-6 items-center">
+        <li>
+          <Link 
+            to="/accommodations/search"
+            className={`cursor-pointer transition-colors duration-200 ${
+              isActive('/accommodations/search') 
+                ? 'font-semibold text-[#01502E]' 
+                : 'font-normal text-gray-700 hover:text-orange-500'
+            }`}
+          >
+            Stays
+          </Link>
         </li>
-        <li className="hover:text-[#01502E] cursor-pointer transition">
-          <Link to="/car_rentals">Car Rentals</Link>
+        <li>
+          <Link 
+            to="/car_rentals"
+            className={`cursor-pointer transition-colors duration-200 ${
+              isActive('/car_rentals') 
+                ? 'font-semibold text-[#01502E]' 
+                : 'font-normal text-gray-700 hover:text-orange-500'
+            }`}
+          >
+            Car Rentals
+          </Link>
         </li>
-        <li className="hover:text-[#01502E] cursor-pointer transition">
-          <Link to="/tours">Tours</Link>
+        <li>
+          <Link 
+            to="/tours"
+            className={`cursor-pointer transition-colors duration-200 ${
+              isActive('/tours') 
+                ? 'font-semibold text-[#01502E]' 
+                : 'font-normal text-gray-700 hover:text-orange-500'
+            }`}
+          >
+            Tours
+          </Link>
         </li>
-        <li className="hover:text-[#01502E] cursor-pointer transition">
-          <Link to="/blogs">Blogs</Link>
+        <li>
+          <Link 
+            to="/blogs"
+            className={`cursor-pointer transition-colors duration-200 ${
+              isActive('/blogs') 
+                ? 'font-semibold text-[#01502E]' 
+                : 'font-normal text-gray-700 hover:text-orange-500'
+            }`}
+          >
+            Blogs
+          </Link>
         </li>
 
         {user ? (
@@ -182,7 +224,7 @@ const NavBar = ({ user }: NavBarProps) => {
             <li>
               <Link
                 to="/login"
-                className="border border-[#01502E] text-[#01502E] px-4 py-2 rounded-lg hover:bg-[#01502E] hover:text-white transition font-semibold"
+                className="border border-[#01502E] text-[#01502E] px-4 py-2 rounded-lg hover:bg-[#01502E] hover:text-white transition-colors duration-200 font-medium"
               >
                 Sign In
               </Link>
@@ -190,7 +232,7 @@ const NavBar = ({ user }: NavBarProps) => {
             <li>
               <Link
                 to="/register"
-                className="bg-[#01502E] text-white px-4 py-2 rounded-lg hover:bg-[#013d23] transition font-semibold"
+                className="border border-[#01502E] text-[#01502E] px-4 py-2 rounded-lg hover:bg-[#01502E] hover:text-white transition-colors duration-200 font-medium"
               >
                 Register
               </Link>
@@ -215,7 +257,7 @@ const NavBar = ({ user }: NavBarProps) => {
         } transition-transform duration-300 ease-in-out z-[998] bg-white`}
       >
         <div className="flex flex-col h-full divide-y divide-gray-200 shadow-xl p-6">
-          <ul className="space-y-4 font-semibold">
+          <ul className="space-y-4">
             {user && (
               <li className="pb-4 border-b border-gray-200">
                 <div className="flex items-center gap-3">
@@ -240,23 +282,55 @@ const NavBar = ({ user }: NavBarProps) => {
               </li>
             )}
 
-            <li className="hover:text-[#01502E] cursor-pointer transition">
-              <Link to="/accommodations/search" onClick={() => setIsOpen(false)}>
+            <li>
+              <Link 
+                to="/accommodations/search" 
+                onClick={() => setIsOpen(false)}
+                className={`cursor-pointer transition-colors duration-200 ${
+                  isActive('/accommodations/search') 
+                    ? 'font-semibold text-[#01502E]' 
+                    : 'font-normal text-gray-700 hover:text-orange-500'
+                }`}
+              >
                 Stays
               </Link>
             </li>
-            <li className="hover:text-[#01502E] cursor-pointer transition">
-              <Link to="/car_rentals" onClick={() => setIsOpen(false)}>
+            <li>
+              <Link 
+                to="/car_rentals" 
+                onClick={() => setIsOpen(false)}
+                className={`cursor-pointer transition-colors duration-200 ${
+                  isActive('/car_rentals') 
+                    ? 'font-semibold text-[#01502E]' 
+                    : 'font-normal text-gray-700 hover:text-orange-500'
+                }`}
+              >
                 Car Rentals
               </Link>
             </li>
-            <li className="hover:text-[#01502E] cursor-pointer transition">
-              <Link to="/tours" onClick={() => setIsOpen(false)}>
+            <li>
+              <Link 
+                to="/tours" 
+                onClick={() => setIsOpen(false)}
+                className={`cursor-pointer transition-colors duration-200 ${
+                  isActive('/tours') 
+                    ? 'font-semibold text-[#01502E]' 
+                    : 'font-normal text-gray-700 hover:text-orange-500'
+                }`}
+              >
                 Tours
               </Link>
             </li>
-            <li className="hover:text-[#01502E] cursor-pointer transition">
-              <Link to="/blogs" onClick={() => setIsOpen(false)}>
+            <li>
+              <Link 
+                to="/blogs" 
+                onClick={() => setIsOpen(false)}
+                className={`cursor-pointer transition-colors duration-200 ${
+                  isActive('/blogs') 
+                    ? 'font-semibold text-[#01502E]' 
+                    : 'font-normal text-gray-700 hover:text-orange-500'
+                }`}
+              >
                 Blogs
               </Link>
             </li>
@@ -320,7 +394,7 @@ const NavBar = ({ user }: NavBarProps) => {
                 <li className="pt-4">
                   <Link
                     to="/login"
-                    className="block text-center border border-[#01502E] text-[#01502E] px-4 py-2 rounded-lg hover:bg-[#01502E] hover:text-white transition"
+                    className="block text-center border border-[#01502E] text-[#01502E] px-4 py-2 rounded-lg hover:bg-[#01502E] hover:text-white transition-colors duration-200 font-medium"
                     onClick={() => setIsOpen(false)}
                   >
                     Sign In
@@ -329,7 +403,7 @@ const NavBar = ({ user }: NavBarProps) => {
                 <li>
                   <Link
                     to="/register"
-                    className="block text-center bg-[#01502E] text-white px-4 py-2 rounded-lg hover:bg-[#013d23] transition"
+                    className="block text-center border border-[#01502E] text-[#01502E] px-4 py-2 rounded-lg hover:bg-[#01502E] hover:text-white transition-colors duration-200 font-medium"
                     onClick={() => setIsOpen(false)}
                   >
                     Register

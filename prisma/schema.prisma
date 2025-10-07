@@ -110,9 +110,30 @@ enum DocumentType {
   TOUR_GUIDE_LICENSE
 }
 
+enum NotificationType {
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  REVIEW_RECEIVED
+  MESSAGE_RECEIVED
+  LISTING_APPROVED
+  LISTING_REJECTED
+  PROFILE_VERIFIED
+  SYSTEM_ANNOUNCEMENT
+}
 
+enum CommissionStatus {
+  PENDING
+  CALCULATED
+  PAID
+  DISPUTED
+}
 
-// Enhanced User Model with Role-Based Architecture
+// ========================================
+// CORE USER SYSTEM WITH REAL RELATIONSHIPS
+// ========================================
+
 model User {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   email       String   @unique
@@ -142,29 +163,72 @@ model User {
   loginAttempts        Int     @default(0)
   lockedUntil          DateTime?
 
-  // References to role-specific profiles
-  customerProfileId    String? @db.ObjectId
-  propertyOwnerId      String? @db.ObjectId
-  vehicleOwnerId       String? @db.ObjectId
-  tourGuideId          String? @db.ObjectId
-  superAdminId         String? @db.ObjectId
+  // ========================================
+  // REAL RELATIONSHIPS - Role-based profiles
+  // ========================================
+  customerProfile    CustomerProfile?
+  propertyOwner      PropertyOwner?
+  vehicleOwner       VehicleOwner?
+  tourGuide          TourGuide?
+  superAdmin         SuperAdmin?
 
-  // Activity tracking
-  bookingIds           String[] @db.ObjectId
-  reviewIds            String[] @db.ObjectId
-  favoritePropertyIds  String[] @db.ObjectId
-  favoriteVehicleIds   String[] @db.ObjectId
-  favoriteTourIds      String[] @db.ObjectId
+  // ========================================
+  // INTERCONNECTED FEATURES - All services
+  // ========================================
+  
+  // Bookings across all service types
+  propertyBookings   PropertyBooking[]
+  vehicleBookings    VehicleBooking[]
+  tourBookings       TourBooking[]
+
+  // Reviews for all services
+  reviews            Review[]
+
+  // Favorites system for all services
+  wishlists          Wishlist[]
+
+  // Payments for all bookings
+  payments           Payment[]
+
+  // Notifications for all activities
+  notifications      Notification[]
+
+  // Messages sent and received
+  sentMessages       Message[] @relation("MessageSender")
+  receivedMessages   Message[] @relation("MessageReceiver")
+
+  // Documents for verification
+  documents          Document[]
+
+  // Analytics tracking
+  analytics          Analytics[]
+
+  // Commission tracking (for service providers)
+  commissions        Commission[]
+
+  // Payout tracking (for service providers)
+  payouts            Payout[]
+
+  // Password reset tokens
+  passwordResetTokens PasswordResetToken[]
 
   @@index([role])
   @@index([verified])
   @@index([active])
 }
 
-// Customer Profile - For users who book services
+// ========================================
+// ROLE-BASED PROFILES WITH REAL RELATIONSHIPS
+// ========================================
+
 model CustomerProfile {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // ========================================
+  // REAL RELATIONSHIP TO USER
+  // ========================================
   userId      String   @unique @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Personal Information
   firstName   String
@@ -200,7 +264,7 @@ model CustomerProfile {
   loyaltyPoints     Int @default(0)
   membershipTier    String @default("BRONZE") // BRONZE, SILVER, GOLD, PLATINUM
   
-  // Statistics
+  // Statistics (calculated from related bookings)
   totalBookings     Int @default(0)
   totalSpent        Float @default(0)
   averageRating     Float @default(0)
@@ -209,12 +273,17 @@ model CustomerProfile {
   updatedAt   DateTime @updatedAt
 
   @@index([membershipTier])
+  @@index([city, country])
 }
 
-// Property Owner Profile - For accommodation providers
 model PropertyOwner {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // ========================================
+  // REAL RELATIONSHIP TO USER
+  // ========================================
   userId      String   @unique @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Business Information
   businessName        String
@@ -242,7 +311,7 @@ model PropertyOwner {
   verificationLevel   String @default("BASIC") // BASIC, VERIFIED, PREMIUM
   documentsSubmitted  String[]
   
-  // Business Metrics
+  // Business Metrics (calculated from related properties and bookings)
   totalProperties     Int @default(0)
   totalBookings       Int @default(0)
   totalRevenue        Float @default(0)
@@ -257,8 +326,15 @@ model PropertyOwner {
   checkInTime         String @default("15:00")
   checkOutTime        String @default("11:00")
   
-  // Property IDs managed by this owner
-  propertyIds         String[] @db.ObjectId
+  // ========================================
+  // REAL RELATIONSHIPS TO PROPERTIES
+  // ========================================
+  properties          Property[]
+  
+  // ========================================
+  // REAL RELATIONSHIPS TO COMMISSIONS
+  // ========================================
+  commissions         Commission[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -267,10 +343,14 @@ model PropertyOwner {
   @@index([businessCity, businessCountry])
 }
 
-// Vehicle Owner Profile - For car rental and transport providers
 model VehicleOwner {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // ========================================
+  // REAL RELATIONSHIP TO USER
+  // ========================================
   userId      String   @unique @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Business Information
   businessName        String
@@ -311,7 +391,7 @@ model VehicleOwner {
   activeVehicles      Int @default(0)
   vehicleTypes        String[]
   
-  // Business Metrics
+  // Business Metrics (calculated from related vehicles and bookings)
   totalBookings       Int @default(0)
   totalRevenue        Float @default(0)
   averageRating       Float @default(0)
@@ -327,8 +407,15 @@ model VehicleOwner {
   airportPickup       Boolean @default(false)
   longDistanceTrips   Boolean @default(false)
   
-  // Vehicle IDs managed by this owner
-  vehicleIds          String[] @db.ObjectId
+  // ========================================
+  // REAL RELATIONSHIPS TO VEHICLES
+  // ========================================
+  vehicles            Vehicle[]
+  
+  // ========================================
+  // REAL RELATIONSHIPS TO COMMISSIONS
+  // ========================================
+  commissions         Commission[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -338,10 +425,14 @@ model VehicleOwner {
   @@index([serviceAreas])
 }
 
-// Tour Guide Profile - For tour and experience providers
 model TourGuide {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // ========================================
+  // REAL RELATIONSHIP TO USER
+  // ========================================
   userId      String   @unique @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Personal Information
   firstName           String
@@ -379,7 +470,7 @@ model TourGuide {
   documentsSubmitted  String[]
   backgroundCheck     Boolean @default(false)
   
-  // Business Metrics
+  // Business Metrics (calculated from related tours and bookings)
   totalTours          Int @default(0)
   totalBookings       Int @default(0)
   totalRevenue        Float @default(0)
@@ -391,8 +482,20 @@ model TourGuide {
   accountNumber       String?
   routingNumber       String?
   
-  // Tour IDs managed by this guide
-  tourIds             String[] @db.ObjectId
+  // ========================================
+  // REAL RELATIONSHIPS TO TOURS
+  // ========================================
+  tours               Tour[]
+  
+  // ========================================
+  // REAL RELATIONSHIPS TO COMMISSIONS
+  // ========================================
+  commissions         Commission[]
+  
+  // ========================================
+  // REAL RELATIONSHIPS TO BOOKINGS
+  // ========================================
+  tourBookings        TourBooking[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -403,10 +506,14 @@ model TourGuide {
   @@index([specializations])
 }
 
-// Super Admin Profile - For platform administrators
 model SuperAdmin {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // ========================================
+  // REAL RELATIONSHIP TO USER
+  // ========================================
   userId      String   @unique @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Admin Information
   adminLevel          String @default("ADMIN") // ADMIN, SUPER_ADMIN, MODERATOR
@@ -431,7 +538,10 @@ model SuperAdmin {
   @@index([adminLevel])
 }
 
-// Property Model - Enhanced accommodation system
+// ========================================
+// SERVICE MODELS WITH REAL RELATIONSHIPS
+// ========================================
+
 model Property {
   id            String       @id @default(auto()) @map("_id") @db.ObjectId
   name          String
@@ -495,8 +605,12 @@ model Property {
   checkOutTime  String @default("11:00")
   selfCheckIn   Boolean @default(false)
   
-  // Owner Information
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
   ownerId       String   @db.ObjectId
+  owner         PropertyOwner @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  
   coHosts       String[] @db.ObjectId
   
   // Approval Status
@@ -505,17 +619,19 @@ model Property {
   approvedAt     DateTime?
   rejectionReason String?
   
-  // Statistics
+  // Statistics (calculated from related bookings and reviews)
   rating        Float   @default(0)
   reviewCount   Int     @default(0)
   totalBookings Int     @default(0)
   viewCount     Int     @default(0)
   favoriteCount Int     @default(0)
   
-  // References
-  bookingIds    String[] @db.ObjectId
-  reviewIds     String[] @db.ObjectId
-  unavailableIds String[] @db.ObjectId
+  // ========================================
+  // REAL RELATIONSHIPS TO BOOKINGS & REVIEWS
+  // ========================================
+  bookings      PropertyBooking[]
+  reviews       Review[]
+  unavailableDates UnavailableDate[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -529,7 +645,6 @@ model Property {
   @@index([rating])
 }
 
-// Vehicle Model - Enhanced transportation system
 model Vehicle {
   id              String      @id @default(auto()) @map("_id") @db.ObjectId
   name            String
@@ -602,8 +717,11 @@ model Vehicle {
   driverRequired  Boolean @default(false)
   driverLanguages String[]
   
-  // Owner Information
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
   ownerId         String   @db.ObjectId
+  owner           VehicleOwner @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   
   // Approval Status
   approvalStatus  ApprovalStatus @default(PENDING)
@@ -611,7 +729,7 @@ model Vehicle {
   approvedAt      DateTime?
   rejectionReason String?
   
-  // Statistics
+  // Statistics (calculated from related bookings and reviews)
   rating          Float   @default(0)
   reviewCount     Int     @default(0)
   totalBookings   Int     @default(0)
@@ -619,11 +737,13 @@ model Vehicle {
   viewCount       Int     @default(0)
   favoriteCount   Int     @default(0)
   
-  // References
-  bookingIds      String[] @db.ObjectId
-  reviewIds       String[] @db.ObjectId
-  unavailableIds  String[] @db.ObjectId
-  maintenanceIds  String[] @db.ObjectId
+  // ========================================
+  // REAL RELATIONSHIPS TO BOOKINGS & REVIEWS
+  // ========================================
+  bookings        VehicleBooking[]
+  reviews         Review[]
+  unavailableDates UnavailableDate[]
+  maintenanceRecords MaintenanceRecord[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -637,7 +757,6 @@ model Vehicle {
   @@index([rating])
 }
 
-// Tour Model - Enhanced tour and experience system
 model Tour {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   title           String
@@ -691,8 +810,11 @@ model Tour {
   // Languages
   languages       String[]
   
-  // Guide Information
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
   guideId         String   @db.ObjectId
+  guide           TourGuide @relation(fields: [guideId], references: [id], onDelete: Cascade)
   
   // Approval Status
   approvalStatus  ApprovalStatus @default(PENDING)
@@ -700,17 +822,19 @@ model Tour {
   approvedAt      DateTime?
   rejectionReason String?
   
-  // Statistics
+  // Statistics (calculated from related bookings and reviews)
   rating          Float   @default(0)
   reviewCount     Int     @default(0)
   totalBookings   Int     @default(0)
   viewCount       Int     @default(0)
   favoriteCount   Int     @default(0)
   
-  // References
-  bookingIds      String[] @db.ObjectId
-  reviewIds       String[] @db.ObjectId
-  unavailableIds  String[] @db.ObjectId
+  // ========================================
+  // REAL RELATIONSHIPS TO BOOKINGS & REVIEWS
+  // ========================================
+  bookings        TourBooking[]
+  reviews         Review[]
+  unavailableDates UnavailableDate[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -724,7 +848,10 @@ model Tour {
   @@index([rating])
 }
 
-// Property Booking Model
+// ========================================
+// BOOKING MODELS WITH REAL RELATIONSHIPS
+// ========================================
+
 model PropertyBooking {
   id              String        @id @default(auto()) @map("_id") @db.ObjectId
   bookingNumber   String        @unique
@@ -767,11 +894,20 @@ model PropertyBooking {
   cancellationReason String?
   refundAmount    Float?
   
-  // References
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
   userId          String @db.ObjectId
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   propertyId      String @db.ObjectId
-  paymentIds      String[] @db.ObjectId
-  reviewId        String? @db.ObjectId
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  // ========================================
+  // REAL RELATIONSHIPS TO PAYMENTS & REVIEWS
+  // ========================================
+  // Note: Payments and reviews are linked via bookingId and bookingType fields
+  // This allows for flexible relationships across different booking types
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -782,7 +918,6 @@ model PropertyBooking {
   @@index([checkIn, checkOut])
 }
 
-// Vehicle Booking Model
 model VehicleBooking {
   id              String        @id @default(auto()) @map("_id") @db.ObjectId
   bookingNumber   String        @unique
@@ -842,11 +977,20 @@ model VehicleBooking {
   cancellationReason String?
   refundAmount    Float?
   
-  // References
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
   userId          String @db.ObjectId
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   vehicleId       String @db.ObjectId
-  paymentIds      String[] @db.ObjectId
-  reviewId        String? @db.ObjectId
+  vehicle         Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  
+  // ========================================
+  // REAL RELATIONSHIPS TO PAYMENTS & REVIEWS
+  // ========================================
+  // Note: Payments and reviews are linked via bookingId and bookingType fields
+  // This allows for flexible relationships across different booking types
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -857,7 +1001,6 @@ model VehicleBooking {
   @@index([startDate, endDate])
 }
 
-// Tour Booking Model
 model TourBooking {
   id              String        @id @default(auto()) @map("_id") @db.ObjectId
   bookingNumber   String        @unique
@@ -906,12 +1049,23 @@ model TourBooking {
   cancellationReason String?
   refundAmount    Float?
   
-  // References
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
   userId          String @db.ObjectId
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   tourId          String @db.ObjectId
+  tour            Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  
   guideId         String @db.ObjectId
-  paymentIds      String[] @db.ObjectId
-  reviewId        String? @db.ObjectId
+  guide           TourGuide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  
+  // ========================================
+  // REAL RELATIONSHIPS TO PAYMENTS & REVIEWS
+  // ========================================
+  // Note: Payments and reviews are linked via bookingId and bookingType fields
+  // This allows for flexible relationships across different booking types
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -923,7 +1077,10 @@ model TourBooking {
   @@index([tourDate])
 }
 
-// Enhanced Payment Model
+// ========================================
+// PAYMENT SYSTEM WITH REAL RELATIONSHIPS
+// ========================================
+
 model Payment {
   id              String        @id @default(auto()) @map("_id") @db.ObjectId
   amount          Float
@@ -947,8 +1104,13 @@ model Payment {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  // References - flexible for different booking types
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
   userId          String @db.ObjectId
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Flexible booking reference
   bookingId       String @db.ObjectId
   bookingType     String // "property", "vehicle", "tour"
 
@@ -957,90 +1119,97 @@ model Payment {
   @@index([bookingId, bookingType])
 }
 
-// Service Request Model - For pending approvals
-model ServiceRequest {
-  id              String        @id @default(auto()) @map("_id") @db.ObjectId
-  type            ServiceType
-  title           String
-  description     String
+// ========================================
+// COMMISSION SYSTEM WITH REAL RELATIONSHIPS
+// ========================================
+
+model Commission {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  amount          Float
+  percentage      Float
+  currency        String @default("PKR")
+  status          CommissionStatus @default(PENDING)
   
-  // Request Details
-  requestData     Json // flexible data for different request types
-  attachments     String[]
+  // Commission Details
+  bookingId       String @db.ObjectId
+  bookingType     String // "property", "vehicle", "tour"
+  serviceId       String @db.ObjectId
+  serviceType     String // "property", "vehicle", "tour"
   
-  // Requester Information
-  requesterId     String @db.ObjectId
-  requesterRole   UserRole
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  userId          String @db.ObjectId
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Approval Information
-  status          ApprovalStatus @default(PENDING)
-  reviewedBy      String? @db.ObjectId
-  reviewedAt      DateTime?
-  reviewNotes     String?
+  // Provider relationships (one of these will be set based on service type)
+  propertyOwnerId String? @db.ObjectId
+  propertyOwner   PropertyOwner? @relation(fields: [propertyOwnerId], references: [id], onDelete: Cascade)
   
-  // Priority and Category
-  priority        String @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
-  category        String?
+  vehicleOwnerId  String? @db.ObjectId
+  vehicleOwner    VehicleOwner? @relation(fields: [vehicleOwnerId], references: [id], onDelete: Cascade)
   
-  // References
-  relatedId       String? @db.ObjectId // ID of related property/vehicle/tour
+  tourGuideId     String? @db.ObjectId
+  tourGuide       TourGuide? @relation(fields: [tourGuideId], references: [id], onDelete: Cascade)
+  
+  // Payout tracking
+  payoutId        String? @db.ObjectId
+  payout          Payout? @relation(fields: [payoutId], references: [id])
+  
+  // Dates
+  calculatedAt    DateTime @default(now())
+  paidAt          DateTime?
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@index([requesterId])
+  @@index([userId])
+  @@index([bookingId, bookingType])
   @@index([status])
-  @@index([type])
-  @@index([priority])
+  @@index([calculatedAt])
 }
 
-// Pending Approval Model - For admin review workflows
-model PendingApproval {
-  id              String        @id @default(auto()) @map("_id") @db.ObjectId
-  type            ServiceType
-  title           String
-  description     String
+model Payout {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  amount          Float
+  currency        String @default("PKR")
+  status          PaymentStatus @default(PENDING)
   
-  // Item Details
-  itemId          String @db.ObjectId
-  itemType        String // "property", "vehicle", "tour", "profile"
-  itemData        Json // snapshot of the item data
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  userId          String @db.ObjectId
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Submitter Information
-  submitterId     String @db.ObjectId
-  submitterRole   UserRole
-  submitterNotes  String?
+  // Provider relationships
+  propertyOwnerId String? @db.ObjectId
+  vehicleOwnerId  String? @db.ObjectId
+  tourGuideId     String? @db.ObjectId
   
-  // Approval Workflow
-  status          ApprovalStatus @default(PENDING)
-  assignedTo      String? @db.ObjectId
-  assignedAt      DateTime?
+  // Commission tracking
+  commissions     Commission[]
   
-  // Review Information
-  reviewedBy      String? @db.ObjectId
-  reviewedAt      DateTime?
-  reviewNotes     String?
-  rejectionReason String?
+  // Payout details
+  paymentMethod   PaymentMethod
+  bankDetails     Json?
+  transactionId   String?
   
-  // Priority and Metadata
-  priority        String @default("MEDIUM")
-  tags            String[]
-  estimatedReviewTime Int? // in hours
-  
-  // Approval History
-  approvalHistory Json[] // track all review actions
+  // Dates
+  requestedAt     DateTime @default(now())
+  processedAt     DateTime?
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@index([submitterId])
+  @@index([userId])
   @@index([status])
-  @@index([type])
-  @@index([assignedTo])
-  @@index([priority])
+  @@index([requestedAt])
 }
 
-// Enhanced Review Model
+// ========================================
+// REVIEW SYSTEM WITH REAL RELATIONSHIPS
+// ========================================
+
 model Review {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   rating          Int      // 1-5 stars
@@ -1064,18 +1233,29 @@ model Review {
   
   // Reviewer Information
   userId          String   @db.ObjectId
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   reviewerName    String
   reviewerAvatar  String?
   stayDuration    Int? // for properties (nights)
   tripType        String? // business, leisure, family, etc.
   
-  // Booking Reference
+  // ========================================
+  // REAL RELATIONSHIPS TO BOOKINGS
+  // ========================================
   bookingId       String   @db.ObjectId
   bookingType     String   // "property", "vehicle", "tour"
   
-  // Service References (flexible)
+  // ========================================
+  // REAL RELATIONSHIPS TO SERVICES
+  // ========================================
   serviceId       String   @db.ObjectId
   serviceType     String   // "property", "vehicle", "tour"
+  
+  // Service relationships (one of these will be set)
+  property        Property? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  tour            Tour? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   
   // Response from Owner/Provider
   ownerResponse   String?
@@ -1097,49 +1277,13 @@ model Review {
   @@index([createdAt])
 }
 
-// Document Upload Model - For verification documents
-model Document {
-  id              String       @id @default(auto()) @map("_id") @db.ObjectId
-  type            DocumentType
-  name            String
-  originalName    String
-  url             String
-  size            Int
-  mimeType        String
-  
-  // Document Details
-  documentNumber  String?
-  expiryDate      DateTime?
-  issueDate       DateTime?
-  issuingAuthority String?
-  
-  // Verification Status
-  verified        Boolean @default(false)
-  verifiedBy      String? @db.ObjectId
-  verifiedAt      DateTime?
-  rejectionReason String?
-  
-  // Owner Information
-  userId          String @db.ObjectId
-  userRole        UserRole
-  
-  // Related Entity
-  relatedId       String? @db.ObjectId
-  relatedType     String? // "property", "vehicle", "tour", "profile"
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+// ========================================
+// NOTIFICATION SYSTEM WITH REAL RELATIONSHIPS
+// ========================================
 
-  @@index([userId])
-  @@index([type])
-  @@index([verified])
-  @@index([relatedId, relatedType])
-}
-
-// Notification Model
 model Notification {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  type            String   // booking_confirmed, payment_received, review_received, etc.
+  type            NotificationType
   title           String
   message         String
   
@@ -1147,8 +1291,12 @@ model Notification {
   data            Json?    // additional data for the notification
   actionUrl       String?  // URL to navigate to when clicked
   
-  // Recipient Information
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
   userId          String   @db.ObjectId
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   userRole        UserRole
   
   // Status
@@ -1172,41 +1320,20 @@ model Notification {
   @@index([createdAt])
 }
 
-// Unavailable Date Model - For blocking dates
-model UnavailableDate {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  startDate       DateTime
-  endDate         DateTime
-  reason          String?
-  type            String   // "maintenance", "personal", "booked", "blocked"
-  
-  // Service Reference
-  serviceId       String   @db.ObjectId
-  serviceType     String   // "property", "vehicle", "tour"
-  
-  // Owner Information
-  ownerId         String   @db.ObjectId
-  
-  // Recurring Pattern
-  recurring       Boolean @default(false)
-  recurringPattern Json?   // for complex recurring patterns
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+// ========================================
+// WISHLIST SYSTEM WITH REAL RELATIONSHIPS
+// ========================================
 
-  @@index([serviceId, serviceType])
-  @@index([startDate, endDate])
-  @@index([ownerId])
-}
-
-// Wishlist Model - Enhanced favorites
 model Wishlist {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   name            String   @default("My Favorites")
   description     String?
   
-  // User Information
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
   userId          String   @db.ObjectId
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Wishlist Items
   propertyIds     String[] @db.ObjectId
@@ -1225,52 +1352,61 @@ model Wishlist {
   @@index([public])
 }
 
-// Analytics Model - For tracking business metrics
-model Analytics {
+// ========================================
+// UNAVAILABLE DATES WITH REAL RELATIONSHIPS
+// ========================================
+
+model UnavailableDate {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  type            String   // "booking", "view", "search", "conversion"
-  entity          String   // "property", "vehicle", "tour"
-  entityId        String   @db.ObjectId
+  startDate       DateTime
+  endDate         DateTime
+  reason          String?
+  type            String   // "maintenance", "personal", "booked", "blocked"
   
-  // Metrics Data
-  value           Float?
-  count           Int @default(1)
-  metadata        Json?
+  // ========================================
+  // REAL RELATIONSHIPS TO SERVICES
+  // ========================================
+  serviceId       String   @db.ObjectId
+  serviceType     String   // "property", "vehicle", "tour"
   
-  // User Context
-  userId          String? @db.ObjectId
-  userRole        UserRole?
-  sessionId       String?
+  // Service relationships (one of these will be set)
+  property        Property? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  tour            Tour? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   
-  // Location Context
-  city            String?
-  country         String?
-  ipAddress       String?
+  // Owner Information
+  ownerId         String   @db.ObjectId
   
-  // Time Context
-  date            DateTime @default(now())
-  hour            Int
-  dayOfWeek       Int
-  month           Int
-  year            Int
+  // Recurring Pattern
+  recurring       Boolean @default(false)
+  recurringPattern Json?   // for complex recurring patterns
   
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  @@index([type, entity])
-  @@index([entityId])
-  @@index([date])
-  @@index([userId])
+  @@index([serviceId, serviceType])
+  @@index([startDate, endDate])
+  @@index([ownerId])
 }
 
-// Message Model - For communication between users
+// ========================================
+// MESSAGE SYSTEM WITH REAL RELATIONSHIPS
+// ========================================
+
 model Message {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   subject         String?
   content         String
   
-  // Sender/Receiver
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
   senderId        String   @db.ObjectId
+  sender          User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  
   receiverId      String   @db.ObjectId
+  receiver        User @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  
   senderRole      UserRole
   receiverRole    UserRole
   
@@ -1300,10 +1436,18 @@ model Message {
   @@index([read])
 }
 
-// Maintenance Record Model - For vehicle maintenance
+// ========================================
+// MAINTENANCE SYSTEM WITH REAL RELATIONSHIPS
+// ========================================
+
 model MaintenanceRecord {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
   vehicleId       String   @db.ObjectId
+  vehicle         Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   
   // Maintenance Details
   type            String   // "routine", "repair", "inspection"
@@ -1336,7 +1480,100 @@ model MaintenanceRecord {
   @@index([type])
 }
 
-// Coupon Model - For discounts and promotions
+// ========================================
+// DOCUMENT SYSTEM WITH REAL RELATIONSHIPS
+// ========================================
+
+model Document {
+  id              String       @id @default(auto()) @map("_id") @db.ObjectId
+  type            DocumentType
+  name            String
+  originalName    String
+  url             String
+  size            Int
+  mimeType        String
+  
+  // Document Details
+  documentNumber  String?
+  expiryDate      DateTime?
+  issueDate       DateTime?
+  issuingAuthority String?
+  
+  // Verification Status
+  verified        Boolean @default(false)
+  verifiedBy      String? @db.ObjectId
+  verifiedAt      DateTime?
+  rejectionReason String?
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  userId          String @db.ObjectId
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  userRole        UserRole
+  
+  // Related Entity
+  relatedId       String? @db.ObjectId
+  relatedType     String? // "property", "vehicle", "tour", "profile"
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([verified])
+  @@index([relatedId, relatedType])
+}
+
+// ========================================
+// ANALYTICS SYSTEM WITH REAL RELATIONSHIPS
+// ========================================
+
+model Analytics {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  type            String   // "booking", "view", "search", "conversion"
+  entity          String   // "property", "vehicle", "tour"
+  entityId        String   @db.ObjectId
+  
+  // Metrics Data
+  value           Float?
+  count           Int @default(1)
+  metadata        Json?
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  userId          String? @db.ObjectId
+  user            User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  userRole        UserRole?
+  sessionId       String?
+  
+  // Location Context
+  city            String?
+  country         String?
+  ipAddress       String?
+  
+  // Time Context
+  date            DateTime @default(now())
+  hour            Int
+  dayOfWeek       Int
+  month           Int
+  year            Int
+  
+  createdAt       DateTime @default(now())
+
+  @@index([type, entity])
+  @@index([entityId])
+  @@index([date])
+  @@index([userId])
+}
+
+// ========================================
+// COUPON SYSTEM
+// ========================================
+
 model Coupon {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   code            String   @unique
@@ -1374,11 +1611,15 @@ model Coupon {
   @@index([validFrom, validUntil])
 }
 
-// Keep the PasswordResetToken model (from previous authentication system)
+// ========================================
+// PASSWORD RESET SYSTEM
+// ========================================
+
 model PasswordResetToken {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   token     String   @unique
   userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
