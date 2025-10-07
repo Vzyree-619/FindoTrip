@@ -145,7 +145,7 @@ export default function Rooms() {
                   Starting from PKR {room.price}
                 </p>
                 <button
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-2"
+                  className="bg-[#01502E] text-white px-4 py-2 rounded hover:bg-[#013d23] transition-colors mt-2"
                   onClick={() => handleRoomClick(room)}
                 >
                   View Details

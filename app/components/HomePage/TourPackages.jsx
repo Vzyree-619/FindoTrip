@@ -99,7 +99,7 @@ export default function TourPackages() {
   };
 
   return (
-    <div className="flex flex-col-reverse md:flex-row items-stretch justify-between w-[full] max-w-5xl mx-auto min-h-[400px] md:h-[450px] overflow-hidden bg-white shadow-lg rounded-xl mt-10">
+    <div className="flex flex-col-reverse md:flex-row items-stretch justify-between w-full max-w-5xl mx-auto min-h-[400px] md:h-[450px] overflow-hidden bg-white shadow-lg rounded-xl mt-10">
       {/* Left Side - Content */}
       <div ref={leftContentRef} className="w-full md:w-1/2 p-4 items-start flex flex-col justify-center ">
         <button className="bg-gray-100 px-3 py-1 text-sm rounded-full w-max mb-4 flex items-center space-x-1">

@@ -51,7 +51,7 @@ export default function RoomDetail() {
       >
         ← Back
       </button>
-      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
+      <div className="max-w-5xl lg:max-w-6xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
         {/* Image Section */}
         <div className="w-full h-64 overflow-hidden">
           <img

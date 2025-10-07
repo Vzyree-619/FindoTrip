@@ -57,7 +57,7 @@ function Sidebar({ current, setCurrent, unread }) {
       {sections.map((s) => (
         <button
           key={s.key}
-          className={`flex items-center gap-2 px-3 py-2 rounded transition font-semibold ${current === s.key ? "bg-blue-100 text-blue-700" : "hover:bg-gray-100 text-gray-700"}`}
+          className={`flex items-center gap-2 px-3 py-2 rounded transition font-semibold ${current === s.key ? "bg-green-100 text-[#01502E]" : "hover:bg-gray-100 text-gray-700"}`}
           onClick={() => setCurrent(s.key)}
         >
           {s.icon}
@@ -74,17 +74,17 @@ function Sidebar({ current, setCurrent, unread }) {
 function ProfileSection() {
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-center gap-6 bg-blue-50 p-6 rounded-lg">
-        <img src={user.avatar} alt="avatar" className="w-24 h-24 rounded-full border-4 border-blue-200 object-cover" />
+      <div className="flex flex-col md:flex-row items-center gap-6 bg-green-50 p-6 rounded-lg">
+        <img src={user.avatar} alt="avatar" className="w-24 h-24 rounded-full border-4 border-green-200 object-cover" />
         <div>
           <h2 className="text-2xl font-bold mb-1">{user.name}</h2>
           <div className="text-gray-600 mb-2">{user.email} | {user.phone}</div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="bg-blue-200 text-blue-800 px-2 py-1 rounded text-xs font-semibold">Genius Level {user.loyalty.level}</span>
+            <span className="bg-green-200 text-[#01502E] px-2 py-1 rounded text-xs font-semibold">Genius Level {user.loyalty.level}</span>
             <span className="text-xs text-gray-500">{user.loyalty.points} pts</span>
           </div>
           <div className="w-full bg-gray-200 rounded h-2 mb-2">
-            <div className="bg-blue-500 h-2 rounded" style={{ width: `${(user.loyalty.points / user.loyalty.nextLevel) * 100}%` }}></div>
+            <div className="bg-[#01502E] h-2 rounded" style={{ width: `${(user.loyalty.points / user.loyalty.nextLevel) * 100}%` }}></div>
           </div>
           <div className="text-xs text-gray-500">{user.loyalty.nextLevel - user.loyalty.points} pts to next level</div>
         </div>
@@ -92,19 +92,19 @@ function ProfileSection() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white p-4 rounded shadow flex flex-col gap-2">
           <span className="font-semibold">Change Password</span>
-          <button className="bg-blue-500 text-white px-4 py-2 rounded">Change</button>
+          <button className="bg-[#01502E] text-white px-4 py-2 rounded hover:bg-[#013d23] transition-colors">Change</button>
         </div>
         <div className="bg-white p-4 rounded shadow flex flex-col gap-2">
           <span className="font-semibold">Manage Payment Methods</span>
-          <button className="bg-blue-500 text-white px-4 py-2 rounded">Manage</button>
+          <button className="bg-[#01502E] text-white px-4 py-2 rounded hover:bg-[#013d23] transition-colors">Manage</button>
         </div>
         <div className="bg-white p-4 rounded shadow flex flex-col gap-2">
           <span className="font-semibold">Notification Settings</span>
-          <button className="bg-blue-500 text-white px-4 py-2 rounded">Edit</button>
+          <button className="bg-[#01502E] text-white px-4 py-2 rounded hover:bg-[#013d23] transition-colors">Edit</button>
         </div>
         <div className="bg-white p-4 rounded shadow flex flex-col gap-2">
           <span className="font-semibold">Edit Profile</span>
-          <button className="bg-blue-500 text-white px-4 py-2 rounded">Edit</button>
+          <button className="bg-[#01502E] text-white px-4 py-2 rounded hover:bg-[#013d23] transition-colors">Edit</button>
         </div>
       </div>
     </div>
@@ -117,7 +117,7 @@ function BookingsSection() {
     <div>
       <div className="flex gap-4 mb-6">
         {["Upcoming", "Past", "Cancelled"].map((t) => (
-          <button key={t} className={`px-4 py-2 rounded ${tab === t ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700"}`} onClick={() => setTab(t)}>{t}</button>
+          <button key={t} className={`px-4 py-2 rounded transition-colors ${tab === t ? "bg-[#01502E] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -126,9 +126,9 @@ function BookingsSection() {
             <img src={b.image} alt={b.title} className="w-full h-32 object-cover rounded mb-2" />
             <div className="font-bold text-lg">{b.title}</div>
             <div className="text-gray-500 text-sm">{b.type} | {b.date}</div>
-            <div className="text-blue-600 font-bold">{b.price}</div>
+            <div className="text-[#01502E] font-bold">{b.price}</div>
             <div className="flex gap-2 mt-2">
-              <button className="bg-blue-500 text-white px-3 py-1 rounded text-sm">View Details</button>
+              <button className="bg-[#01502E] text-white px-3 py-1 rounded text-sm hover:bg-[#013d23] transition-colors">View Details</button>
               {tab === "Upcoming" && <button className="bg-red-500 text-white px-3 py-1 rounded text-sm">Cancel</button>}
               {tab === "Past" && <button className="bg-green-500 text-white px-3 py-1 rounded text-sm">Rebook</button>}
               <button className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm">Contact Support</button>
@@ -149,7 +149,7 @@ function WishlistSection() {
           <div className="font-bold text-lg">{w.title}</div>
           <div className="text-gray-500 text-sm">{w.type}</div>
           <div className="flex gap-2 mt-2">
-            <button className="bg-blue-500 text-white px-3 py-1 rounded text-sm">Book Now</button>
+            <button className="bg-[#01502E] text-white px-3 py-1 rounded text-sm hover:bg-[#013d23] transition-colors">Book Now</button>
             <button className="bg-red-500 text-white px-3 py-1 rounded text-sm">Remove</button>
           </div>
         </div>
@@ -162,13 +162,13 @@ function MessagesSection() {
   return (
     <div className="space-y-4">
       {messages.map((m, i) => (
-        <div key={i} className={`flex items-center gap-4 p-4 rounded shadow ${m.unread ? "bg-blue-50" : "bg-white"}`}>
-          <FaEnvelope className="text-blue-400 text-xl" />
+        <div key={i} className={`flex items-center gap-4 p-4 rounded shadow ${m.unread ? "bg-green-50" : "bg-white"}`}>
+          <FaEnvelope className="text-[#01502E] text-xl" />
           <div className="flex-1">
             <div className="font-semibold">{m.subject}</div>
             <div className="text-gray-500 text-sm">From: {m.from} | {m.date}</div>
           </div>
-          {m.unread && <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-0.5">New</span>}
+          {m.unread && <span className="bg-[#01502E] text-white text-xs rounded-full px-2 py-0.5">New</span>}
         </div>
       ))}
     </div>
@@ -186,7 +186,7 @@ function ReviewsSection() {
             <span className="text-gray-500">({r.rating}/5)</span>
           </div>
           <div className="text-gray-700">{r.text}</div>
-          <button className="bg-blue-500 text-white px-3 py-1 rounded text-sm w-max">Edit Review</button>
+          <button className="bg-[#01502E] text-white px-3 py-1 rounded text-sm w-max hover:bg-[#013d23] transition-colors">Edit Review</button>
         </div>
       ))}
       <button className="bg-green-500 text-white px-4 py-2 rounded mt-4">Write a Review</button>
@@ -199,13 +199,13 @@ function PaymentsSection() {
     <div className="space-y-4">
       {payments.map((p) => (
         <div key={p.id} className="bg-white rounded-lg shadow p-4 flex items-center gap-4">
-          <FaCreditCard className="text-blue-400 text-xl" />
+          <FaCreditCard className="text-[#01502E] text-xl" />
           <span className="flex-1">{p.method}</span>
-          {p.default && <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-0.5">Default</span>}
+          {p.default && <span className="bg-[#01502E] text-white text-xs rounded-full px-2 py-0.5">Default</span>}
           <button className="bg-red-500 text-white px-3 py-1 rounded text-sm">Remove</button>
         </div>
       ))}
-      <button className="bg-blue-500 text-white px-4 py-2 rounded">Add Payment Method</button>
+      <button className="bg-[#01502E] text-white px-4 py-2 rounded hover:bg-[#013d23] transition-colors">Add Payment Method</button>
     </div>
   );
 }
@@ -218,7 +218,7 @@ function RecommendationsSection() {
           <img src={rec.image} alt={rec.title} className="w-full h-32 object-cover rounded mb-2" />
           <div className="font-bold text-lg">{rec.title}</div>
           <div className="text-gray-500 text-sm">{rec.type}</div>
-          <button className="bg-blue-500 text-white px-3 py-1 rounded text-sm mt-2">View</button>
+          <button className="bg-[#01502E] text-white px-3 py-1 rounded text-sm mt-2 hover:bg-[#013d23] transition-colors">View</button>
         </div>
       ))}
     </div>
@@ -228,12 +228,12 @@ function RecommendationsSection() {
 function SupportSection() {
   return (
     <div className="space-y-4">
-      <button className="bg-blue-500 text-white px-4 py-2 rounded">Open a Ticket</button>
+      <button className="bg-[#01502E] text-white px-4 py-2 rounded hover:bg-[#013d23] transition-colors">Open a Ticket</button>
       {supportTickets.map((t) => (
         <div key={t.id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
           <div className="font-bold">{t.subject}</div>
           <div className="text-gray-500 text-sm">{t.status} | {t.date}</div>
-          <button className="bg-blue-500 text-white px-3 py-1 rounded text-sm w-max">View Ticket</button>
+          <button className="bg-[#01502E] text-white px-3 py-1 rounded text-sm w-max hover:bg-[#013d23] transition-colors">View Ticket</button>
         </div>
       ))}
       <div className="bg-white rounded-lg shadow p-4 mt-6">

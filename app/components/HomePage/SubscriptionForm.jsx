@@ -17,7 +17,7 @@ export default function SubscriptionForm() {
         />
         <button
           type="submit"
-          className="w-full md:w-auto bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold transition duration-300"
+          className="w-full md:w-auto bg-[#01502E] hover:bg-[#013d23] text-white px-6 py-2 rounded-lg font-semibold transition duration-300"
         >
           Subscribe
         </button>

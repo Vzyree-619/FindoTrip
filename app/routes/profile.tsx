@@ -1,0 +1,343 @@
+import {
+  json,
+  redirect,
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+} from "@remix-run/node";
+import { Form, useLoaderData, useActionData, useNavigation } from "@remix-run/react";
+import { useState } from "react";
+import { requireUserId, getUser } from "~/lib/auth.server";
+import { prisma } from "~/lib/db.server";
+import { 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Camera, 
+  Save, 
+  X,
+  Loader2,
+  CheckCircle,
+  AlertCircle
+} from "lucide-react";
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const userId = await requireUserId(request);
+  const user = await getUser(request);
+  
+  if (!user) {
+    throw redirect("/login");
+  }
+
+  return json({ user });
+}
+
+export async function action({ request }: ActionFunctionArgs) {
+  const userId = await requireUserId(request);
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "update-profile") {
+    const name = formData.get("name");
+    const phone = formData.get("phone");
+    const city = formData.get("city");
+    const country = formData.get("country");
+
+    if (typeof name !== "string" || !name) {
+      return json({ error: "Name is required" }, { status: 400 });
+    }
+
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          name,
+          phone: phone as string || null,
+          city: city as string || null,
+          country: country as string || null,
+        },
+      });
+
+      return json({ success: "Profile updated successfully!" });
+    } catch (error) {
+      return json({ error: "Failed to update profile" }, { status: 500 });
+    }
+  }
+
+  return json({ error: "Invalid action" }, { status: 400 });
+}
+
+export default function Profile() {
+  const { user } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
+  const [isEditing, setIsEditing] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Cover Image */}
+          <div className="h-32 bg-gradient-to-r from-[#01502E] to-[#013d23]"></div>
+
+          {/* Profile Section */}
+          <div className="px-8 pb-8">
+            {/* Avatar */}
+            <div className="relative -mt-16 mb-4">
+              <div className="inline-block relative">
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="h-32 w-32 rounded-full border-4 border-white object-cover"
+                  />
+                ) : (
+                  <div className="h-32 w-32 rounded-full border-4 border-white bg-[#01502E] flex items-center justify-center">
+                    <span className="text-5xl font-bold text-white">
+                      {user.name[0].toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <button className="absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg hover:bg-gray-50 transition">
+                  <Camera className="h-5 w-5 text-gray-600" />
+                </button>
+              </div>
+            </div>
+
+            {/* User Info */}
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-gray-900">{user.name}</h1>
+              <p className="text-gray-600">{user.email}</p>
+              <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-[#01502E]/10 text-[#01502E]">
+                {user.role.replace("_", " ")}
+              </span>
+            </div>
+
+            {/* Action Messages */}
+            {actionData?.success && (
+              <div className="mb-6 rounded-lg bg-green-50 border border-green-200 p-4">
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                  <p className="text-sm text-green-800">{actionData.success}</p>
+                </div>
+              </div>
+            )}
+
+            {actionData?.error && (
+              <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4">
+                <div className="flex items-center">
+                  <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+                  <p className="text-sm text-red-800">{actionData.error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Edit Toggle */}
+            {!isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="mb-6 px-6 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23] transition font-semibold"
+              >
+                Edit Profile
+              </button>
+            )}
+
+            {/* Profile Form */}
+            {isEditing ? (
+              <Form method="post" className="space-y-6">
+                <input type="hidden" name="intent" value="update-profile" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Full Name */}
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <User className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        defaultValue={user.name}
+                        required
+                        className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email (Read-only) */}
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Mail className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        id="email"
+                        type="email"
+                        value={user.email}
+                        disabled
+                        className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Phone className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        defaultValue={user.phone || ""}
+                        className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                        placeholder="+1 (555) 000-0000"
+                      />
+                    </div>
+                  </div>
+
+                  {/* City */}
+                  <div>
+                    <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
+                      City
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <MapPin className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        id="city"
+                        name="city"
+                        type="text"
+                        defaultValue={user.city || ""}
+                        className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                        placeholder="Skardu"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Country */}
+                  <div className="md:col-span-2">
+                    <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">
+                      Country
+                    </label>
+                    <input
+                      id="country"
+                      name="country"
+                      type="text"
+                      defaultValue={user.country || ""}
+                      className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                      placeholder="Pakistan"
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-4">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 flex items-center justify-center py-3 px-4 border border-transparent rounded-lg text-white bg-[#01502E] hover:bg-[#013d23] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#01502E] font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-5 w-5 mr-2" />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="flex-1 flex items-center justify-center py-3 px-4 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-semibold transition"
+                  >
+                    <X className="h-5 w-5 mr-2" />
+                    Cancel
+                  </button>
+                </div>
+              </Form>
+            ) : (
+              /* View Mode */
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+                    <Phone className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-xs text-gray-500">Phone</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.phone || "Not provided"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+                    <MapPin className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-xs text-gray-500">Location</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.city && user.country 
+                          ? `${user.city}, ${user.country}`
+                          : "Not provided"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Additional Sections */}
+        <div className="mt-6 bg-white rounded-2xl shadow-xl p-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Account Settings</h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+              <div>
+                <h3 className="font-medium text-gray-900">Change Password</h3>
+                <p className="text-sm text-gray-500">Update your password regularly for security</p>
+              </div>
+              <button className="text-[#01502E] hover:text-[#013d23] font-medium text-sm">
+                Change
+              </button>
+            </div>
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+              <div>
+                <h3 className="font-medium text-gray-900">Email Notifications</h3>
+                <p className="text-sm text-gray-500">Manage your email preferences</p>
+              </div>
+              <button className="text-[#01502E] hover:text-[#013d23] font-medium text-sm">
+                Manage
+              </button>
+            </div>
+            <div className="flex items-center justify-between p-4 border border-red-200 rounded-lg hover:bg-red-50 transition">
+              <div>
+                <h3 className="font-medium text-red-900">Delete Account</h3>
+                <p className="text-sm text-red-600">Permanently delete your account and data</p>
+              </div>
+              <button className="text-red-600 hover:text-red-700 font-medium text-sm">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

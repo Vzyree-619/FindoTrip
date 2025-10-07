@@ -1,5 +1,5 @@
 // // app/routes/index.jsx or any other route file
-import {  useActionData} from '@remix-run/react';
+import {  useActionData, useNavigate} from '@remix-run/react';
 import { useState } from 'react';
 
 
@@ -7,12 +7,13 @@ import { useState } from 'react';
 export default function InputForm() {
  const validationErrors = useActionData();
   const [activeTab, setActiveTab] = useState('hotel');
+  const navigate = useNavigate();
   // const navigation = useNavigate();
   // const isSubmitting = navigation.state !=='idle'
   // <button disabled={isSubmitting} type="submit" className="w-full p-2 text-white bg-blue-500 rounded">{isSubmitting ? 'saving... ': 'Save'}</button>
   return (
-    <div className="p-4 relative">
-      <img className='w-[100vw] rounded h-[75vh] object-cover object-[50%_35%] z-[-99]' src="landingPageImg.jpg" alt="homeImg" />
+    <div className="relative">
+      <img className='w-full h-[75vh] object-cover object-[50%_35%]' src="landingPageImg.jpg" alt="homeImg" />
    {validationErrors?.errors && (
   <div className="mb-4 text-red-500 border border-red-500 rounded p-2">
     <ul>
@@ -54,8 +55,24 @@ export default function InputForm() {
       <div className="p-4 bg-white rounded-lg shadow-md">
         {activeTab === 'hotel' && (
           <div lang="en-GB">
-            <form method='post' action="/input" className="w-full">
-              <input type="hidden" name="formType" value="hotelData" />
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const destination = formData.get('destination');
+              const checkIn = formData.get('checkIn');
+              const checkOut = formData.get('checkOut');
+              const adults = formData.get('adults');
+              const childs = formData.get('childs');
+              
+              const totalGuests = (parseInt(adults?.toString() || '0') + parseInt(childs?.toString() || '0'));
+              const params = new URLSearchParams();
+              if (destination) params.set('city', destination.toString());
+              if (checkIn) params.set('checkIn', checkIn.toString());
+              if (checkOut) params.set('checkOut', checkOut.toString());
+              if (totalGuests > 0) params.set('guests', totalGuests.toString());
+              
+              navigate(`/accommodations/search?${params.toString()}`);
+            }} className="w-full">
               {/* Desktop version - now using flex/grid, not absolute */}
               <div className="hidden md:flex flex-wrap gap-4 items-end justify-center mb-4">
                 <input
@@ -86,28 +103,34 @@ export default function InputForm() {
                   type="number"
                   placeholder="Adults"
                   name='adults'
+                  defaultValue="1"
+                  min="0"
                   className="w-24 p-2 border border-gray-300 rounded-md"
                 />
                 <input
                   type="number"
                   placeholder="Childs"
                   name='childs'
+                  defaultValue="0"
+                  min="0"
                   className="w-24 p-2 border border-gray-300 rounded-md"
                 />
                 <input
                   type="number"
                   placeholder="Room"
                   name='rooms'
+                  defaultValue="1"
+                  min="1"
                   className="w-24 p-2 border border-gray-300 rounded-md"
                 />
                 <button type="submit" className="p-2 text-white bg-[#01502E] rounded min-w-[120px]">Search</button>
               </div>
-              {/* Mobile responsive version (unchanged) */}
+              {/* Mobile responsive version */}
               <div className="md:hidden flex flex-col gap-2 p-2">
                 <input
                   type="text"
                   name='destination'
-                  placeholder="Enter application"
+                  placeholder="Enter destination"
                   className="w-full p-2 border rounded"
                 />
                 <div className="flex gap-2">
@@ -135,18 +158,24 @@ export default function InputForm() {
                     type="number"
                     placeholder="Adults"
                     name='adults'
+                    defaultValue="1"
+                    min="0"
                     className="w-full p-2 border border-gray-300 rounded-md"
                   />
                   <input
                     type="number"
                     placeholder="Childs"
                     name='childs'
+                    defaultValue="0"
+                    min="0"
                     className="w-full p-2 border border-gray-300 rounded-md"
                   />
                   <input
                     type="number"
                     placeholder="Room"
                     name='rooms'
+                    defaultValue="1"
+                    min="1"
                     className="w-full p-2 border border-gray-300 rounded-md"
                   />
                 </div>

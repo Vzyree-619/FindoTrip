@@ -1,5 +1,6 @@
 import { createCookieSessionStorage, redirect } from '@remix-run/node';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { prisma } from './db.server';
 
 // Session management
@@ -99,7 +100,8 @@ export async function register(
   email: string,
   password: string,
   name: string,
-  role: 'CUSTOMER' | 'CAR_PROVIDER' | 'TOUR_GUIDE' = 'CUSTOMER'
+  role: 'CUSTOMER' | 'PROPERTY_OWNER' | 'VEHICLE_OWNER' | 'TOUR_GUIDE' = 'CUSTOMER',
+  phone?: string
 ) {
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
@@ -113,6 +115,7 @@ export async function register(
       password: hashedPassword,
       name,
       role,
+      phone,
     },
     select: {
       id: true,
@@ -183,4 +186,87 @@ export async function requireCarProvider(request: Request) {
 
 export async function requireTourGuide(request: Request) {
   return requireRole(request, ['TOUR_GUIDE', 'ADMIN']);
+}
+
+// Password Reset functionality
+export async function createPasswordResetToken(email: string) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    return { error: 'User not found' };
+  }
+
+  // Generate a secure random token
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+
+  // Clean up any existing tokens for this user
+  await prisma.passwordResetToken.deleteMany({
+    where: { userId: user.id }
+  });
+
+  // Create new reset token
+  await prisma.passwordResetToken.create({
+    data: {
+      token,
+      userId: user.id,
+      expiresAt,
+    },
+  });
+
+  return { token, user };
+}
+
+export async function validatePasswordResetToken(token: string) {
+  const resetToken = await prisma.passwordResetToken.findUnique({
+    where: { token },
+  });
+
+  if (!resetToken) {
+    return { error: 'Invalid or expired reset token' };
+  }
+
+  if (resetToken.used) {
+    return { error: 'Reset token has already been used' };
+  }
+
+  if (new Date() > resetToken.expiresAt) {
+    return { error: 'Reset token has expired' };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: resetToken.userId },
+  });
+
+  if (!user) {
+    return { error: 'User not found' };
+  }
+
+  return { user, resetToken };
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const validation = await validatePasswordResetToken(token);
+  
+  if ('error' in validation) {
+    return validation;
+  }
+
+  const { user, resetToken } = validation;
+
+  // Hash the new password
+  const hashedPassword = await hashPassword(newPassword);
+
+  // Update user password and mark token as used
+  await Promise.all([
+    prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: { used: true },
+    }),
+  ]);
+
+  return { success: true };
 }

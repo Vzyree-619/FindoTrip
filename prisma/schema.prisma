@@ -9,12 +9,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
+// Enhanced Enums for Multi-Service Platform
 enum UserRole {
   CUSTOMER
-  CAR_PROVIDER
+  PROPERTY_OWNER
+  VEHICLE_OWNER
   TOUR_GUIDE
-  ADMIN
+  SUPER_ADMIN
 }
 
 enum BookingStatus {
@@ -22,19 +23,96 @@ enum BookingStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
+  REFUNDED
+  NO_SHOW
 }
 
-enum AccommodationType {
+enum PropertyType {
   HOTEL
   APARTMENT
   VILLA
   LODGE
   HOSTEL
   RESORT
+  GUESTHOUSE
+  BOUTIQUE_HOTEL
+  SERVICED_APARTMENT
+}
+
+enum VehicleType {
+  CAR
+  SUV
+  VAN
+  BUS
+  MOTORCYCLE
+  BOAT
+  YACHT
+  BICYCLE
+  RICKSHAW
+  LUXURY_CAR
+}
+
+enum TourType {
+  CITY_TOUR
+  ADVENTURE
+  CULTURAL
+  FOOD_TOUR
+  NATURE
+  HISTORICAL
+  RELIGIOUS
+  PHOTOGRAPHY
+  SHOPPING
+  NIGHTLIFE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  UNDER_REVIEW
+  REQUIRES_CHANGES
+}
+
+enum ServiceType {
+  PROPERTY
+  VEHICLE
+  TOUR
+  PROFILE_UPDATE
+  PRICING_CHANGE
+  NEW_LISTING
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  MOBILE_WALLET
+  CASH
+  CRYPTO
+}
+
+enum DocumentType {
+  NATIONAL_ID
+  PASSPORT
+  DRIVING_LICENSE
+  BUSINESS_LICENSE
+  TAX_CERTIFICATE
+  INSURANCE_DOCUMENT
+  VEHICLE_REGISTRATION
+  TOUR_GUIDE_LICENSE
 }
 
 
 
+// Enhanced User Model with Role-Based Architecture
 model User {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   email       String   @unique
@@ -44,203 +122,1267 @@ model User {
   phone       String?
   avatar      String?
   verified    Boolean  @default(false)
+  active      Boolean  @default(true)
+  lastLogin   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // References (manual relations in MongoDB)
-  accommodations  String[]   @db.ObjectId
-  cars            String[]   @db.ObjectId
-  tourGuideId     String?    @db.ObjectId
-  bookings        String[]   @db.ObjectId
-  reviews         String[]   @db.ObjectId
+  // Profile completion tracking
+  profileCompleted Boolean @default(false)
+  onboardingStep   Int     @default(0)
 
+  // Notification preferences
+  emailNotifications    Boolean @default(true)
+  smsNotifications     Boolean @default(false)
+  pushNotifications    Boolean @default(true)
 
+  // Security
+  twoFactorEnabled     Boolean @default(false)
+  twoFactorSecret      String?
+  loginAttempts        Int     @default(0)
+  lockedUntil          DateTime?
+
+  // References to role-specific profiles
+  customerProfileId    String? @db.ObjectId
+  propertyOwnerId      String? @db.ObjectId
+  vehicleOwnerId       String? @db.ObjectId
+  tourGuideId          String? @db.ObjectId
+  superAdminId         String? @db.ObjectId
+
+  // Activity tracking
+  bookingIds           String[] @db.ObjectId
+  reviewIds            String[] @db.ObjectId
+  favoritePropertyIds  String[] @db.ObjectId
+  favoriteVehicleIds   String[] @db.ObjectId
+  favoriteTourIds      String[] @db.ObjectId
+
+  @@index([role])
+  @@index([verified])
+  @@index([active])
 }
 
-model Accommodation {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+// Customer Profile - For users who book services
+model CustomerProfile {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @unique @db.ObjectId
+  
+  // Personal Information
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime?
+  gender      String?
+  nationality String?
+  
+  // Contact Information
+  alternatePhone    String?
+  emergencyContact  String?
+  emergencyPhone    String?
+  
+  // Address Information
+  address     String?
+  city        String?
+  state       String?
+  country     String?
+  postalCode  String?
+  
+  // Preferences
+  preferredLanguage String @default("en")
+  currency          String @default("PKR")
+  dietaryRestrictions String[]
+  accessibility     String[]
+  
+  // Travel Preferences
+  travelStyle       String? // luxury, budget, adventure, family
+  groupSize         Int?
+  budgetRange       String?
+  
+  // Loyalty Program
+  loyaltyPoints     Int @default(0)
+  membershipTier    String @default("BRONZE") // BRONZE, SILVER, GOLD, PLATINUM
+  
+  // Statistics
+  totalBookings     Int @default(0)
+  totalSpent        Float @default(0)
+  averageRating     Float @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([membershipTier])
+}
+
+// Property Owner Profile - For accommodation providers
+model PropertyOwner {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @unique @db.ObjectId
+  
+  // Business Information
+  businessName        String
+  businessType        String // individual, company, chain
+  businessLicense     String?
+  taxId               String?
+  
+  // Contact Information
+  businessPhone       String
+  businessEmail       String
+  businessAddress     String
+  businessCity        String
+  businessState       String
+  businessCountry     String
+  businessPostalCode  String
+  
+  // Banking Information
+  bankName            String?
+  accountNumber       String?
+  routingNumber       String?
+  paypalEmail         String?
+  
+  // Verification Status
+  verified            Boolean @default(false)
+  verificationLevel   String @default("BASIC") // BASIC, VERIFIED, PREMIUM
+  documentsSubmitted  String[]
+  
+  // Business Metrics
+  totalProperties     Int @default(0)
+  totalBookings       Int @default(0)
+  totalRevenue        Float @default(0)
+  averageRating       Float @default(0)
+  responseRate        Float @default(0)
+  responseTime        Int @default(0) // in minutes
+  
+  // Settings
+  instantBooking      Boolean @default(false)
+  autoAcceptBookings  Boolean @default(false)
+  cancellationPolicy  String @default("MODERATE")
+  checkInTime         String @default("15:00")
+  checkOutTime        String @default("11:00")
+  
+  // Property IDs managed by this owner
+  propertyIds         String[] @db.ObjectId
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([verified])
+  @@index([businessCity, businessCountry])
+}
+
+// Vehicle Owner Profile - For car rental and transport providers
+model VehicleOwner {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @unique @db.ObjectId
+  
+  // Business Information
+  businessName        String
+  businessType        String // individual, company, fleet
+  businessLicense     String?
+  transportLicense    String?
+  insuranceProvider   String
+  insurancePolicy     String
+  insuranceExpiry     DateTime
+  
+  // Contact Information
+  businessPhone       String
+  businessEmail       String
+  businessAddress     String
+  businessCity        String
+  businessState       String
+  businessCountry     String
+  
+  // Driver Information
+  drivingLicense      String
+  licenseExpiry       DateTime
+  drivingExperience   Int // years
+  languages           String[]
+  
+  // Banking Information
+  bankName            String?
+  accountNumber       String?
+  routingNumber       String?
+  
+  // Verification Status
+  verified            Boolean @default(false)
+  verificationLevel   String @default("BASIC")
+  documentsSubmitted  String[]
+  backgroundCheck     Boolean @default(false)
+  
+  // Fleet Information
+  totalVehicles       Int @default(0)
+  activeVehicles      Int @default(0)
+  vehicleTypes        String[]
+  
+  // Business Metrics
+  totalBookings       Int @default(0)
+  totalRevenue        Float @default(0)
+  averageRating       Float @default(0)
+  completionRate      Float @default(0)
+  onTimeRate          Float @default(0)
+  
+  // Service Areas
+  serviceAreas        String[]
+  maxDistance         Int @default(100) // km
+  
+  // Settings
+  instantBooking      Boolean @default(false)
+  airportPickup       Boolean @default(false)
+  longDistanceTrips   Boolean @default(false)
+  
+  // Vehicle IDs managed by this owner
+  vehicleIds          String[] @db.ObjectId
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([verified])
+  @@index([businessCity, businessCountry])
+  @@index([serviceAreas])
+}
+
+// Tour Guide Profile - For tour and experience providers
+model TourGuide {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @unique @db.ObjectId
+  
+  // Personal Information
+  firstName           String
+  lastName            String
+  dateOfBirth         DateTime
+  nationality         String
+  
+  // Professional Information
+  guideLicense        String?
+  licenseExpiry       DateTime?
+  yearsOfExperience   Int
+  languages           String[]
+  specializations     String[]
+  certifications      String[]
+  
+  // Contact Information
+  businessPhone       String?
+  businessEmail       String?
+  
+  // Service Information
+  serviceAreas        String[]
+  maxGroupSize        Int @default(10)
+  minGroupSize        Int @default(1)
+  pricePerPerson      Float
+  pricePerGroup       Float?
+  
+  // Availability
+  availableDays       String[] // ["MONDAY", "TUESDAY", ...]
+  workingHours        String   // "09:00-18:00"
+  advanceBooking      Int @default(24) // hours
+  
+  // Verification Status
+  verified            Boolean @default(false)
+  verificationLevel   String @default("BASIC")
+  documentsSubmitted  String[]
+  backgroundCheck     Boolean @default(false)
+  
+  // Business Metrics
+  totalTours          Int @default(0)
+  totalBookings       Int @default(0)
+  totalRevenue        Float @default(0)
+  averageRating       Float @default(0)
+  repeatCustomers     Int @default(0)
+  
+  // Banking Information
+  bankName            String?
+  accountNumber       String?
+  routingNumber       String?
+  
+  // Tour IDs managed by this guide
+  tourIds             String[] @db.ObjectId
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([verified])
+  @@index([serviceAreas])
+  @@index([languages])
+  @@index([specializations])
+}
+
+// Super Admin Profile - For platform administrators
+model SuperAdmin {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @unique @db.ObjectId
+  
+  // Admin Information
+  adminLevel          String @default("ADMIN") // ADMIN, SUPER_ADMIN, MODERATOR
+  department          String?
+  employeeId          String?
+  
+  // Permissions
+  permissions         String[]
+  canApproveListings  Boolean @default(false)
+  canManageUsers      Boolean @default(false)
+  canViewFinancials   Boolean @default(false)
+  canManageContent    Boolean @default(false)
+  canAccessAnalytics  Boolean @default(false)
+  
+  // Activity Tracking
+  lastActiveAt        DateTime?
+  actionsPerformed    Int @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([adminLevel])
+}
+
+// Property Model - Enhanced accommodation system
+model Property {
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
   name          String
   description   String
-  type          AccommodationType
+  type          PropertyType
+  
+  // Location Information
   address       String
   city          String
+  state         String?
   country       String
+  postalCode    String?
   latitude      Float?
   longitude     Float?
-  pricePerNight Float
+  neighborhood  String?
+  landmarks     String[]
+  
+  // Property Details
   maxGuests     Int
   bedrooms      Int
   bathrooms     Int
+  beds          Int?
+  area          Float? // in square meters
+  floor         Int?
+  totalFloors   Int?
+  
+  // Pricing
+  basePrice     Float
+  cleaningFee   Float @default(0)
+  serviceFee    Float @default(0)
+  taxRate       Float @default(0)
+  currency      String @default("PKR")
+  
+  // Pricing Rules
+  weekendPricing    Float? // multiplier for weekends
+  monthlyDiscount   Float @default(0) // percentage
+  weeklyDiscount    Float @default(0) // percentage
+  seasonalPricing   Json? // complex pricing rules
+  
+  // Media
   images        String[]
+  videos        String[]
+  virtualTour   String?
+  floorPlan     String?
+  
+  // Amenities and Features
   amenities     String[]
+  safetyFeatures String[]
+  accessibility  String[]
+  houseRules     String[]
+  
+  // Availability
+  available     Boolean @default(true)
+  instantBook   Boolean @default(false)
+  minStay       Int @default(1)
+  maxStay       Int @default(365)
+  advanceNotice Int @default(0) // hours
+  
+  // Check-in/out
+  checkInTime   String @default("15:00")
+  checkOutTime  String @default("11:00")
+  selfCheckIn   Boolean @default(false)
+  
+  // Owner Information
+  ownerId       String   @db.ObjectId
+  coHosts       String[] @db.ObjectId
+  
+  // Approval Status
+  approvalStatus ApprovalStatus @default(PENDING)
+  approvedBy     String? @db.ObjectId
+  approvedAt     DateTime?
+  rejectionReason String?
+  
+  // Statistics
   rating        Float   @default(0)
   reviewCount   Int     @default(0)
-  available     Boolean @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  ownerId       String   @db.ObjectId
+  totalBookings Int     @default(0)
+  viewCount     Int     @default(0)
+  favoriteCount Int     @default(0)
+  
+  // References
   bookingIds    String[] @db.ObjectId
   reviewIds     String[] @db.ObjectId
   unavailableIds String[] @db.ObjectId
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([city, country])
   @@index([type])
-  @@index([pricePerNight])
+  @@index([basePrice])
+  @@index([ownerId])
+  @@index([approvalStatus])
+  @@index([available])
+  @@index([rating])
 }
 
-model Car {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+// Vehicle Model - Enhanced transportation system
+model Vehicle {
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
   name            String
   brand           String
   model           String
   year            Int
-  type            String
+  type            VehicleType
+  category        String // economy, luxury, premium, etc.
   description     String
-  pricePerDay     Float
+  
+  // Vehicle Specifications
   seats           Int
-  transmission    String
-  fuelType        String
+  doors           Int?
+  transmission    String // manual, automatic, CVT
+  fuelType        String // petrol, diesel, electric, hybrid
+  engineSize      String?
+  mileage         Float? // km per liter
+  color           String?
+  
+  // Pricing
+  basePrice       Float // per day
+  hourlyRate      Float?
+  weeklyRate      Float?
+  monthlyRate     Float?
+  currency        String @default("PKR")
+  
+  // Additional Costs
+  securityDeposit Float @default(0)
+  insuranceFee    Float @default(0)
+  driverFee       Float @default(0) // if driver included
+  fuelPolicy      String @default("FULL_TO_FULL") // FULL_TO_FULL, SAME_TO_SAME
+  
+  // Media
   images          String[]
+  videos          String[]
+  documents       String[] // registration, insurance docs
+  
+  // Features and Equipment
   features        String[]
+  safetyFeatures  String[]
+  entertainment   String[]
+  comfort         String[]
+  
+  // Location and Service
   location        String
   city            String
+  state           String?
   country         String
   latitude        Float?
   longitude       Float?
+  serviceRadius   Int @default(50) // km
+  
+  // Availability
+  available       Boolean @default(true)
+  instantBook     Boolean @default(false)
+  minRentalHours  Int @default(24)
+  maxRentalDays   Int @default(30)
+  advanceNotice   Int @default(2) // hours
+  
+  // Vehicle Documentation
+  licensePlate    String  @unique
+  registrationNo  String
+  insurancePolicy String
+  insuranceExpiry DateTime
+  lastService     DateTime?
+  nextService     DateTime?
+  
+  // Driver Information
+  driverIncluded  Boolean @default(false)
+  driverRequired  Boolean @default(false)
+  driverLanguages String[]
+  
+  // Owner Information
+  ownerId         String   @db.ObjectId
+  
+  // Approval Status
+  approvalStatus  ApprovalStatus @default(PENDING)
+  approvedBy      String? @db.ObjectId
+  approvedAt      DateTime?
+  rejectionReason String?
+  
+  // Statistics
   rating          Float   @default(0)
   reviewCount     Int     @default(0)
-  available       Boolean @default(true)
-  licensePlate    String  @unique
-  insuranceExpiry DateTime
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  providerId      String   @db.ObjectId
+  totalBookings   Int     @default(0)
+  totalKilometers Float   @default(0)
+  viewCount       Int     @default(0)
+  favoriteCount   Int     @default(0)
+  
+  // References
   bookingIds      String[] @db.ObjectId
   reviewIds       String[] @db.ObjectId
   unavailableIds  String[] @db.ObjectId
+  maintenanceIds  String[] @db.ObjectId
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([city, country])
   @@index([type])
-  @@index([pricePerDay])
+  @@index([basePrice])
+  @@index([ownerId])
+  @@index([approvalStatus])
+  @@index([available])
+  @@index([rating])
 }
 
-model TourGuide {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  bio            String
-  languages      String[]
-  specialties    String[]
-  experience     Int
-  pricePerHour   Float
-  city           String
-  country        String
-  rating         Float   @default(0)
-  reviewCount    Int     @default(0)
-  toursCompleted Int     @default(0)
-  certifications String[]
-  available      Boolean @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  userId         String   @unique @db.ObjectId
-  bookingIds     String[] @db.ObjectId
-  reviewIds      String[] @db.ObjectId
-  availabilityIds String[] @db.ObjectId
+// Tour Model - Enhanced tour and experience system
+model Tour {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String
+  type            TourType
+  category        String // adventure, cultural, food, etc.
+  
+  // Tour Details
+  duration        Int // in hours
+  groupSize       Int
+  minGroupSize    Int @default(1)
+  maxGroupSize    Int
+  difficulty      String // easy, moderate, challenging
+  ageRestriction  String? // "18+", "all ages", etc.
+  
+  // Location Information
+  city            String
+  state           String?
+  country         String
+  meetingPoint    String
+  endPoint        String?
+  latitude        Float?
+  longitude       Float?
+  
+  // Pricing
+  pricePerPerson  Float
+  pricePerGroup   Float?
+  currency        String @default("PKR")
+  
+  // Inclusions and Exclusions
+  inclusions      String[]
+  exclusions      String[]
+  requirements    String[]
+  recommendations String[]
+  
+  // Media
+  images          String[]
+  videos          String[]
+  itinerary       Json? // detailed day-by-day itinerary
+  
+  // Availability
+  available       Boolean @default(true)
+  instantBook     Boolean @default(false)
+  advanceBooking  Int @default(24) // hours
+  
+  // Schedule
+  availableDays   String[] // ["MONDAY", "TUESDAY", ...]
+  timeSlots       String[] // ["09:00", "14:00", ...]
+  seasonalAvailability Json?
+  
+  // Languages
+  languages       String[]
+  
+  // Guide Information
+  guideId         String   @db.ObjectId
+  
+  // Approval Status
+  approvalStatus  ApprovalStatus @default(PENDING)
+  approvedBy      String? @db.ObjectId
+  approvedAt      DateTime?
+  rejectionReason String?
+  
+  // Statistics
+  rating          Float   @default(0)
+  reviewCount     Int     @default(0)
+  totalBookings   Int     @default(0)
+  viewCount       Int     @default(0)
+  favoriteCount   Int     @default(0)
+  
+  // References
+  bookingIds      String[] @db.ObjectId
+  reviewIds       String[] @db.ObjectId
+  unavailableIds  String[] @db.ObjectId
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([city, country])
+  @@index([type])
+  @@index([pricePerPerson])
+  @@index([guideId])
+  @@index([approvalStatus])
+  @@index([available])
+  @@index([rating])
 }
 
-model Booking {
-  id            String        @id @default(auto()) @map("_id") @db.ObjectId
-  bookingNumber String        @unique
-  checkIn       DateTime
-  checkOut      DateTime
-  guests        Int
-  totalPrice    Float
-  status        BookingStatus @default(PENDING)
+// Property Booking Model
+model PropertyBooking {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  bookingNumber   String        @unique
+  
+  // Booking Details
+  checkIn         DateTime
+  checkOut        DateTime
+  guests          Int
+  adults          Int
+  children        Int @default(0)
+  infants         Int @default(0)
+  
+  // Pricing Breakdown
+  basePrice       Float
+  cleaningFee     Float @default(0)
+  serviceFee      Float @default(0)
+  taxes           Float @default(0)
+  discounts       Float @default(0)
+  totalPrice      Float
+  currency        String @default("PKR")
+  
+  // Booking Status
+  status          BookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  
+  // Guest Information
+  guestName       String
+  guestEmail      String
+  guestPhone      String
   specialRequests String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  userId        String   @db.ObjectId
-  accommodationId String? @db.ObjectId
-  carId         String? @db.ObjectId
-  tourGuideId   String? @db.ObjectId
-  paymentId     String? @db.ObjectId
-  reviewId      String? @db.ObjectId
+  
+  // Check-in/out Details
+  checkInTime     String?
+  checkOutTime    String?
+  actualCheckIn   DateTime?
+  actualCheckOut  DateTime?
+  
+  // Cancellation
+  cancelledAt     DateTime?
+  cancellationReason String?
+  refundAmount    Float?
+  
+  // References
+  userId          String @db.ObjectId
+  propertyId      String @db.ObjectId
+  paymentIds      String[] @db.ObjectId
+  reviewId        String? @db.ObjectId
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([userId])
+  @@index([propertyId])
   @@index([status])
   @@index([checkIn, checkOut])
 }
 
-model Payment {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  amount        Float
-  currency      String   @default("USD")
-  method        String
-  transactionId String   @unique
-  status        String
-  paidAt        DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+// Vehicle Booking Model
+model VehicleBooking {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  bookingNumber   String        @unique
+  
+  // Booking Details
+  startDate       DateTime
+  endDate         DateTime
+  pickupTime      String
+  returnTime      String
+  
+  // Location Details
+  pickupLocation  String
+  returnLocation  String
+  pickupLatitude  Float?
+  pickupLongitude Float?
+  returnLatitude  Float?
+  returnLongitude Float?
+  
+  // Driver Details
+  driverRequired  Boolean @default(false)
+  driverIncluded  Boolean @default(false)
+  driverName      String?
+  driverPhone     String?
+  
+  // Pricing Breakdown
+  basePrice       Float
+  driverFee       Float @default(0)
+  insuranceFee    Float @default(0)
+  securityDeposit Float @default(0)
+  extraFees       Float @default(0)
+  totalPrice      Float
+  currency        String @default("PKR")
+  
+  // Booking Status
+  status          BookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  
+  // Renter Information
+  renterName      String
+  renterEmail     String
+  renterPhone     String
+  licenseNumber   String
+  licenseExpiry   DateTime
+  
+  // Trip Details
+  estimatedKm     Float?
+  actualKm        Float?
+  fuelLevel       String? // full, half, quarter, empty
+  vehicleCondition String?
+  
+  // Special Requirements
+  specialRequests String?
+  additionalEquipment String[]
+  
+  // Cancellation
+  cancelledAt     DateTime?
+  cancellationReason String?
+  refundAmount    Float?
+  
+  // References
+  userId          String @db.ObjectId
+  vehicleId       String @db.ObjectId
+  paymentIds      String[] @db.ObjectId
+  reviewId        String? @db.ObjectId
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  bookingId     String   @unique @db.ObjectId
-
+  @@index([userId])
+  @@index([vehicleId])
   @@index([status])
+  @@index([startDate, endDate])
 }
 
-model Review {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  rating        Int
-  comment       String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+// Tour Booking Model
+model TourBooking {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  bookingNumber   String        @unique
+  
+  // Booking Details
+  tourDate        DateTime
+  timeSlot        String
+  participants    Int
+  adults          Int
+  children        Int @default(0)
+  
+  // Pricing Breakdown
+  pricePerPerson  Float
+  childDiscount   Float @default(0)
+  groupDiscount   Float @default(0)
+  extraFees       Float @default(0)
+  totalPrice      Float
+  currency        String @default("PKR")
+  
+  // Booking Status
+  status          BookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  
+  // Lead Traveler Information
+  leadTravelerName String
+  leadTravelerEmail String
+  leadTravelerPhone String
+  
+  // Participant Details
+  participantNames String[]
+  participantAges  Int[]
+  dietaryRequirements String[]
+  accessibilityNeeds String[]
+  
+  // Meeting Details
+  meetingPoint    String
+  meetingTime     String
+  actualMeetingTime DateTime?
+  
+  // Special Requirements
+  specialRequests String?
+  language        String @default("en")
+  
+  // Cancellation
+  cancelledAt     DateTime?
+  cancellationReason String?
+  refundAmount    Float?
+  
+  // References
+  userId          String @db.ObjectId
+  tourId          String @db.ObjectId
+  guideId         String @db.ObjectId
+  paymentIds      String[] @db.ObjectId
+  reviewId        String? @db.ObjectId
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  userId        String   @db.ObjectId
-  bookingId     String   @unique @db.ObjectId
-  accommodationId String? @db.ObjectId
-  carId         String? @db.ObjectId
-  tourGuideId   String? @db.ObjectId
+  @@index([userId])
+  @@index([tourId])
+  @@index([guideId])
+  @@index([status])
+  @@index([tourDate])
+}
+
+// Enhanced Payment Model
+model Payment {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  amount          Float
+  currency        String        @default("PKR")
+  method          PaymentMethod
+  transactionId   String        @unique
+  status          PaymentStatus @default(PENDING)
+  
+  // Payment Details
+  paymentGateway  String? // stripe, paypal, razorpay, etc.
+  gatewayResponse Json?
+  failureReason   String?
+  
+  // Refund Information
+  refundAmount    Float?
+  refundReason    String?
+  refundedAt      DateTime?
+  
+  // Timestamps
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // References - flexible for different booking types
+  userId          String @db.ObjectId
+  bookingId       String @db.ObjectId
+  bookingType     String // "property", "vehicle", "tour"
+
+  @@index([status])
+  @@index([userId])
+  @@index([bookingId, bookingType])
+}
+
+// Service Request Model - For pending approvals
+model ServiceRequest {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  type            ServiceType
+  title           String
+  description     String
+  
+  // Request Details
+  requestData     Json // flexible data for different request types
+  attachments     String[]
+  
+  // Requester Information
+  requesterId     String @db.ObjectId
+  requesterRole   UserRole
+  
+  // Approval Information
+  status          ApprovalStatus @default(PENDING)
+  reviewedBy      String? @db.ObjectId
+  reviewedAt      DateTime?
+  reviewNotes     String?
+  
+  // Priority and Category
+  priority        String @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  category        String?
+  
+  // References
+  relatedId       String? @db.ObjectId // ID of related property/vehicle/tour
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([requesterId])
+  @@index([status])
+  @@index([type])
+  @@index([priority])
+}
+
+// Pending Approval Model - For admin review workflows
+model PendingApproval {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  type            ServiceType
+  title           String
+  description     String
+  
+  // Item Details
+  itemId          String @db.ObjectId
+  itemType        String // "property", "vehicle", "tour", "profile"
+  itemData        Json // snapshot of the item data
+  
+  // Submitter Information
+  submitterId     String @db.ObjectId
+  submitterRole   UserRole
+  submitterNotes  String?
+  
+  // Approval Workflow
+  status          ApprovalStatus @default(PENDING)
+  assignedTo      String? @db.ObjectId
+  assignedAt      DateTime?
+  
+  // Review Information
+  reviewedBy      String? @db.ObjectId
+  reviewedAt      DateTime?
+  reviewNotes     String?
+  rejectionReason String?
+  
+  // Priority and Metadata
+  priority        String @default("MEDIUM")
+  tags            String[]
+  estimatedReviewTime Int? // in hours
+  
+  // Approval History
+  approvalHistory Json[] // track all review actions
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([submitterId])
+  @@index([status])
+  @@index([type])
+  @@index([assignedTo])
+  @@index([priority])
+}
+
+// Enhanced Review Model
+model Review {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  rating          Int      // 1-5 stars
+  title           String?
+  comment         String
+  
+  // Review Categories (1-5 rating for each)
+  cleanlinessRating    Int?
+  accuracyRating       Int?
+  communicationRating  Int?
+  locationRating       Int?
+  valueRating          Int?
+  serviceRating        Int?
+  
+  // Review Details
+  pros            String[]
+  cons            String[]
+  images          String[]
+  verified        Boolean @default(false)
+  helpful         Int @default(0) // helpful votes
+  
+  // Reviewer Information
+  userId          String   @db.ObjectId
+  reviewerName    String
+  reviewerAvatar  String?
+  stayDuration    Int? // for properties (nights)
+  tripType        String? // business, leisure, family, etc.
+  
+  // Booking Reference
+  bookingId       String   @db.ObjectId
+  bookingType     String   // "property", "vehicle", "tour"
+  
+  // Service References (flexible)
+  serviceId       String   @db.ObjectId
+  serviceType     String   // "property", "vehicle", "tour"
+  
+  // Response from Owner/Provider
+  ownerResponse   String?
+  ownerResponseAt DateTime?
+  
+  // Moderation
+  flagged         Boolean @default(false)
+  flagReason      String?
+  moderatedBy     String? @db.ObjectId
+  moderatedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([userId])
   @@index([rating])
+  @@index([serviceId, serviceType])
+  @@index([verified])
+  @@index([createdAt])
 }
 
+// Document Upload Model - For verification documents
+model Document {
+  id              String       @id @default(auto()) @map("_id") @db.ObjectId
+  type            DocumentType
+  name            String
+  originalName    String
+  url             String
+  size            Int
+  mimeType        String
+  
+  // Document Details
+  documentNumber  String?
+  expiryDate      DateTime?
+  issueDate       DateTime?
+  issuingAuthority String?
+  
+  // Verification Status
+  verified        Boolean @default(false)
+  verifiedBy      String? @db.ObjectId
+  verifiedAt      DateTime?
+  rejectionReason String?
+  
+  // Owner Information
+  userId          String @db.ObjectId
+  userRole        UserRole
+  
+  // Related Entity
+  relatedId       String? @db.ObjectId
+  relatedType     String? // "property", "vehicle", "tour", "profile"
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([verified])
+  @@index([relatedId, relatedType])
+}
+
+// Notification Model
+model Notification {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  type            String   // booking_confirmed, payment_received, review_received, etc.
+  title           String
+  message         String
+  
+  // Notification Details
+  data            Json?    // additional data for the notification
+  actionUrl       String?  // URL to navigate to when clicked
+  
+  // Recipient Information
+  userId          String   @db.ObjectId
+  userRole        UserRole
+  
+  // Status
+  read            Boolean @default(false)
+  readAt          DateTime?
+  
+  // Delivery
+  emailSent       Boolean @default(false)
+  smsSent         Boolean @default(false)
+  pushSent        Boolean @default(false)
+  
+  // Priority
+  priority        String @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([read])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// Unavailable Date Model - For blocking dates
 model UnavailableDate {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  date          DateTime
-  reason        String?
-  createdAt     DateTime @default(now())
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  startDate       DateTime
+  endDate         DateTime
+  reason          String?
+  type            String   // "maintenance", "personal", "booked", "blocked"
+  
+  // Service Reference
+  serviceId       String   @db.ObjectId
+  serviceType     String   // "property", "vehicle", "tour"
+  
+  // Owner Information
+  ownerId         String   @db.ObjectId
+  
+  // Recurring Pattern
+  recurring       Boolean @default(false)
+  recurringPattern Json?   // for complex recurring patterns
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  accommodationId String? @db.ObjectId
-  carId           String? @db.ObjectId
-
-  @@index([date])
+  @@index([serviceId, serviceType])
+  @@index([startDate, endDate])
+  @@index([ownerId])
 }
 
-model GuideAvailability {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  dayOfWeek   Int
-  startTime   String
-  endTime     String
-  createdAt   DateTime @default(now())
-
-  tourGuideId String @db.ObjectId
-
-  @@index([tourGuideId])
-}
-
+// Wishlist Model - Enhanced favorites
 model Wishlist {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String   @db.ObjectId
-  accommodationId String? @db.ObjectId
-  carId         String? @db.ObjectId
-  tourGuideId   String? @db.ObjectId
-  createdAt     DateTime @default(now())
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String   @default("My Favorites")
+  description     String?
+  
+  // User Information
+  userId          String   @db.ObjectId
+  
+  // Wishlist Items
+  propertyIds     String[] @db.ObjectId
+  vehicleIds      String[] @db.ObjectId
+  tourIds         String[] @db.ObjectId
+  
+  // Settings
+  public          Boolean @default(false)
+  shared          Boolean @default(false)
+  sharedWith      String[] @db.ObjectId
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  @@unique([userId, accommodationId])
-  @@unique([userId, carId])
-  @@unique([userId, tourGuideId])
+  @@index([userId])
+  @@index([public])
+}
+
+// Analytics Model - For tracking business metrics
+model Analytics {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  type            String   // "booking", "view", "search", "conversion"
+  entity          String   // "property", "vehicle", "tour"
+  entityId        String   @db.ObjectId
+  
+  // Metrics Data
+  value           Float?
+  count           Int @default(1)
+  metadata        Json?
+  
+  // User Context
+  userId          String? @db.ObjectId
+  userRole        UserRole?
+  sessionId       String?
+  
+  // Location Context
+  city            String?
+  country         String?
+  ipAddress       String?
+  
+  // Time Context
+  date            DateTime @default(now())
+  hour            Int
+  dayOfWeek       Int
+  month           Int
+  year            Int
+  
+  createdAt       DateTime @default(now())
+
+  @@index([type, entity])
+  @@index([entityId])
+  @@index([date])
+  @@index([userId])
+}
+
+// Message Model - For communication between users
+model Message {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  subject         String?
+  content         String
+  
+  // Sender/Receiver
+  senderId        String   @db.ObjectId
+  receiverId      String   @db.ObjectId
+  senderRole      UserRole
+  receiverRole    UserRole
+  
+  // Message Context
+  bookingId       String? @db.ObjectId
+  bookingType     String? // "property", "vehicle", "tour"
+  
+  // Status
+  read            Boolean @default(false)
+  readAt          DateTime?
+  archived        Boolean @default(false)
+  
+  // Thread
+  threadId        String? @db.ObjectId
+  replyToId       String? @db.ObjectId
+  
+  // Attachments
+  attachments     String[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([threadId])
+  @@index([bookingId, bookingType])
+  @@index([read])
+}
+
+// Maintenance Record Model - For vehicle maintenance
+model MaintenanceRecord {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  vehicleId       String   @db.ObjectId
+  
+  // Maintenance Details
+  type            String   // "routine", "repair", "inspection"
+  description     String
+  cost            Float
+  currency        String @default("PKR")
+  
+  // Service Provider
+  serviceProvider String
+  serviceLocation String
+  
+  // Dates
+  scheduledDate   DateTime
+  completedDate   DateTime?
+  nextServiceDue  DateTime?
+  
+  // Documentation
+  invoiceUrl      String?
+  images          String[]
+  notes           String?
+  
+  // Mileage
+  mileageAtService Float?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([vehicleId])
+  @@index([scheduledDate])
+  @@index([type])
+}
+
+// Coupon Model - For discounts and promotions
+model Coupon {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  code            String   @unique
+  name            String
+  description     String?
+  
+  // Discount Details
+  type            String   // "percentage", "fixed", "free_shipping"
+  value           Float    // percentage or fixed amount
+  maxDiscount     Float?   // maximum discount for percentage coupons
+  minOrderValue   Float?   // minimum order value to apply
+  
+  // Validity
+  validFrom       DateTime
+  validUntil      DateTime
+  usageLimit      Int?     // total usage limit
+  usageCount      Int @default(0)
+  userLimit       Int @default(1) // per user limit
+  
+  // Applicability
+  serviceTypes    String[] // ["property", "vehicle", "tour"]
+  userRoles       UserRole[]
+  cities          String[]
+  
+  // Status
+  active          Boolean @default(true)
+  
+  // Creator
+  createdBy       String @db.ObjectId
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([active])
+  @@index([validFrom, validUntil])
+}
+
+// Keep the PasswordResetToken model (from previous authentication system)
+model PasswordResetToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  token     String   @unique
+  userId    String   @db.ObjectId
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
