@@ -1,0 +1,360 @@
+import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
+import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
+import { prisma } from "~/lib/db/db.server";
+import { requireUserId } from "~/lib/auth/auth.server";
+import { Plus, CheckCircle2, Car, MapPin, Star, Clock, AlertCircle, Info } from "lucide-react";
+import SupportButton from "~/components/support/SupportButton";
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const userId = await requireUserId(request);
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, role: true } });
+  if (!user) throw redirect("/login");
+
+  // Allow access but show appropriate message if not vehicle owner
+  if (user.role !== "VEHICLE_OWNER") {
+    return json({ user, owner: null, vehicles: [], error: "Access restricted to vehicle owners" });
+  }
+
+  const owner = await prisma.vehicleOwner.findUnique({ where: { userId }, select: { id: true, businessName: true, verified: true } });
+  if (!owner) {
+    return json({ user, owner: null, vehicles: [], error: null });
+  }
+
+  const vehicles = await prisma.vehicle.findMany({
+    where: { ownerId: owner.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      city: true,
+      country: true,
+      type: true,
+      basePrice: true,
+      seats: true,
+      rating: true,
+      reviewCount: true,
+      approvalStatus: true,
+      available: true,
+      viewCount: true,
+      rejectionReason: true,
+      images: true,
+    },
+  });
+
+  return json({ user, owner, vehicles, error: null });
+}
+
+export async function action({ request }: ActionFunctionArgs) {
+  const userId = await requireUserId(request);
+  const formData = await request.formData();
+
+  // Handle vehicle creation logic here
+  const name = formData.get("name") as string;
+  const type = formData.get("type") as string;
+  const city = formData.get("city") as string;
+  const country = formData.get("country") as string;
+  const basePrice = parseFloat(formData.get("basePrice") as string || "0");
+  const seats = parseInt(formData.get("seats") as string || "4");
+  const description = formData.get("description") as string;
+
+  if (!name || !type || !city || !country || !basePrice) {
+    return json({ error: "All required fields must be filled" }, { status: 400 });
+  }
+
+  try {
+    // Get vehicle owner
+    const owner = await prisma.vehicleOwner.findUnique({ where: { userId } });
+    if (!owner) {
+      return json({ error: "Vehicle owner profile not found" }, { status: 400 });
+    }
+
+    // Check if owner is verified
+    if (!owner.verified) {
+      return json({ error: "Your account must be verified before adding vehicles" }, { status: 400 });
+    }
+
+    const created = await prisma.vehicle.create({
+      data: {
+        name,
+        type: type as any,
+        city,
+        country,
+        basePrice,
+        seats,
+        description,
+        ownerId: owner.id,
+        approvalStatus: "PENDING",
+        available: false,
+        images: ["/placeholder-car.jpg"],
+        rating: 0,
+        reviewCount: 0,
+        totalBookings: 0,
+        viewCount: 0,
+        favoriteCount: 0,
+        // Required fields with defaults
+        brand: "Generic",
+        model: "Model",
+        year: new Date().getFullYear(),
+        category: "STANDARD",
+        fuelType: "PETROL",
+        transmission: "MANUAL",
+        mileage: 0,
+        features: [],
+        insuranceExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        lastService: new Date(),
+        nextService: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000),
+        location: `${city}, ${country}`,
+        licensePlate: `TEMP-${Date.now().toString().slice(-6)}`,
+        registrationNo: `REG-${Date.now().toString().slice(-8)}`,
+        insurancePolicy: "TEMP-POLICY",
+      },
+    });
+
+    // Notify admins about pending vehicle approval
+    const admins = await prisma.user.findMany({ where: { role: "SUPER_ADMIN" }, select: { id: true, role: true } });
+    if (admins.length) {
+      await prisma.notification.createMany({
+        data: admins.map((a) => ({
+          userId: a.id,
+          userRole: a.role,
+          type: "SYSTEM_ANNOUNCEMENT",
+          title: "New Vehicle Pending Approval",
+          message: `Vehicle "${created.name}" has been submitted and awaits review`,
+          data: { vehicleId: created.id }
+        }))
+      });
+    }
+
+    // Redirect to revalidate dashboard lists and banners
+    return redirect("/dashboard/vehicle-owner?submitted=1");
+  } catch (error) {
+    console.error("Vehicle creation error:", error);
+    return json({ error: "Failed to create vehicle" }, { status: 500 });
+  }
+}
+
+export default function VehicleOwnerDashboard() {
+  const { user, owner, vehicles, error } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
+  const [searchParams] = useSearchParams();
+  const submitted = searchParams.get("submitted") === "1";
+  const success = Boolean((actionData as any)?.success) || submitted;
+  const actionError = (actionData as any)?.error as string | undefined;
+
+  // Show error if user doesn't have access
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Restricted</h1>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <Link to="/dashboard" className="inline-flex items-center px-4 py-2 bg-[#01502E] text-white rounded-md">
+            Go to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if owner is verified (all vehicles approved)
+  const safeVehicles = vehicles || [];
+  const isVerified = owner?.verified || safeVehicles.every((v: any) => v.approvalStatus === "APPROVED");
+  const hasPendingApprovals = safeVehicles.some((v: any) => v.approvalStatus === "PENDING");
+  const hasRejectedItems = safeVehicles.some((v: any) => v.approvalStatus === "REJECTED");
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Vehicle Owner Dashboard</h1>
+            <p className="text-gray-600">Welcome, {user.name}</p>
+          </div>
+          {isVerified && (
+            <a href="#create" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
+              <Plus className="w-4 h-4" /> Add Vehicle
+            </a>
+          )}
+        </div>
+
+        {/* Approval Status Banner */}
+        {!isVerified && (
+          <div className="mb-6 rounded-lg border p-4">
+            {hasPendingApprovals ? (
+              <div className="flex items-center gap-3 text-yellow-800 bg-yellow-50 p-3 rounded">
+                <Clock className="h-5 w-5 text-yellow-600" />
+                <div>
+                  <h3 className="font-medium">Awaiting Verification</h3>
+                  <p className="text-sm">Your vehicles are being reviewed by our team. This usually takes 1-3 business days.</p>
+                </div>
+              </div>
+            ) : hasRejectedItems ? (
+              <div className="flex items-center gap-3 text-red-800 bg-red-50 p-3 rounded">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                <div>
+                  <h3 className="font-medium">Verification Required</h3>
+                  <p className="text-sm">Some of your vehicles were rejected. Please check the details and resubmit.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 text-blue-800 bg-blue-50 p-3 rounded">
+                <Info className="h-5 w-5 text-blue-600" />
+                <div>
+                  <h3 className="font-medium">Complete Your Profile</h3>
+                  <p className="text-sm">Add your first vehicle to get started with verification.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {isVerified && (
+          <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className="flex items-center gap-3 text-green-800">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <div>
+                <h3 className="font-medium">Verified Provider</h3>
+                <p className="text-sm">Your account is fully verified. You can now manage all your vehicles.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 rounded-md bg-green-50 p-4 flex items-center gap-2 text-green-800">
+            <CheckCircle2 className="w-5 h-5" /> Vehicle added successfully and awaiting approval
+          </div>
+        )}
+
+        {actionError && (
+          <div className="mb-6 rounded-md bg-red-50 p-4 flex items-center gap-2 text-red-800">
+            <AlertCircle className="w-5 h-5" /> {actionError}
+          </div>
+        )}
+
+        {/* Vehicles Grid */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Car className="w-5 h-5 text-[#01502E]" />
+            <h2 className="text-lg font-semibold">My Vehicles</h2>
+          </div>
+          {safeVehicles.length === 0 ? (
+            <div className="text-center py-8">
+              <Car className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No vehicles</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {isVerified ? "Get started by adding your first vehicle." : "Complete verification to start adding vehicles."}
+              </p>
+              {isVerified && (
+                <div className="mt-6">
+                  <a href="#create" className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Vehicle
+                  </a>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {safeVehicles.map((vehicle: any) => (
+                <div key={vehicle.id} className="border rounded-lg overflow-hidden">
+                  <img src={vehicle.images?.[0] || "/placeholder-car.jpg"} className="w-full h-40 object-cover" />
+                  <div className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-gray-900 line-clamp-1">{vehicle.name}</h3>
+                        <div className="text-sm text-gray-600 flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> {vehicle.city}, {vehicle.country}
+                        </div>
+                      </div>
+                      <span className="text-sm px-2 py-1 rounded bg-gray-100">{vehicle.type}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="text-[#01502E] font-semibold">PKR {vehicle.basePrice.toLocaleString()}/day</div>
+                      <div className="flex items-center gap-1 text-sm text-gray-700">
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" /> {vehicle.rating.toFixed(1)} ({vehicle.reviewCount})
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 text-xs">
+                      <span className={`px-2 py-0.5 rounded ${vehicle.approvalStatus === "APPROVED" ? "bg-green-50 text-green-700" : vehicle.approvalStatus === "PENDING" ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-700"}`}>
+                        {vehicle.approvalStatus === 'APPROVED' ? 'LIVE' : vehicle.approvalStatus === 'PENDING' ? 'UNDER REVIEW' : 'REJECTED'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded ${vehicle.available ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-700"}`}>
+                        {vehicle.available ? "Available" : "Unavailable"}
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-gray-50 text-gray-700">Views {vehicle.viewCount ?? 0}</span>
+                    </div>
+                    {vehicle.approvalStatus === 'REJECTED' && vehicle.rejectionReason && (
+                      <div className="mt-2 text-xs text-red-700">
+                        Reason: {vehicle.rejectionReason} · <a href="#create" className="underline">Edit & Resubmit</a>
+                      </div>
+                    )}
+                    <div className="mt-4 flex gap-2">
+                      <Link to={`/vehicles/${vehicle.id}`} className="flex-1 text-center border rounded px-3 py-2">View</Link>
+                      <Link to={`/book/vehicle/${vehicle.id}`} className="flex-1 text-center bg-[#01502E] text-white rounded px-3 py-2">Book</Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Add Vehicle Form */}
+        {isVerified && (
+          <div id="create" className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Plus className="w-5 h-5 text-[#01502E]" />
+              <h2 className="text-lg font-semibold">Add New Vehicle</h2>
+            </div>
+            <Form method="post" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium mb-2">Vehicle Name *</label>
+                <input name="name" required className="w-full border rounded px-3 py-2" placeholder="Honda Civic 2020" />
+              </div>
+              <div>
+                <label htmlFor="type" className="block text-sm font-medium mb-2">Vehicle Type *</label>
+                <select name="type" required className="w-full border rounded px-3 py-2">
+                  <option value="">Select Type</option>
+                  <option value="SEDAN">Sedan</option>
+                  <option value="SUV">SUV</option>
+                  <option value="HATCHBACK">Hatchback</option>
+                  <option value="MOTORCYCLE">Motorcycle</option>
+                  <option value="VAN">Van</option>
+                  <option value="TRUCK">Truck</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium mb-2">City *</label>
+                <input name="city" required className="w-full border rounded px-3 py-2" placeholder="Lahore" />
+              </div>
+              <div>
+                <label htmlFor="country" className="block text-sm font-medium mb-2">Country *</label>
+                <input name="country" required className="w-full border rounded px-3 py-2" placeholder="Pakistan" />
+              </div>
+              <div>
+                <label htmlFor="basePrice" className="block text-sm font-medium mb-2">Daily Rate (PKR) *</label>
+                <input name="basePrice" type="number" min="0" step="1" required className="w-full border rounded px-3 py-2" placeholder="2000" />
+              </div>
+              <div>
+                <label htmlFor="seats" className="block text-sm font-medium mb-2">Number of Seats *</label>
+                <input name="seats" type="number" min="1" max="20" required className="w-full border rounded px-3 py-2" placeholder="4" />
+              </div>
+              <div className="md:col-span-2">
+                <label htmlFor="description" className="block text-sm font-medium mb-2">Description</label>
+                <textarea name="description" rows={3} className="w-full border rounded px-3 py-2" placeholder="Describe your vehicle..." />
+              </div>
+              <div className="md:col-span-2">
+                <button type="submit" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
+                  <Plus className="w-4 h-4" /> Add Vehicle
+                </button>
+              </div>
+            </Form>
+          </div>
+        )}
+      </div>
+      {/* Contact Support Floating Button */}
+      <SupportButton userId={user.id} userRole={user.role} />
+    </div>
+  );
+}

@@ -53,8 +53,8 @@ export async function action({ request }) {
   return redirect("/");
 }
 // import { redirect } from "@remix-run/node"; // Import redirect
-// import { addActivity, addCarRental, addTour, addData, addHotel } from "../data/input.server";
-// import { validateFormInput } from "../data/validation.server";
+// import { addActivity, addCarRental, addTour, addData, addHotel } from "~/lib/validations/input.server";
+// import { validateFormInput } from "~/lib/validations/validation.server.js";
 
 // export async function action({ request }) {
 //   const formData = await request.formData();

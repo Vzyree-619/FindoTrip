@@ -1,26 +1,24 @@
-import InputForm from "~/components/HomePage/InputForm";
-import NavBar from "../components/navigation/NavBar";
-// import AddPage from "../components/HomePage/AddPage"
-import Footer from "../components/Footer";
-import CarRentScroll from "../components/HomePage/CarRentalScroll";
-import Register from "../components/HomePage/Register";
-import TourPackages from "../components/HomePage/TourPackages";
-import FAQ from "../components/HomePage/Faq";
-import SubscriptionForm from "../components/HomePage/SubscriptionForm";
-import AddPage from "../components/HomePage/AddPage";
-import Stays from "../components/HomePage/Stays";
+import InputForm from "~/components/features/home/InputForm/InputForm";
+import NavBar from "~/components/layout/navigation/NavBar";
+import Footer from "~/components/layout/Footer";
+import CarRentalSection from "~/components/features/home/CarRentalSection";
+import Register from "~/components/features/home/Register";
+import TourPackages from "~/components/features/home/TourPackages";
+import FAQSection from "~/components/features/home/FAQSection";
+import SubscriptionForm from "~/components/features/home/SubscriptionForm";
+import AddPage from "~/components/features/home/AddPage";
+import Stays from "~/components/features/home/Stays";
 export default function Index() {
   return (
     <>
-      <div className="div overflow-y-hidden">
+      <div className="w-full min-h-screen bg-white">
         <InputForm />
         <AddPage />
         <Stays />
         <TourPackages />
         <Register />
-        <CarRentScroll />
-
-        <FAQ />
+        <CarRentalSection />
+        <FAQSection />
         <SubscriptionForm />
         <Footer />
       </div>

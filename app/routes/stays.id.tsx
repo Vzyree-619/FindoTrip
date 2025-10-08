@@ -1,6 +1,6 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
-import { prisma } from "~/lib/db.server";
+import { prisma } from "~/lib/db/db.server";
 import { MapPin, Users, Bed, Bath, Star, Calendar } from "lucide-react";
 
 export async function loader({ params }: LoaderFunctionArgs) {
@@ -99,7 +99,7 @@ export default function AccommodationDetail() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg">
+                  <div className="flex items-center gap-2 bg-[#01502E] text-white px-4 py-2 rounded-lg">
                     <Star className="w-5 h-5 fill-current" />
                     <span className="text-lg font-bold">
                       {accommodation.rating.toFixed(1)}
@@ -162,7 +162,7 @@ export default function AccommodationDetail() {
                 <h2 className="text-xl font-bold text-gray-900 mb-3">
                   Property Type
                 </h2>
-                <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full font-semibold">
+                <span className="bg-green-100 text-[#01502E] px-4 py-2 rounded-full font-semibold">
                   {accommodation.type}
                 </span>
               </div>
@@ -272,7 +272,7 @@ export default function AccommodationDetail() {
 
                 <Link
                   to={`/book/stay/${accommodation.id}`}
-                  className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg text-center transition-colors"
+                  className="block w-full bg-[#01502E] hover:bg-[#013d23] text-white font-bold py-4 rounded-lg text-center transition-colors"
                 >
                   Reserve Now
                 </Link>

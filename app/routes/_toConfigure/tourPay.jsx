@@ -1,4 +1,4 @@
-import NavBar from "../../components/navigation/NavBar";
+import NavBar from "~/components/layout/navigation/NavBar";
 
 export default function TourPay() {
   return (

@@ -1,0 +1,76 @@
+{
+  "name": "FindoTrip - Your Ultimate Travel Companion",
+  "short_name": "FindoTrip",
+  "description": "Discover amazing accommodations, rent cars, and book experienced tour guides for your perfect trip.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#01502E",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["travel", "lifestyle", "business"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "FindoTrip mobile interface"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "FindoTrip desktop interface"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Search Accommodations",
+      "short_name": "Search",
+      "description": "Find your perfect stay",
+      "url": "/accommodations/search",
+      "icons": [
+        {
+          "src": "/icon-search.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "My Bookings",
+      "short_name": "Bookings",
+      "description": "View your reservations",
+      "url": "/dashboard/bookings",
+      "icons": [
+        {
+          "src": "/icon-bookings.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
