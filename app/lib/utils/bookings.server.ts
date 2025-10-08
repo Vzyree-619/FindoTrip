@@ -1,5 +1,8 @@
 import { prisma } from "~/lib/db/db.server";
 import type { BookingStatus } from "@prisma/client";
+import { createBookingNotifications, notifyBookingConfirmation, notifyProviderNewBooking } from "./notifications.server";
+import { calculateCommission, createCommission } from "./commission.server";
+import { blockServiceDates } from "./calendar.server";
 
 export type BookingType = "property" | "vehicle" | "tour";
 
@@ -229,5 +232,254 @@ export async function getUserBookingsCount(
   ]);
 
   return propertyCount + vehicleCount + tourCount;
+}
+
+/**
+ * Create a new booking with full integration
+ */
+export async function createBookingWithIntegration(
+  bookingData: any,
+  bookingType: BookingType,
+  customerId: string,
+  providerId: string,
+  serviceName: string
+) {
+  // Create the booking
+  let booking;
+  if (bookingType === "property") {
+    booking = await prisma.propertyBooking.create({
+      data: bookingData,
+    });
+  } else if (bookingType === "vehicle") {
+    booking = await prisma.vehicleBooking.create({
+      data: bookingData,
+    });
+  } else if (bookingType === "tour") {
+    booking = await prisma.tourBooking.create({
+      data: bookingData,
+    });
+  }
+
+  if (!booking) {
+    throw new Error("Failed to create booking");
+  }
+
+  // Create notifications
+  await createBookingNotifications(
+    booking.id,
+    bookingType,
+    customerId,
+    providerId,
+    booking.bookingNumber,
+    serviceName
+  );
+
+  // Calculate and create commission
+  const commission = await calculateCommission(
+    booking.id,
+    bookingType,
+    bookingData.propertyId || bookingData.vehicleId || bookingData.tourId,
+    providerId,
+    booking.totalPrice
+  );
+  await createCommission(commission);
+
+  // Block service dates
+  if (bookingType === "property") {
+    await blockServiceDates(
+      bookingData.propertyId,
+      "property",
+      new Date(booking.checkIn),
+      new Date(booking.checkOut),
+      "booked",
+      providerId
+    );
+  } else if (bookingType === "vehicle") {
+    await blockServiceDates(
+      bookingData.vehicleId,
+      "vehicle",
+      new Date(booking.startDate),
+      new Date(booking.endDate),
+      "booked",
+      providerId
+    );
+  } else if (bookingType === "tour") {
+    await blockServiceDates(
+      bookingData.tourId,
+      "tour",
+      new Date(booking.tourDate),
+      new Date(booking.tourDate),
+      "booked",
+      providerId
+    );
+  }
+
+  return booking;
+}
+
+/**
+ * Confirm a booking and handle all related operations
+ */
+export async function confirmBooking(
+  bookingId: string,
+  bookingType: BookingType,
+  paymentId: string
+) {
+  // Update booking status
+  await updateBookingStatus(bookingId, bookingType, "CONFIRMED");
+
+  // Get booking details for notifications
+  const booking = await getBooking(bookingId, bookingType);
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  // Get service and provider details
+  let serviceName: string;
+  let providerId: string;
+  let customerId: string;
+
+  if (bookingType === "property") {
+    const propertyBooking = await prisma.propertyBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        property: {
+          select: {
+            name: true,
+            ownerId: true,
+          },
+        },
+      },
+    });
+    serviceName = propertyBooking?.property?.name || "Property";
+    providerId = propertyBooking?.property?.ownerId || "";
+    customerId = propertyBooking?.userId || "";
+  } else if (bookingType === "vehicle") {
+    const vehicleBooking = await prisma.vehicleBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        vehicle: {
+          select: {
+            name: true,
+            ownerId: true,
+          },
+        },
+      },
+    });
+    serviceName = vehicleBooking?.vehicle?.name || "Vehicle";
+    providerId = vehicleBooking?.vehicle?.ownerId || "";
+    customerId = vehicleBooking?.userId || "";
+  } else if (bookingType === "tour") {
+    const tourBooking = await prisma.tourBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        tour: {
+          select: {
+            title: true,
+            guideId: true,
+          },
+        },
+      },
+    });
+    serviceName = tourBooking?.tour?.title || "Tour";
+    providerId = tourBooking?.tour?.guideId || "";
+    customerId = tourBooking?.userId || "";
+  }
+
+  // Send notifications
+  await notifyBookingConfirmation(
+    customerId,
+    booking.bookingNumber,
+    serviceName,
+    bookingType,
+    bookingId
+  );
+
+  // Notify provider
+  const providerRole = bookingType === "property" ? "PROPERTY_OWNER" :
+                      bookingType === "vehicle" ? "VEHICLE_OWNER" : "TOUR_GUIDE";
+  
+  await notifyProviderNewBooking(
+    providerId,
+    providerRole,
+    booking.bookingNumber,
+    serviceName,
+    bookingType,
+    bookingId,
+    "Customer" // This should be the actual customer name
+  );
+
+  return booking;
+}
+
+/**
+ * Cancel a booking with full cleanup
+ */
+export async function cancelBookingWithCleanup(
+  bookingId: string,
+  bookingType: BookingType,
+  cancellationReason?: string
+) {
+  // Cancel the booking
+  await cancelBooking(bookingId, bookingType, cancellationReason);
+
+  // Get booking details
+  const booking = await getBooking(bookingId, bookingType);
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  // Unblock service dates
+  if (bookingType === "property") {
+    const propertyBooking = await prisma.propertyBooking.findUnique({
+      where: { id: bookingId },
+      select: { propertyId: true, checkIn: true, checkOut: true },
+    });
+    if (propertyBooking) {
+      await prisma.unavailableDate.deleteMany({
+        where: {
+          serviceId: propertyBooking.propertyId,
+          serviceType: "property",
+          startDate: new Date(propertyBooking.checkIn),
+          endDate: new Date(propertyBooking.checkOut),
+          type: "booked",
+        },
+      });
+    }
+  } else if (bookingType === "vehicle") {
+    const vehicleBooking = await prisma.vehicleBooking.findUnique({
+      where: { id: bookingId },
+      select: { vehicleId: true, startDate: true, endDate: true },
+    });
+    if (vehicleBooking) {
+      await prisma.unavailableDate.deleteMany({
+        where: {
+          serviceId: vehicleBooking.vehicleId,
+          serviceType: "vehicle",
+          startDate: new Date(vehicleBooking.startDate),
+          endDate: new Date(vehicleBooking.endDate),
+          type: "booked",
+        },
+      });
+    }
+  } else if (bookingType === "tour") {
+    const tourBooking = await prisma.tourBooking.findUnique({
+      where: { id: bookingId },
+      select: { tourId: true, tourDate: true },
+    });
+    if (tourBooking) {
+      await prisma.unavailableDate.deleteMany({
+        where: {
+          serviceId: tourBooking.tourId,
+          serviceType: "tour",
+          startDate: new Date(tourBooking.tourDate),
+          endDate: new Date(tourBooking.tourDate),
+          type: "booked",
+        },
+      });
+    }
+  }
+
+  return booking;
 }
 

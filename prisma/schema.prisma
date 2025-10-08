@@ -212,6 +212,9 @@ model User {
   // Password reset tokens
   passwordResetTokens PasswordResetToken[]
 
+  // Computed counters (maintained by application logic)
+  totalBookings     Int @default(0)
+
   @@index([role])
   @@index([verified])
   @@index([active])

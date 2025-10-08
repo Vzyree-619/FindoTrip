@@ -361,6 +361,64 @@ export async function sendCancellationEmail(booking: BookingEmailData, refundAmo
   return await sendEmail(emailData);
 }
 
+// =============================
+// Review Emails
+// =============================
+
+export function generateReviewInviteEmail(toEmail: string, toName: string, serviceName: string, reviewUrl: string) {
+  return {
+    to: toEmail,
+    subject: `How was your experience at ${serviceName}? Share a review` ,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+        <div style="background:#01502E;color:#fff;padding:20px;border-radius:8px 8px 0 0;">
+          <h2>We'd love your feedback</h2>
+        </div>
+        <div style="padding:24px;border:1px solid #eee;border-top:0;border-radius:0 0 8px 8px;">
+          <p>Hi ${toName},</p>
+          <p>Thanks for choosing FindoTrip. Your insights help other travelers and our providers improve.</p>
+          <p>Please take a moment to review <strong>${serviceName}</strong>.</p>
+          <div style="text-align:center;margin:24px 0;">
+            <a href="${reviewUrl}" style="display:inline-block;background:#01502E;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:bold;">Write a Review</a>
+          </div>
+          <p>It only takes a minute—thank you!</p>
+        </div>
+      </div>
+    `,
+  };
+}
+
+export function generateProviderReviewAlertEmail(toEmail: string, serviceLabel: string, rating: number, dashboardUrl: string) {
+  return {
+    to: toEmail,
+    subject: `New review received (${rating}/5) on your ${serviceLabel}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+        <div style="background:#01502E;color:#fff;padding:20px;border-radius:8px 8px 0 0;">
+          <h2>New Review Received</h2>
+        </div>
+        <div style="padding:24px;border:1px solid #eee;border-top:0;border-radius:0 0 8px 8px;">
+          <p>You received a new review on your ${serviceLabel} with a rating of <strong>${rating}/5</strong>.</p>
+          <p>Respond to the review and manage your reputation from your dashboard.</p>
+          <div style="text-align:center;margin:24px 0;">
+            <a href="${dashboardUrl}" style="display:inline-block;background:#01502E;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:bold;">Open Dashboard</a>
+          </div>
+        </div>
+      </div>
+    `,
+  };
+}
+
+export async function sendReviewInviteEmail(toEmail: string, toName: string, serviceName: string, reviewUrl: string) {
+  const emailData = generateReviewInviteEmail(toEmail, toName, serviceName, reviewUrl);
+  return await sendEmail(emailData);
+}
+
+export async function sendProviderReviewAlertEmail(toEmail: string, serviceLabel: string, rating: number, dashboardUrl: string) {
+  const emailData = generateProviderReviewAlertEmail(toEmail, serviceLabel, rating, dashboardUrl);
+  return await sendEmail(emailData);
+}
+
 // Authentication Email Templates
 
 // Password Reset Email Template

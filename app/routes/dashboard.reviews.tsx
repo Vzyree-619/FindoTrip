@@ -7,7 +7,7 @@ import {
 import { useLoaderData, useActionData, Form, Link, useSearchParams } from "@remix-run/react";
 import { useState } from "react";
 import { requireUserId } from "~/lib/auth/auth.server";
-import { prisma } from "~/lib/db/db.server";
+import { getBookingsPendingReview, getUserReviews, deleteUserReview } from "~/lib/reviews.server";
 import {
   Star,
   MapPin,
@@ -25,28 +25,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const bookingId = url.searchParams.get("bookingId");
 
-  // TODO: Fix to work with PropertyBooking, VehicleBooking, TourBooking
-  // For now, return empty arrays to prevent errors
-  const bookingsToReview: any[] = [];
+  // Gather bookings pending review across all services
+  const bookingsToReview = await getBookingsPendingReview(userId);
 
-  // Get existing reviews
-  const existingReviews = await prisma.review.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
+  // Get existing user reviews (all services)
+  const existingReviews = await getUserReviews(userId);
 
-  // If bookingId is provided, get that specific booking for review form
-  let bookingToReview = null;
-  if (bookingId) {
-    // TODO: Need to determine booking type to fetch correct booking
-    bookingToReview = null; // Temporarily disabled
-  }
+  // Optional: pre-select a booking for review form (handled by /reviews/new route)
+  const bookingToReview = null as any;
 
-  return json({
-    bookingsToReview,
-    existingReviews,
-    bookingToReview,
-  });
+  return json({ bookingsToReview, existingReviews, bookingToReview });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -54,112 +42,13 @@ export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent");
 
-  if (intent === "submit-review") {
-    const bookingId = formData.get("bookingId") as string;
-    const accommodationId = formData.get("accommodationId") as string;
-    const rating = parseInt(formData.get("rating") as string);
-    const comment = formData.get("comment") as string;
-
-    if (!bookingId || !accommodationId || !rating || !comment) {
-      return json({ error: "All fields are required" }, { status: 400 });
-    }
-
-    if (rating < 1 || rating > 5) {
-      return json({ error: "Rating must be between 1 and 5" }, { status: 400 });
-    }
-
-    try {
-      // TODO: Fix to work with different booking types
-      // Temporarily disabled
-      return json({ error: "Review submission is being updated. Please try again later." }, { status: 501 });
-
-      // Create review
-      await prisma.review.create({
-        data: {
-          userId,
-          accommodationId,
-          bookingId,
-          rating,
-          comment,
-        },
-      });
-
-      // Update accommodation rating
-      const accommodation = await prisma.accommodation.findUnique({
-        where: { id: accommodationId },
-        include: { reviews: true },
-      });
-
-      if (accommodation) {
-        const totalRating = accommodation.reviews.reduce((sum, review) => sum + review.rating, 0) + rating;
-        const totalReviews = accommodation.reviews.length + 1;
-        const newAverageRating = totalRating / totalReviews;
-
-        await prisma.accommodation.update({
-          where: { id: accommodationId },
-          data: {
-            rating: newAverageRating,
-            reviewCount: totalReviews,
-          },
-        });
-      }
-
-      return redirect("/dashboard/reviews?success=review-submitted");
-    } catch (error) {
-      return json({ error: "Failed to submit review" }, { status: 500 });
-    }
-  }
-
   if (intent === "delete-review") {
     const reviewId = formData.get("reviewId") as string;
-
     try {
-      // Verify review belongs to user
-      const review = await prisma.review.findFirst({
-        where: { id: reviewId, userId },
-        include: { accommodation: true },
-      });
-
-      if (!review) {
-        return json({ error: "Review not found" }, { status: 404 });
-      }
-
-      // Delete review
-      await prisma.review.delete({
-        where: { id: reviewId },
-      });
-
-      // Update accommodation rating
-      const accommodation = await prisma.accommodation.findUnique({
-        where: { id: review.accommodationId },
-        include: { reviews: true },
-      });
-
-      if (accommodation && accommodation.reviews.length > 0) {
-        const totalRating = accommodation.reviews.reduce((sum, r) => sum + r.rating, 0);
-        const newAverageRating = totalRating / accommodation.reviews.length;
-
-        await prisma.accommodation.update({
-          where: { id: review.accommodationId },
-          data: {
-            rating: newAverageRating,
-            reviewCount: accommodation.reviews.length,
-          },
-        });
-      } else if (accommodation) {
-        // No reviews left
-        await prisma.accommodation.update({
-          where: { id: review.accommodationId },
-          data: {
-            rating: 0,
-            reviewCount: 0,
-          },
-        });
-      }
-
+      await deleteUserReview(reviewId, userId);
       return json({ success: "Review deleted successfully" });
-    } catch (error) {
-      return json({ error: "Failed to delete review" }, { status: 500 });
+    } catch (error: any) {
+      return json({ error: error?.message || "Failed to delete review" }, { status: 500 });
     }
   }
 
@@ -168,7 +57,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function Reviews() {
   const { bookingsToReview, existingReviews, bookingToReview } = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
+  const actionData = useActionData<typeof action>() as any;
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<"to-review" | "my-reviews">(
     bookingToReview ? "to-review" : "to-review"
@@ -228,9 +117,7 @@ export default function Reviews() {
             <div className="flex">
               <AlertCircle className="h-5 w-5 text-red-400" />
               <div className="ml-3">
-                <p className="text-sm font-medium text-red-800">
-                  {actionData.error}
-                </p>
+                <p className="text-sm font-medium text-red-800">{actionData.error}</p>
               </div>
             </div>
           </div>
@@ -341,7 +228,10 @@ export default function Reviews() {
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
-              To Review ({bookingsToReview.length})
+              {(() => {
+                const total = (bookingsToReview.property?.length || 0) + (bookingsToReview.vehicle?.length || 0) + (bookingsToReview.tour?.length || 0);
+                return `To Review (${total})`;
+              })()}
             </button>
             <button
               onClick={() => setActiveTab("my-reviews")}
@@ -359,53 +249,63 @@ export default function Reviews() {
         {/* Content */}
         {activeTab === "to-review" ? (
           <div className="space-y-4">
-            {bookingsToReview.length > 0 ? (
-              bookingsToReview.map((booking) => (
-                <div key={booking.id} className="bg-white shadow rounded-lg p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      {booking.accommodation?.images && (
-                        <img
-                          src={booking.accommodation.images[0]}
-                          alt={booking.accommodation?.name}
-                          className="h-16 w-16 object-cover rounded-lg mr-4"
-                        />
-                      )}
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
-                          {booking.accommodation?.name}
-                        </h3>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <MapPin className="w-4 h-4 mr-1" />
-                          {booking.accommodation?.city}, {booking.accommodation?.country}
+            {(() => {
+              const flattened = [
+                ...bookingsToReview.property.map((b: any) => ({...b, _type: "property"})),
+                ...bookingsToReview.vehicle.map((b: any) => ({...b, _type: "vehicle"})),
+                ...bookingsToReview.tour.map((b: any) => ({...b, _type: "tour"})),
+              ];
+              return flattened.length > 0 ? (
+                flattened.map((booking: any) => {
+                  const svc = booking._type === "property" ? booking.property : booking._type === "vehicle" ? booking.vehicle : booking.tour;
+                  const name = svc?.name || svc?.title || "";
+                  const image = svc?.images?.[0];
+                  const city = svc?.city; const country = svc?.country;
+                  const reviewUrl = `/reviews/new?bookingId=${booking.id}&type=${booking._type}`;
+                  const dateRange = booking.checkIn && booking.checkOut
+                    ? `Stayed: ${new Date(booking.checkIn).toLocaleDateString()} - ${new Date(booking.checkOut).toLocaleDateString()}`
+                    : booking.startDate && booking.endDate
+                      ? `Rental: ${new Date(booking.startDate).toLocaleDateString()} - ${new Date(booking.endDate).toLocaleDateString()}`
+                      : booking.tourDate
+                        ? `Tour: ${new Date(booking.tourDate).toLocaleDateString()}`
+                        : null;
+                  return (
+                    <div key={booking.id} className="bg-white shadow rounded-lg p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          {image && (
+                            <img src={image} alt={name} className="h-16 w-16 object-cover rounded-lg mr-4" />
+                          )}
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{name}</h3>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <MapPin className="w-4 h-4 mr-1" />
+                              {city}, {country}
+                            </div>
+                            {dateRange && (
+                              <div className="flex items-center text-sm text-gray-600 mt-1">
+                                <Calendar className="w-4 h-4 mr-1" />
+                                {dateRange}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center text-sm text-gray-600 mt-1">
-                          <Calendar className="w-4 h-4 mr-1" />
-                          Stayed: {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
-                        </div>
+                        <Link to={reviewUrl} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">
+                          <Star className="w-4 h-4 mr-2" />
+                          Write Review
+                        </Link>
                       </div>
                     </div>
-                    <Link
-                      to={`/dashboard/reviews?bookingId=${booking.id}`}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]"
-                    >
-                      <Star className="w-4 h-4 mr-2" />
-                      Write Review
-                    </Link>
-                  </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-12">
+                  <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No bookings to review</h3>
+                  <p className="mt-1 text-sm text-gray-500">Complete a booking to write your first review.</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-12">
-                <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  No properties to review
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Complete a stay to write your first review.
-                </p>
-              </div>
-            )}
+              );
+            })()}
           </div>
         ) : (
           <div className="space-y-4">
@@ -416,7 +316,7 @@ export default function Reviews() {
                     <div className="flex-1">
                       <div className="flex items-center mb-2">
                         <h3 className="font-semibold text-gray-900 mr-3">
-                          {review.accommodation?.name}
+                          {(review as any).property?.name || (review as any).vehicle?.name || (review as any).tour?.title}
                         </h3>
                         {renderStars(review.rating)}
                         <span className="ml-2 text-sm text-gray-600">
@@ -424,22 +324,18 @@ export default function Reviews() {
                         </span>
                       </div>
                       
-                      <div className="flex items-center text-sm text-gray-600 mb-2">
-                        <MapPin className="w-4 h-4 mr-1" />
-                        {review.accommodation?.city}, {review.accommodation?.country}
-                      </div>
+                      {((review as any).property || (review as any).vehicle || (review as any).tour) && (
+                        <div className="flex items-center text-sm text-gray-600 mb-2">
+                          <MapPin className="w-4 h-4 mr-1" />
+                          {((review as any).property?.city || (review as any).vehicle?.city || (review as any).tour?.city)}, {((review as any).property?.country || (review as any).vehicle?.country || (review as any).tour?.country)}
+                        </div>
+                      )}
 
                       <p className="text-gray-700 mb-3">{review.comment}</p>
 
                       <div className="flex items-center text-xs text-gray-500">
                         <Calendar className="w-3 h-3 mr-1" />
                         Reviewed on {new Date(review.createdAt).toLocaleDateString()}
-                        {review.booking && (
-                          <>
-                            {" • "}
-                            Stayed: {new Date(review.booking.checkIn).toLocaleDateString()} - {new Date(review.booking.checkOut).toLocaleDateString()}
-                          </>
-                        )}
                       </div>
                     </div>
 
