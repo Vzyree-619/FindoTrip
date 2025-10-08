@@ -2,10 +2,11 @@ import HomePage from "~/components/features/rooms/HomePage";
 import PopularAttractions from "~/components/features/rooms/PopularAttractions";
 import GuestRooms from "~/components/features/rooms/GuestRooms";
 import Apartments from "~/components/features/rooms/Apartments";
-import FAQ from "~/components/features/rooms/Faq";
 import SubscriptionForm from "~/components/features/home/SubscriptionForm";
 import Footer from "~/components/layout/Footer";
 import { useNavigate } from "@remix-run/react";
+import { Card } from "~/components/ui/card";
+import { Button } from "~/components/ui/button";
 
 const rooms = [
   {
@@ -129,9 +130,9 @@ export default function Rooms() {
         <h1 className="text-2xl font-bold mb-6">Guest Rooms</h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
           {rooms.map((room) => (
-            <div
+            <Card
               key={room.id}
-              className="bg-white shadow rounded-lg overflow-hidden"
+              className="shadow rounded-lg overflow-hidden"
             >
               <img
                 src={room.image}
@@ -144,19 +145,16 @@ export default function Rooms() {
                 <p className="text-sm text-blue-600">
                   Starting from PKR {room.price}
                 </p>
-                <button
-                  className="bg-[#01502E] text-white px-4 py-2 rounded hover:bg-[#013d23] transition-colors mt-2"
-                  onClick={() => handleRoomClick(room)}
-                >
-                  View Details
-                </button>
+                <div className="mt-2 flex gap-2">
+                  <Button onClick={() => handleRoomClick(room)}>View Details</Button>
+                  <Button variant="outline" onClick={() => navigate(`/book/property/${room.id}`)}>Book Now</Button>
+                </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       </div>
       <Apartments />
-      <FAQ />
       <SubscriptionForm />
       <Footer />
     </>

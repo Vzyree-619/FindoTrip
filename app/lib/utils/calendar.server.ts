@@ -291,7 +291,9 @@ export async function blockServiceDates(
       startDate,
       endDate,
       reason,
-      type: "blocked",
+      // If this block is due to an actual booking, mark as 'booked' so
+      // cancellation logic that deletes type: "booked" entries works correctly.
+      type: reason?.toLowerCase() === "booked" ? "booked" : "blocked",
       ownerId,
     },
   });

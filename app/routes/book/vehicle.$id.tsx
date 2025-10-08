@@ -1,4 +1,4 @@
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
+import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useActionData, Form, useNavigation, useSearchParams } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
@@ -12,6 +12,12 @@ import { Separator } from "~/components/ui/separator";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Loader2, MapPin, Users, Car, Shield, Star, Calendar, Clock } from "lucide-react";
+import { blockServiceDates } from "~/lib/utils/calendar.server";
+import { createAndDispatchNotification } from "~/lib/notifications.server";
+import { calculateCommission, createCommission } from "~/lib/utils/commission.server";
+import type { PaymentMethod } from "@prisma/client";
+import { publishToUser } from "~/lib/realtime.server";
+import { sendEmail } from "~/lib/email/email.server";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -337,16 +343,136 @@ export async function action({ request, params }: ActionFunctionArgs) {
               model: true,
               year: true,
               type: true,
+              ownerId: true,
+              owner: { include: { user: { select: { id: true, name: true, email: true } } } },
             },
           },
         },
       });
 
-      return json({
-        success: true,
-        booking,
-        redirectUrl: `/book/payment/${booking.id}?type=vehicle`,
+      // 1) Create a pending payment
+      const pendingTxnId = `PENDING-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      await prisma.payment.create({
+        data: {
+          amount: booking.totalPrice,
+          currency: booking.currency,
+          method: "CREDIT_CARD" as PaymentMethod,
+          transactionId: pendingTxnId,
+          status: "PENDING",
+          userId,
+          bookingId: booking.id,
+          bookingType: "vehicle",
+        },
       });
+
+      // 2) Block dates immediately
+      try {
+        await blockServiceDates(
+          vehicleId,
+          "vehicle",
+          startDateTime,
+          endDateTime,
+          "booked",
+          booking.vehicle.ownerId
+        );
+      } catch (e) {
+        console.error("Failed to block dates for vehicle booking", e);
+      }
+
+      // 3) Notifications
+      const providerUserId = booking.vehicle.owner?.user?.id;
+      if (providerUserId) {
+        await createAndDispatchNotification({
+          userId: providerUserId,
+          userRole: "VEHICLE_OWNER",
+          type: "BOOKING_CONFIRMED",
+          title: "New Rental Booking",
+          message: `You have a new vehicle booking (#${booking.bookingNumber}). Status: Pending payment`,
+          actionUrl: `/dashboard/bookings/${booking.id}?type=vehicle`,
+          data: {
+            bookingId: booking.id,
+            bookingType: "vehicle",
+            bookingNumber: booking.bookingNumber,
+            serviceName: booking.vehicle.name,
+          },
+          priority: "HIGH",
+        });
+      }
+
+      await createAndDispatchNotification({
+        userId,
+        userRole: "CUSTOMER",
+        type: "BOOKING_CONFIRMED",
+        title: "Booking Created",
+        message: `Your vehicle booking for ${booking.vehicle.name} is created. Please complete payment to confirm.`,
+        actionUrl: `/book/payment/${booking.id}?type=vehicle`,
+        data: {
+          bookingId: booking.id,
+          bookingType: "vehicle",
+          bookingNumber: booking.bookingNumber,
+          serviceName: booking.vehicle.name,
+        },
+        priority: "HIGH",
+      });
+
+      // 4) Pre-create commission
+      try {
+        const calc = await calculateCommission(
+          booking.id,
+          "vehicle",
+          vehicleId,
+          providerUserId || userId,
+          booking.totalPrice
+        );
+        await createCommission(calc);
+      } catch (e) {
+        console.error("Failed to create commission for vehicle booking", e);
+      }
+
+      // 5) Revalidation hints via SSE messages
+      try {
+        publishToUser(userId, "message", {
+          type: "revalidate",
+          reason: "booking-created",
+          paths: ["/dashboard", "/dashboard/bookings"],
+          bookingId: booking.id,
+          bookingType: "vehicle",
+        });
+        if (providerUserId) {
+          publishToUser(providerUserId, "message", {
+            type: "revalidate",
+            reason: "new-booking",
+            paths: ["/dashboard/vehicle-owner"],
+            bookingId: booking.id,
+            bookingType: "vehicle",
+          });
+        }
+      } catch {}
+
+      // 6) Emails (simple): customer and provider
+      try {
+        if (renterEmail) {
+          await sendEmail({
+            to: renterEmail,
+            subject: `Complete your vehicle booking for ${booking.vehicle.name} (Pending Payment)`,
+            html: `<p>Hi ${renterName || "there"},</p>
+                   <p>Your booking <strong>#${booking.bookingNumber}</strong> for <strong>${booking.vehicle.name}</strong> was created and is pending payment.</p>
+                   <p>Please complete payment to confirm your reservation.</p>
+                   <p><a href="${process.env.APP_URL || ""}/book/payment/${booking.id}?type=vehicle">Pay now</a></p>`,
+          });
+        }
+        if (providerUserId && booking.vehicle.owner?.user?.email) {
+          await sendEmail({
+            to: booking.vehicle.owner.user.email,
+            subject: `New vehicle booking received (#${booking.bookingNumber})`,
+            html: `<p>You have a new vehicle booking for <strong>${booking.vehicle.name}</strong>.</p>
+                   <p>Status: Pending payment</p>
+                   <p><a href="${process.env.APP_URL || ""}/dashboard/vehicle-owner">Open dashboard</a></p>`,
+          });
+        }
+      } catch {}
+
+      return redirect(`/book/payment/${booking.id}?type=vehicle`);
     } catch (error) {
       console.error("Error creating booking:", error);
       return json({ error: "Failed to create booking. Please try again." }, { status: 500 });
@@ -498,7 +624,7 @@ export default function VehicleBooking() {
                 </div>
 
                 {/* Recent Reviews */}
-                {vehicle.reviews.length > 0 && (
+                {vehicle.reviews.length > 0 ? (
                   <div>
                     <h3 className="font-semibold mb-4">Recent Reviews</h3>
                     <div className="space-y-4">
@@ -524,8 +650,8 @@ export default function VehicleBooking() {
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </div>

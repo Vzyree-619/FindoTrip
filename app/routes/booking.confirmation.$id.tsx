@@ -4,6 +4,8 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
+import { useState } from "react";
+import { ChatInterface } from "~/components/chat";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import {
@@ -50,6 +52,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 export default function BookingConfirmation() {
   const { booking } = useLoaderData<typeof loader>();
   const payment = booking.payments[0];
+  const [chatOpen, setChatOpen] = useState(false);
 
   // Calculate nights
   const checkInDate = new Date(booking.checkIn);
@@ -277,7 +280,11 @@ export default function BookingConfirmation() {
               >
                 Book Another Stay
               </Link>
+              <button onClick={() => setChatOpen(true)} className="flex-1 bg-gray-800 text-white text-center py-3 px-6 rounded-lg hover:bg-gray-700 font-semibold transition">
+                Message Provider
+              </button>
             </div>
+            <ChatInterface isOpen={chatOpen} onClose={() => setChatOpen(false)} targetUserId={(booking as any).providerId} initialMessage={`Hi, I'm reaching out regarding booking #${booking.id}.`} />
           </div>
         </div>
 

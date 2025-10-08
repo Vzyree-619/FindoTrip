@@ -12,6 +12,7 @@ import {
   Award,
   AlertCircle
 } from "lucide-react";
+import SupportButton from "~/components/support/SupportButton";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -320,7 +321,8 @@ export default function TourGuideDashboard() {
           </div>
         </div>
       </div>
+      {/* Contact Support Floating Button */}
+      <SupportButton userId={"me" as any} userRole={"TOUR_GUIDE"} />
     </div>
   );
 }
-

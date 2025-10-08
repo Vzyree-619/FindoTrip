@@ -121,7 +121,40 @@ enum NotificationType {
   LISTING_REJECTED
   PROFILE_VERIFIED
   SYSTEM_ANNOUNCEMENT
+  SUPPORT_TICKET_CREATED
+  SUPPORT_TICKET_UPDATED
+  SUPPORT_MESSAGE_RECEIVED
+  SUPPORT_TICKET_RESOLVED
 }
+
+enum SupportTicketStatus {
+  NEW
+  IN_PROGRESS
+  WAITING
+  RESOLVED
+  CLOSED
+  ESCALATED
+}
+
+enum SupportTicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SupportTicketCategory {
+  ACCOUNT_ISSUES
+  APPROVAL_QUESTIONS
+  TECHNICAL_SUPPORT
+  PAYMENT_ISSUES
+  POLICY_QUESTIONS
+  FEATURE_REQUEST
+  BUG_REPORT
+  OTHER
+}
+
+// Legacy MessageType enum removed; using comprehensive chat MessageType below
 
 enum CommissionStatus {
   PENDING
@@ -193,9 +226,9 @@ model User {
   // Notifications for all activities
   notifications      Notification[]
 
-  // Messages sent and received
-  sentMessages       Message[] @relation("MessageSender")
-  receivedMessages   Message[] @relation("MessageReceiver")
+  // Legacy direct messages removed
+  // sentMessages       Message[] @relation("MessageSender")
+  // receivedMessages   Message[] @relation("MessageReceiver")
 
   // Documents for verification
   documents          Document[]
@@ -214,6 +247,80 @@ model User {
 
   // Computed counters (maintained by application logic)
   totalBookings     Int @default(0)
+
+  // ========================================
+  // SUPPORT SYSTEM RELATIONSHIPS
+  // ========================================
+  
+  // Support tickets created by provider
+  supportTicketsCreated SupportTicket[] @relation("SupportTicketProvider")
+  
+  // Support tickets assigned to admin
+  supportTicketsAssigned SupportTicket[] @relation("SupportTicketAssigned")
+  
+  // Support messages sent
+  supportMessagesSent SupportMessage[] @relation("SupportMessageSender")
+  
+  // Response templates created
+  responseTemplatesCreated ResponseTemplate[] @relation("TemplateCreator")
+  
+  // Broadcasts created
+  broadcastsCreated SupportBroadcast[] @relation("BroadcastCreator")
+  
+  // ========================================
+  // CHAT ANALYTICS RELATIONSHIPS
+  // ========================================
+  
+  // Chat analytics for providers
+  // chatAnalytics ChatAnalytics[]
+  
+  // Performance scores
+  performanceScores PerformanceScore[] @relation("PerformanceScoreProvider")
+  
+  // Chat messages sent (legacy)
+  // chatMessagesSent ChatMessage[] @relation("ChatMessageSender")
+  
+  // Conversations (comprehensive model uses participants array; drop legacy fields)
+  // conversationsAsCustomer Conversation[]
+  // conversationsAsProvider Conversation[]
+  
+  // ========================================
+  // COMPREHENSIVE CHAT SYSTEM RELATIONSHIPS
+  // ========================================
+  
+  // Messages sent
+  messagesSent Message[] @relation("MessageSender")
+  
+  // Chat notifications received
+  chatNotifications ChatNotification[] @relation("ChatNotificationUser")
+  
+  // Chat insights targeted to this user
+  // chatInsights ChatInsight[]
+  
+  // Quick access fields
+  hasUnreadMessages Boolean @default(false)
+  lastActiveAt DateTime?
+
+  // ========================================
+  // SECURITY & PRIVACY RELATIONSHIPS
+  // ========================================
+  
+  // User blocking
+  blockedUsers     UserBlock[] @relation("UserBlocker")
+  blockedBy        UserBlock[] @relation("UserBlocked")
+  
+  // User flags and violations
+  userFlags        UserFlag[] @relation("UserFlagged")
+  userViolations   UserViolation[] @relation("UserViolated")
+  violationsIssued UserViolation[] @relation("ViolationAdmin")
+  
+  // Abuse reports
+  abuseReportsFiled    AbuseReport[] @relation("AbuseReporter")
+  abuseReportsReceived AbuseReport[] @relation("AbuseReported")
+  
+  // Audit logging
+  chatAuditLogs    ChatAuditLog[] @relation("AuditLogUser")
+  generalAuditLogs AuditLog[] @relation("GeneralAuditLogUser")
 
   @@index([role])
   @@index([verified])
@@ -906,6 +1013,10 @@ model PropertyBooking {
   propertyId      String @db.ObjectId
   property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   
+  // Chat integration
+  conversationId String? @db.ObjectId
+  conversation Conversation? @relation("PropertyBookingConversation", fields: [conversationId], references: [id])
+  
   // ========================================
   // REAL RELATIONSHIPS TO PAYMENTS & REVIEWS
   // ========================================
@@ -989,6 +1100,10 @@ model VehicleBooking {
   vehicleId       String @db.ObjectId
   vehicle         Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   
+  // Chat integration
+  conversationId String? @db.ObjectId
+  conversation Conversation? @relation("VehicleBookingConversation", fields: [conversationId], references: [id])
+  
   // ========================================
   // REAL RELATIONSHIPS TO PAYMENTS & REVIEWS
   // ========================================
@@ -1063,6 +1178,10 @@ model TourBooking {
   
   guideId         String @db.ObjectId
   guide           TourGuide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  
+  // Chat integration
+  conversationId String? @db.ObjectId
+  conversation Conversation? @relation("TourBookingConversation", fields: [conversationId], references: [id])
   
   // ========================================
   // REAL RELATIONSHIPS TO PAYMENTS & REVIEWS
@@ -1392,52 +1511,7 @@ model UnavailableDate {
   @@index([ownerId])
 }
 
-// ========================================
-// MESSAGE SYSTEM WITH REAL RELATIONSHIPS
-// ========================================
-
-model Message {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  subject         String?
-  content         String
-  
-  // ========================================
-  // REAL RELATIONSHIPS
-  // ========================================
-  senderId        String   @db.ObjectId
-  sender          User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  
-  receiverId      String   @db.ObjectId
-  receiver        User @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-  
-  senderRole      UserRole
-  receiverRole    UserRole
-  
-  // Message Context
-  bookingId       String? @db.ObjectId
-  bookingType     String? // "property", "vehicle", "tour"
-  
-  // Status
-  read            Boolean @default(false)
-  readAt          DateTime?
-  archived        Boolean @default(false)
-  
-  // Thread
-  threadId        String? @db.ObjectId
-  replyToId       String? @db.ObjectId
-  
-  // Attachments
-  attachments     String[]
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([senderId])
-  @@index([receiverId])
-  @@index([threadId])
-  @@index([bookingId, bookingType])
-  @@index([read])
-}
+// Legacy direct Message model removed in favor of comprehensive chat models
 
 // ========================================
 // MAINTENANCE SYSTEM WITH REAL RELATIONSHIPS
@@ -1628,5 +1702,830 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([expiresAt])
+}
+
+// ========================================
+// SUPPORT SYSTEM MODELS
+// ========================================
+
+model SupportTicket {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  ticketNumber    String   @unique
+  title           String
+  description     String
+  category        SupportTicketCategory
+  priority        SupportTicketPriority @default(NORMAL)
+  status          SupportTicketStatus @default(NEW)
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  providerId      String   @db.ObjectId
+  provider        User     @relation("SupportTicketProvider", fields: [providerId], references: [id], onDelete: Cascade)
+  
+  assignedToId    String?  @db.ObjectId
+  assignedTo      User?    @relation("SupportTicketAssigned", fields: [assignedToId], references: [id])
+  
+  // Related entities
+  relatedServiceId String? @db.ObjectId
+  relatedServiceType String? // "property", "vehicle", "tour"
+  
+  // Escalation
+  escalated       Boolean @default(false)
+  escalatedAt     DateTime?
+  escalatedBy     String? @db.ObjectId
+  
+  // Resolution
+  resolvedAt      DateTime?
+  resolvedBy      String? @db.ObjectId
+  resolution      String?
+  satisfactionRating Int?
+  
+  // Internal notes (admin only)
+  internalNotes   String?
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastMessageAt   DateTime @default(now())
+  
+  // ========================================
+  // REAL RELATIONSHIPS TO MESSAGES
+  // ========================================
+  messages        SupportMessage[] @relation("SupportTicketMessages")
+  
+  @@index([providerId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model SupportMessage {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  content         String
+  type            MessageType @default(TEXT)
+  
+  // File attachments
+  attachments     String[]
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  ticketId        String   @db.ObjectId
+  ticket          SupportTicket @relation("SupportTicketMessages", fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  senderId        String   @db.ObjectId
+  sender          User     @relation("SupportMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  
+  // Message metadata
+  isRead          Boolean @default(false)
+  readAt          DateTime?
+  
+  // Template reference (if using template)
+  templateId      String? @db.ObjectId
+  template        ResponseTemplate? @relation(fields: [templateId], references: [id])
+  
+  // System message data
+  systemData      Json?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([ticketId])
+  @@index([senderId])
+  @@index([createdAt])
+
+  // Opposite relation for AbuseReport.message
+  abuseReports    AbuseReport[] @relation("AbuseReportMessage")
+}
+
+model ResponseTemplate {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  title            String
+  content           String
+  category          SupportTicketCategory
+  
+  // Template metadata
+  isActive         Boolean @default(true)
+  usageCount       Int @default(0)
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  createdById      String   @db.ObjectId
+  createdBy        User     @relation("TemplateCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  
+  // Usage tracking
+  messages         SupportMessage[]
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+  @@index([createdById])
+}
+
+model SupportBroadcast {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  message         String
+  category        String?
+  
+  // Target audience
+  targetRoles     UserRole[]
+  targetProviders String[] @db.ObjectId // Specific provider IDs
+  
+  // Broadcast settings
+  isActive        Boolean @default(true)
+  scheduledAt     DateTime?
+  expiresAt       DateTime?
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  createdById     String   @db.ObjectId
+  createdBy       User     @relation("BroadcastCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  
+  // Delivery tracking
+  deliveredTo     String[] @db.ObjectId
+  readBy          String[] @db.ObjectId
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([scheduledAt])
+  @@index([createdById])
+}
+
+model SupportAnalytics {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // Metrics
+  date            DateTime @default(now())
+  totalTickets    Int @default(0)
+  resolvedTickets Int @default(0)
+  avgResponseTime Int @default(0) // in minutes
+  avgResolutionTime Int @default(0) // in minutes
+  
+  // By category
+  ticketsByCategory Json
+  
+  // By priority
+  ticketsByPriority Json
+  
+  // Satisfaction
+  avgSatisfaction Float @default(0)
+  totalRatings    Int @default(0)
+  
+  // Volume trends
+  ticketsCreated  Int @default(0)
+  messagesSent    Int @default(0)
+  
+  createdAt       DateTime @default(now())
+
+  @@index([date])
+}
+
+// ========================================
+// SECURITY & PRIVACY MODELS
+// ========================================
+
+model UserBlock {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  blockerId       String   @db.ObjectId
+  blockedUserId   String   @db.ObjectId
+  reason          String?
+  blockedAt       DateTime @default(now())
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  blocker         User     @relation("UserBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedUser     User     @relation("UserBlocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  
+  @@index([blockerId])
+  @@index([blockedUserId])
+  @@unique([blockerId, blockedUserId])
+}
+
+model UserFlag {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  flagType        String   // "spam", "profanity", "suspicious", "multiple_reports"
+  reason          String
+  severity        String   @default("medium") // "low", "medium", "high", "critical"
+  autoGenerated   Boolean  @default(false)
+  
+  // Dismissal
+  dismissed       Boolean  @default(false)
+  dismissReason   String?
+  dismissedBy     String?  @db.ObjectId
+  dismissedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  user            User     @relation("UserFlagged", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([flagType])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+model UserViolation {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  violationType   String   // "warning", "suspension", "ban"
+  reason          String
+  severity        String   @default("medium") // "low", "medium", "high", "critical"
+  status          String   @default("active") // "active", "expired", "revoked"
+  
+  // Duration (in hours, null for permanent)
+  duration        Int?
+  expiresAt       DateTime?
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  user            User     @relation("UserViolated", fields: [userId], references: [id], onDelete: Cascade)
+  adminId         String   @db.ObjectId
+  admin           User     @relation("ViolationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([violationType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AbuseReport {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  reporterId      String   @db.ObjectId
+  reportedUserId  String   @db.ObjectId
+  messageId       String?  @db.ObjectId
+  conversationId  String?  @db.ObjectId
+  reason          String   // "spam", "harassment", "inappropriate", "scam", "other"
+  description     String
+  status          String   @default("pending") // "pending", "reviewed", "resolved", "dismissed"
+  
+  // Admin handling
+  adminNotes      String?
+  handledBy       String?  @db.ObjectId
+  handledAt       DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  reporter        User     @relation("AbuseReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser    User     @relation("AbuseReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  message         SupportMessage? @relation("AbuseReportMessage", fields: [messageId], references: [id], onDelete: Cascade)
+  // conversation relation removed; keep conversationId scalar
+  
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([status])
+  @@index([reason])
+  @@index([createdAt])
+}
+
+model ChatAuditLog {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  action          String   // "message_sent", "message_received", "user_blocked", etc.
+  conversationId  String?  @db.ObjectId
+  messageId       String?  @db.ObjectId
+  targetUserId    String?  @db.ObjectId
+  details         Json?
+  
+  // Security metadata
+  ipAddress       String?
+  userAgent       String?
+  severity        String   @default("low") // "low", "medium", "high", "critical"
+  hash            String   // For integrity verification
+  
+  timestamp       DateTime @default(now())
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  user            User     @relation("AuditLogUser", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([action])
+  @@index([severity])
+  @@index([timestamp])
+}
+
+model AuditLog {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  action          String
+  resourceType    String
+  resourceId      String
+  details         Json?
+  
+  // Security metadata
+  ipAddress       String?
+  userAgent       String?
+  severity        String   @default("low") // "low", "medium", "high", "critical"
+  hash            String   // For integrity verification
+  
+  timestamp       DateTime @default(now())
+  
+  // ========================================
+  // REAL RELATIONSHIPS
+  // ========================================
+  user            User     @relation("GeneralAuditLogUser", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([severity])
+  @@index([timestamp])
+}
+
+// ========================================
+// CHAT ANALYTICS MODELS
+// ========================================
+
+// Legacy ChatAnalytics removed; using consolidated analytics models below
+
+model PlatformAnalytics {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  date            DateTime @default(now())
+  
+  // Platform-wide metrics
+  totalMessages   Int @default(0)
+  activeConversations Int @default(0)
+  avgResponseTime Int @default(0) // in minutes
+  responseRate    Float @default(0) // percentage
+  conversionRate  Float @default(0) // percentage
+  customerSatisfaction Float @default(0)
+  
+  // Peak usage
+  peakUsageTimes  Int[] // Array of peak hours
+  messageVolumeTrend Json // Daily message volume data
+  
+  // Response time by role
+  responseTimeByRole Json // {role: timeInMinutes}
+  
+  // Support ticket metrics
+  supportTicketMetrics Json
+  
+  // User engagement
+  userEngagement  Json
+  
+  // Conversion metrics
+  conversionMetrics Json
+  
+  // Quality metrics
+  qualityMetrics  Json
+  
+  createdAt       DateTime @default(now())
+
+  @@index([date])
+}
+
+model PerformanceScore {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  providerId      String   @db.ObjectId
+  provider        User     @relation("PerformanceScoreProvider", fields: [providerId], references: [id], onDelete: Cascade)
+  
+  // Overall score (0-100)
+  overallScore    Int @default(0)
+  
+  // Breakdown scores
+  responseTimeScore Int @default(0)
+  responseRateScore Int @default(0)
+  customerSatisfactionScore Int @default(0)
+  conversionRateScore Int @default(0)
+  messageQualityScore Int @default(0)
+  
+  // Additional metrics
+  totalBookings   Int @default(0)
+  totalRevenue    Float @default(0)
+  customerRating  Float @default(0)
+  
+  // Ranking
+  rank            Int @default(0)
+  percentile      Float @default(0)
+  
+  // Historical data
+  previousScore   Int?
+  scoreChange     Int @default(0) // positive = improvement
+  
+  // Performance category
+  category        String @default("FAIR") // EXCELLENT, GOOD, FAIR, POOR
+  
+  // Calculation period
+  periodStart     DateTime
+  periodEnd       DateTime
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([providerId])
+  @@index([overallScore])
+  @@index([rank])
+  @@index([category])
+  @@index([periodStart, periodEnd])
+}
+
+model RealTimeActivity {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  timestamp       DateTime @default(now())
+  
+  // Current activity
+  activeConversations Int @default(0)
+  onlineUsers     Int @default(0)
+  messagesInLast5Min Int @default(0)
+  
+  // System health
+  websocketConnections Int @default(0)
+  messageQueueSize Int @default(0)
+  systemLoad      Float @default(0)
+  
+  // Support metrics
+  awaitingResponse Int @default(0)
+  recentEscalations Int @default(0)
+  
+  // Activity data
+  recentMessages  Json // Array of recent message data
+  activeUsers     Json // Array of active user data
+  
+  createdAt       DateTime @default(now())
+
+  @@index([timestamp])
+}
+
+// Legacy ChatMessage removed; using comprehensive Message model below
+/*
+model ChatMessage {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  content         String
+  type            MessageType @default(TEXT)
+  
+  // Message metadata
+  isRead          Boolean @default(false)
+  readAt          DateTime?
+  isFlagged       Boolean @default(false)
+  flaggedAt       DateTime?
+  flaggedBy       String? @db.ObjectId
+  flagReason      String?
+  
+  // Sender and conversation
+  senderId        String   @db.ObjectId
+  sender          User     @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  
+  conversationId  String   @db.ObjectId
+  conversation    Conversation @relation(fields: [conversationId], references: [id])
+  
+  // Attachments
+  attachments     String[]
+  
+  // AI analysis
+  sentimentScore  Float?
+  professionalTone Float?
+  qualityScore    Float?
+  
+  // System data
+  systemData      Json?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([senderId])
+  @@index([conversationId])
+  @@index([createdAt])
+  @@index([isRead])
+  @@index([isFlagged])
+}
+*/
+
+// Legacy Conversation model removed; using comprehensive chat Conversation below
+
+// ========================================
+// COMPREHENSIVE CHAT SYSTEM MODELS
+// ========================================
+
+enum ConversationType {
+  CUSTOMER_PROVIDER
+  PROVIDER_ADMIN
+  CUSTOMER_ADMIN
+  GROUP_CHAT
+  SUPPORT_TICKET
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+  NOTIFICATION
+  REPLY
+}
+
+model Conversation {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Participants
+  participants    String[] @db.ObjectId // Array of user IDs in conversation
+  participantRoles String[] // Array of roles corresponding to participants
+  
+  // Conversation metadata
+  type            ConversationType
+  title           String? // Optional conversation title
+  description     String? // Optional conversation description
+  
+  // Related entities
+  relatedBookingId String? @db.ObjectId
+  relatedBookingType String? // "property", "vehicle", "tour"
+  relatedServiceId String? @db.ObjectId
+  relatedServiceType String? // "property", "vehicle", "tour"
+  
+  // Conversation state
+  isActive        Boolean @default(true)
+  isArchived      Boolean @default(false)
+  isPinned        Boolean @default(false)
+  // Soft-hide per user
+  hiddenBy        String[] @db.ObjectId
+  
+  // Message tracking
+  lastMessageId   String? @db.ObjectId
+  lastMessageAt   DateTime @default(now())
+  messageCount    Int @default(0)
+  
+  // Unread tracking
+  unreadCount     Json // {userId: count} for each participant
+  lastReadAt      Json // {userId: timestamp} for each participant
+  
+  // Analytics
+  responseTime    Int? // Average response time in minutes
+  customerSatisfaction Float?
+  qualityScore    Float?
+  
+  // Messages
+  messages        Message[] @relation("ConversationMessages")
+  
+  // Notifications
+  notifications   ChatNotification[]
+  
+  // Booking relationships
+  propertyBookings PropertyBooking[] @relation("PropertyBookingConversation")
+  vehicleBookings VehicleBooking[] @relation("VehicleBookingConversation")
+  tourBookings TourBooking[] @relation("TourBookingConversation")
+  
+  // Indexes for performance
+  @@index([participants])
+  @@index([type])
+  @@index([isActive])
+  @@index([lastMessageAt])
+  @@index([relatedBookingId])
+  @@index([relatedServiceId])
+  @@index([participants, lastMessageAt])
+  @@index([participants, isActive])
+  @@index([hiddenBy])
+}
+
+model Message {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Message content
+  content         String
+  type            MessageType @default(TEXT)
+  
+  // Sender information
+  senderId        String   @db.ObjectId
+  sender          User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  senderRole      UserRole
+  
+  // Conversation
+  conversationId  String   @db.ObjectId
+  conversation    Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  // Message threading
+  replyToId       String? @db.ObjectId
+  replyTo         Message? @relation("MessageReply", fields: [replyToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies         Message[] @relation("MessageReply")
+  
+  // Attachments
+  attachments     Json[] // Array of {url, name, type, size}
+  
+  // Read status
+  isRead          Boolean @default(false)
+  readBy          String[] @db.ObjectId // Array of user IDs who read it
+  readAt          Json // {userId: timestamp}
+  
+  // Edit tracking
+  isEdited        Boolean @default(false)
+  editedAt        DateTime?
+  editHistory     Json[] // Array of {content, editedAt}
+  
+  // Message metadata
+  isDeleted       Boolean @default(false)
+  deletedAt       DateTime?
+  deletedBy       String? @db.ObjectId
+  
+  // AI analysis
+  sentimentScore  Float?
+  professionalTone Float?
+  qualityScore    Float?
+  language        String?
+  
+  // System data
+  systemData      Json?
+  
+  // Notifications
+  notifications   ChatNotification[]
+  
+  // Indexes for performance
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@index([isRead])
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
+  @@index([type])
+  @@index([isDeleted])
+}
+
+model ChatNotification {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  
+  // Recipient
+  userId          String   @db.ObjectId
+  user            User     @relation("ChatNotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Related entities
+  conversationId  String   @db.ObjectId
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  messageId       String   @db.ObjectId
+  message         Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  // Notification content
+  title           String
+  body            String
+  type            String @default("message") // "message", "mention", "system"
+  
+  // Read status
+  isRead          Boolean @default(false)
+  readAt          DateTime?
+  
+  // Delivery status
+  isDelivered     Boolean @default(false)
+  deliveredAt     DateTime?
+  
+  // Notification metadata
+  priority        String @default("normal") // "low", "normal", "high", "urgent"
+  category        String? // "booking", "support", "general"
+  
+  // Indexes for performance
+  @@index([userId])
+  @@index([isRead])
+  @@index([conversationId])
+  @@index([createdAt])
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+// ========================================
+// CHAT SYSTEM ENUMS
+// ========================================
+
+enum ChatStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+  BLOCKED
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+// ========================================
+// CHAT ANALYTICS MODELS
+// ========================================
+
+model ChatAnalytics {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // Time period
+  date            DateTime @default(now())
+  period          String @default("daily") // "hourly", "daily", "weekly", "monthly"
+  
+  // Conversation metrics
+  totalConversations Int @default(0)
+  activeConversations Int @default(0)
+  newConversations Int @default(0)
+  closedConversations Int @default(0)
+  
+  // Message metrics
+  totalMessages   Int @default(0)
+  messagesSent    Int @default(0)
+  messagesReceived Int @default(0)
+  averageMessagesPerConversation Float @default(0)
+  
+  // Response time metrics
+  averageResponseTime Int @default(0) // in minutes
+  firstResponseTime Int @default(0) // in minutes
+  responseRate    Float @default(0) // percentage
+  
+  // User engagement
+  activeUsers     Int @default(0)
+  newUsers        Int @default(0)
+  returningUsers  Int @default(0)
+  
+  // Quality metrics
+  averageQualityScore Float @default(0)
+  flaggedMessages Int @default(0)
+  deletedMessages Int @default(0)
+  
+  // Platform-specific metrics
+  platformId      String? @db.ObjectId
+  serviceType     String? // "property", "vehicle", "tour"
+  
+  createdAt       DateTime @default(now())
+
+  @@index([date])
+  @@index([period])
+  @@index([platformId])
+  @@index([serviceType])
+  @@index([date, period])
+}
+
+model ChatInsight {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  
+  // Insight metadata
+  type            String // "improvement", "achievement", "trend", "recommendation", "warning"
+  priority        String // "low", "medium", "high", "critical"
+  category        String // "response_time", "conversion", "quality", "engagement"
+  
+  // Target
+  targetType      String // "provider", "customer", "admin", "platform"
+  targetId        String? @db.ObjectId
+  
+  // Insight content
+  title           String
+  description     String
+  action          String
+  impact          String
+  
+  // Data
+  data            Json?
+  metrics         Json?
+  
+  // Status
+  isRead          Boolean @default(false)
+  isActioned      Boolean @default(false)
+  actionedAt      DateTime?
+  actionedBy      String? @db.ObjectId
+  
+  // Expiry
+  expiresAt       DateTime?
+  isExpired       Boolean @default(false)
+
+  @@index([targetType])
+  @@index([targetId])
+  @@index([type])
+  @@index([priority])
+  @@index([isRead])
+  @@index([createdAt])
   @@index([expiresAt])
 }

@@ -15,7 +15,7 @@ export function useNotificationsStream(onNotification: (n: NotificationEvent) =>
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    const es = new EventSource("/api/notifications.stream");
+    const es = new EventSource("/api/chat.stream");
     esRef.current = es;
 
     const onNotif = (ev: MessageEvent) => {

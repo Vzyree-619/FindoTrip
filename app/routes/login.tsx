@@ -6,6 +6,7 @@ import {
 } from "@remix-run/node";
 import { Form, Link, useActionData, useSearchParams, useNavigation } from "@remix-run/react";
 import { login, createUserSession, getUserId } from "~/lib/auth/auth.server";
+import { prisma } from "~/lib/db/db.server";
 import { Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -38,7 +39,21 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: result.error }, { status: 400 });
   }
 
-  return createUserSession(result.user.id, redirectTo);
+  // Get user role and redirect to appropriate dashboard
+  const user = await prisma.user.findUnique({
+    where: { id: result.user.id },
+    select: { role: true }
+  });
+
+  const redirectRoutes = {
+    CUSTOMER: "/dashboard",
+    PROPERTY_OWNER: "/dashboard/provider",
+    VEHICLE_OWNER: "/dashboard/vehicle-owner",
+    TOUR_GUIDE: "/dashboard/guide",
+    SUPER_ADMIN: "/dashboard/admin"
+  };
+
+  return createUserSession(result.user.id, redirectRoutes[user?.role as keyof typeof redirectRoutes] || "/dashboard");
 }
 
 export default function Login() {

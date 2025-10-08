@@ -20,13 +20,24 @@ import {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
-  const user = await getUser(request);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true }
+  });
 
-  if (!user) {
-    throw redirect("/login");
+  // Redirect based on role - customers stay on main dashboard
+  if (user?.role === "PROPERTY_OWNER") {
+    throw redirect("/dashboard/provider");
   }
+  if (user?.role === "VEHICLE_OWNER") {
+    throw redirect("/dashboard/vehicle-owner");
+  }
+  if (user?.role === "TOUR_GUIDE") {
+    throw redirect("/dashboard/guide");
+  }
+  // SUPER_ADMIN would stay here for admin dashboard
 
-  // Get dashboard stats - combining all booking types
+  // Get dashboard stats - only for customers
   const [propertyBookings, vehicleBookings, tourBookings, reviewsCount, wishlists] = await Promise.all([
     prisma.propertyBooking.findMany({
       where: { userId, status: { in: ["CONFIRMED", "COMPLETED"] } },
@@ -70,7 +81,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }, 0);
 
   return json({
-    user,
+    user: await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        avatar: true,
+        phone: true,
+        verified: true,
+      },
+    }),
     stats: {
       bookingsCount,
       upcomingBookings,
@@ -82,6 +104,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function Dashboard() {
   const { user, stats } = useLoaderData<typeof loader>();
+
+  // Add null check for user
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Type assertion that user is not null
+  const safeUser = user as NonNullable<typeof user>;
 
   const navigation = [
     { name: "Overview", href: "/dashboard", icon: Home, exact: true },
@@ -100,24 +136,24 @@ export default function Dashboard() {
             {/* User Profile Summary */}
             <div className="flex items-center flex-shrink-0 px-4 pb-4 border-b border-gray-200">
               <div className="flex items-center">
-                {user.avatar ? (
+                {safeUser.avatar ? (
                   <img
                     className="inline-block h-12 w-12 rounded-full object-cover"
-                    src={user.avatar}
-                    alt={user.name}
+                    src={safeUser.avatar}
+                    alt={safeUser.name}
                   />
                 ) : (
                   <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-[#01502E]">
                     <span className="text-lg font-medium leading-none text-white">
-                      {user.name[0].toUpperCase()}
+                      {safeUser.name[0].toUpperCase()}
                     </span>
                   </div>
                 )}
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
+                  <p className="text-sm font-medium text-gray-900">{safeUser.name}</p>
+                  <p className="text-xs text-gray-500">{safeUser.email}</p>
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#01502E]/10 text-[#01502E] mt-1">
-                    {user.role.replace("_", " ")}
+                    {safeUser.role.replace("_", " ")}
                   </span>
                 </div>
               </div>
@@ -214,6 +250,10 @@ export default function Dashboard() {
 // Default dashboard overview page
 export function DashboardIndex() {
   const { user, stats } = useLoaderData<typeof loader>();
+
+  if (!user) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="py-6">

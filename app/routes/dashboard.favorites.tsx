@@ -23,14 +23,23 @@ import {
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
 
-  // Get user's wishlist with accommodation details
-  const favorites = await prisma.wishlist.findMany({
+  // Get user's wishlists and fetch properties by ids
+  const lists = await prisma.wishlist.findMany({
     where: { userId },
-    include: {
-      accommodation: true,
-    },
     orderBy: { createdAt: "desc" },
   });
+
+  const ids = Array.from(new Set(lists.flatMap((l) => l.propertyIds)));
+  const properties = ids.length
+    ? await prisma.property.findMany({ where: { id: { in: ids } } })
+    : [];
+
+  // Shape to prior UI structure: favorites[] with .accommodation
+  const favorites = properties.map((p) => ({
+    id: p.id,
+    accommodation: p,
+    createdAt: lists.find((l) => l.propertyIds.includes(p.id))?.createdAt ?? new Date(),
+  }));
 
   return json({ favorites });
 }
@@ -43,14 +52,17 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (intent === "remove") {
     try {
-      // Remove from wishlist
-      await prisma.wishlist.deleteMany({
-        where: {
-          userId,
-          accommodationId,
-        },
+      const lists = await prisma.wishlist.findMany({
+        where: { userId, propertyIds: { has: accommodationId } },
       });
-
+      await Promise.all(
+        lists.map((l) =>
+          prisma.wishlist.update({
+            where: { id: l.id },
+            data: { propertyIds: l.propertyIds.filter((pid) => pid !== accommodationId) },
+          })
+        )
+      );
       return json({ success: true, message: "Removed from favorites" });
     } catch (error) {
       return json({ error: "Failed to remove from favorites" }, { status: 500 });
@@ -99,26 +111,26 @@ export default function Favorites() {
         </div>
 
         {/* Success/Error Messages */}
-        {actionData?.success && (
+        {actionData && (actionData as any).success && (
           <div className="mb-6 rounded-md bg-green-50 p-4">
             <div className="flex">
               <CheckCircle className="h-5 w-5 text-green-400" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-green-800">
-                  {actionData.message}
+                  {(actionData as any).message}
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {actionData?.error && (
+        {actionData && (actionData as any).error && (
           <div className="mb-6 rounded-md bg-red-50 p-4">
             <div className="flex">
               <AlertCircle className="h-5 w-5 text-red-400" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-red-800">
-                  {actionData.error}
+                  {(actionData as any).error}
                 </p>
               </div>
             </div>
@@ -197,7 +209,7 @@ export default function Favorites() {
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <span className="text-xl font-bold text-[#01502E]">
-                          PKR {accommodation.pricePerNight.toLocaleString()}
+                          PKR {accommodation.basePrice.toLocaleString()}
                         </span>
                         <span className="text-sm text-gray-600"> /night</span>
                       </div>

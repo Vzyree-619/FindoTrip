@@ -79,6 +79,13 @@ export async function action({ request }: ActionFunctionArgs) {
   const accountNumber = formData.get("accountNumber") as string;
   const routingNumber = formData.get("routingNumber") as string;
 
+  // Validate required fields
+  if (!businessName || !businessType || !insuranceProvider || !insurancePolicy || 
+      !businessPhone || !businessEmail || !businessAddress || !businessCity || 
+      !businessCountry || !drivingLicense || !drivingExperience) {
+    return json({ error: "Please fill in all required fields" }, { status: 400 });
+  }
+
   try {
     // Create vehicle owner profile
     await prisma.vehicleOwner.create({
@@ -86,38 +93,38 @@ export async function action({ request }: ActionFunctionArgs) {
         userId,
         businessName,
         businessType,
-        businessLicense,
-        transportLicense,
+        businessLicense: businessLicense || null,
+        transportLicense: transportLicense || null,
         insuranceProvider,
         insurancePolicy,
-        insuranceExpiry: new Date(insuranceExpiry),
+        insuranceExpiry: insuranceExpiry ? new Date(insuranceExpiry) : new Date(),
         businessPhone,
         businessEmail,
         businessAddress,
         businessCity,
-        businessState,
+        businessState: businessState || "",
         businessCountry,
         drivingLicense,
-        licenseExpiry: new Date(licenseExpiry),
-        drivingExperience: parseInt(drivingExperience),
-        languages,
-        vehicleTypes,
-        serviceAreas,
-        bankName,
-        accountNumber,
-        routingNumber,
+        licenseExpiry: licenseExpiry ? new Date(licenseExpiry) : new Date(),
+        drivingExperience: parseInt(drivingExperience) || 0,
+        languages: languages.length > 0 ? languages : ["English"],
+        vehicleTypes: vehicleTypes.length > 0 ? vehicleTypes : ["CAR"],
+        serviceAreas: serviceAreas.length > 0 ? serviceAreas : [businessCity],
+        bankName: bankName || null,
+        accountNumber: accountNumber || null,
+        routingNumber: routingNumber || null,
       },
     });
 
-    // Create service request for approval
-    await prisma.serviceRequest.create({
+    // Create notification for admin review
+    await prisma.notification.create({
       data: {
-        type: "PROFILE_UPDATE",
+        type: "SYSTEM_ANNOUNCEMENT",
         title: "New Vehicle Owner Registration",
-        description: `Fleet business registration for ${businessName}`,
-        requesterId: userId,
-        requesterRole: "VEHICLE_OWNER",
-        requestData: {
+        message: `New fleet business registration: ${businessName}`,
+        userId: userId,
+        userRole: "VEHICLE_OWNER",
+        data: {
           businessName,
           businessType,
           transportLicense,
@@ -139,7 +146,17 @@ export async function action({ request }: ActionFunctionArgs) {
     return redirect("/dashboard?welcome=true&pending=true");
   } catch (error) {
     console.error("Profile creation error:", error);
-    return json({ error: "Failed to create fleet business profile" }, { status: 500 });
+    
+    // More detailed error logging
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+    
+    return json({ 
+      error: "Failed to create fleet business profile. Please check all required fields and try again.",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, { status: 500 });
   }
 }
 
@@ -155,8 +172,35 @@ export default function VehicleOwnerOnboarding() {
   const [selectedServiceAreas, setSelectedServiceAreas] = useState<string[]>([]);
   const totalSteps = 4;
 
+  // Form data state
+  const [formData, setFormData] = useState({
+    businessName: '',
+    businessType: '',
+    businessLicense: '',
+    transportLicense: '',
+    insuranceProvider: '',
+    insurancePolicy: '',
+    insuranceExpiry: '',
+    businessPhone: '',
+    businessEmail: '',
+    businessAddress: '',
+    businessCity: '',
+    businessState: '',
+    businessCountry: '',
+    drivingLicense: '',
+    licenseExpiry: '',
+    drivingExperience: '',
+    bankName: '',
+    accountNumber: '',
+    routingNumber: ''
+  });
+
   const nextStep = () => setStep(prev => Math.min(prev + 1, totalSteps));
   const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
 
   const languageOptions = [
     'English', 'Urdu', 'Punjabi', 'Sindhi', 'Pashto', 'Balochi', 'Arabic', 'Persian'
@@ -212,9 +256,35 @@ export default function VehicleOwnerOnboarding() {
 
         {/* Form */}
         <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10">
+          {/* Error Display */}
+          {actionData?.error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
+                <div>
+                  <h3 className="text-sm font-medium text-red-800">Registration Failed</h3>
+                  <p className="text-sm text-red-700 mt-1">{actionData.error}</p>
+                  {(actionData as any)?.details && (
+                    <p className="text-xs text-red-600 mt-1">Details: {(actionData as any).details}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <Form method="post" className="space-y-6">
+            {/* All form fields are always present, just hidden/shown based on step */}
+            {selectedLanguages.map((language) => (
+              <input key={`lang-${language}`} type="hidden" name="languages" value={language} />
+            ))}
+            {selectedVehicleTypes.map((type) => (
+              <input key={`vehicle-${type}`} type="hidden" name="vehicleTypes" value={type} />
+            ))}
+            {selectedServiceAreas.map((area) => (
+              <input key={`area-${area}`} type="hidden" name="serviceAreas" value={area} />
+            ))}
             {/* Step 1: Business Information */}
-            {step === 1 && (
+            <div className={step === 1 ? 'block' : 'hidden'}>
               <div className="space-y-6">
                 <div className="border-b border-gray-200 pb-4">
                   <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -233,6 +303,8 @@ export default function VehicleOwnerOnboarding() {
                       type="text"
                       id="businessName"
                       name="businessName"
+                      value={formData.businessName}
+                      onChange={(e) => handleInputChange('businessName', e.target.value)}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       placeholder="e.g., FastTrack Car Rentals"
@@ -246,6 +318,8 @@ export default function VehicleOwnerOnboarding() {
                     <select
                       id="businessType"
                       name="businessType"
+                      value={formData.businessType}
+                      onChange={(e) => handleInputChange('businessType', e.target.value)}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
@@ -311,10 +385,10 @@ export default function VehicleOwnerOnboarding() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Step 2: Insurance & Licensing */}
-            {step === 2 && (
+            <div className={step === 2 ? 'block' : 'hidden'}>
               <div className="space-y-6">
                 <div className="border-b border-gray-200 pb-4">
                   <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -439,10 +513,10 @@ export default function VehicleOwnerOnboarding() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Step 3: Fleet & Service Areas */}
-            {step === 3 && (
+            <div className={step === 3 ? 'block' : 'hidden'}>
               <div className="space-y-6">
                 <div className="border-b border-gray-200 pb-4">
                   <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -556,10 +630,10 @@ export default function VehicleOwnerOnboarding() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Step 4: Banking Information */}
-            {step === 4 && (
+            <div className={step === 4 ? 'block' : 'hidden'}>
               <div className="space-y-6">
                 <div className="border-b border-gray-200 pb-4">
                   <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -624,7 +698,7 @@ export default function VehicleOwnerOnboarding() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Error Message */}
             {actionData?.error && (

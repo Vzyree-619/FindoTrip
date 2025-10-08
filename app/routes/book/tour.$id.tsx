@@ -12,6 +12,12 @@ import { Separator } from "~/components/ui/separator";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Loader2, MapPin, Users, Star, Calendar, Clock, User } from "lucide-react";
+import { blockServiceDates } from "~/lib/utils/calendar.server";
+import { createAndDispatchNotification } from "~/lib/notifications.server";
+import { publishToUser } from "~/lib/realtime.server";
+import { sendEmail } from "~/lib/email/email.server";
+import { calculateCommission, createCommission } from "~/lib/utils/commission.server";
+import type { PaymentMethod } from "@prisma/client";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -282,6 +288,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
               type: true,
               duration: true,
               meetingPoint: true,
+              guideId: true,
+              guide: { include: { user: { select: { id: true, name: true, email: true } } } },
             },
           },
           guide: {
@@ -299,11 +307,130 @@ export async function action({ request, params }: ActionFunctionArgs) {
         },
       });
 
-      return json({
-        success: true,
-        booking,
-        redirectUrl: `/book/payment/${booking.id}?type=tour`,
+      // 1) Create a pending payment record
+      const pendingTxnId = `PENDING-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      await prisma.payment.create({
+        data: {
+          amount: booking.totalPrice,
+          currency: booking.currency,
+          method: "CREDIT_CARD" as PaymentMethod,
+          transactionId: pendingTxnId,
+          status: "PENDING",
+          userId,
+          bookingId: booking.id,
+          bookingType: "tour",
+        },
       });
+
+      // 2) Block date immediately
+      try {
+        await blockServiceDates(
+          tourId,
+          "tour",
+          tourDateTime,
+          tourDateTime,
+          "booked",
+          booking.tour.guideId
+        );
+      } catch (e) {
+        console.error("Failed to block date for tour booking", e);
+      }
+
+      // 3) Notifications (provider + customer)
+      const providerUserId = booking.tour.guide?.user?.id;
+      if (providerUserId) {
+        await createAndDispatchNotification({
+          userId: providerUserId,
+          userRole: "TOUR_GUIDE",
+          type: "BOOKING_CONFIRMED",
+          title: "New Tour Booking",
+          message: `You have a new tour booking (#${booking.bookingNumber}). Status: Pending payment`,
+          actionUrl: `/dashboard/bookings/${booking.id}?type=tour`,
+          data: {
+            bookingId: booking.id,
+            bookingType: "tour",
+            bookingNumber: booking.bookingNumber,
+            serviceName: booking.tour.title,
+          },
+          priority: "HIGH",
+        });
+      }
+
+      await createAndDispatchNotification({
+        userId,
+        userRole: "CUSTOMER",
+        type: "BOOKING_CONFIRMED",
+        title: "Booking Created",
+        message: `Your tour booking for ${booking.tour.title} is created. Please complete payment to confirm.`,
+        actionUrl: `/book/payment/${booking.id}?type=tour`,
+        data: {
+          bookingId: booking.id,
+          bookingType: "tour",
+          bookingNumber: booking.bookingNumber,
+          serviceName: booking.tour.title,
+        },
+        priority: "HIGH",
+      });
+
+      // 4) Pre-create commission for the guide
+      try {
+        const calc = await calculateCommission(
+          booking.id,
+          "tour",
+          tourId,
+          providerUserId || userId,
+          booking.totalPrice
+        );
+        await createCommission(calc);
+      } catch (e) {
+        console.error("Failed to create commission for tour booking", e);
+      }
+
+      // 5) Revalidation hints via SSE messages
+      try {
+        publishToUser(userId, "message", {
+          type: "revalidate",
+          reason: "booking-created",
+          paths: ["/dashboard", "/dashboard/bookings"],
+          bookingId: booking.id,
+          bookingType: "tour",
+        });
+        if (providerUserId) {
+          publishToUser(providerUserId, "message", {
+            type: "revalidate",
+            reason: "new-booking",
+            paths: ["/dashboard/guide"],
+            bookingId: booking.id,
+            bookingType: "tour",
+          });
+        }
+      } catch {}
+
+      // 6) Emails (simple): customer and provider
+      try {
+        if (leadTravelerEmail) {
+          await sendEmail({
+            to: leadTravelerEmail,
+            subject: `Complete your tour booking for ${booking.tour.title} (Pending Payment)`,
+            html: `<p>Hi ${leadTravelerName || "there"},</p>
+                   <p>Your booking <strong>#${booking.bookingNumber}</strong> for <strong>${booking.tour.title}</strong> was created and is pending payment.</p>
+                   <p>Please complete payment to confirm your reservation.</p>
+                   <p><a href="${process.env.APP_URL || ""}/book/payment/${booking.id}?type=tour">Pay now</a></p>`,
+          });
+        }
+        if (providerUserId && booking.tour.guide?.user?.email) {
+          await sendEmail({
+            to: booking.tour.guide.user.email,
+            subject: `New tour booking received (#${booking.bookingNumber})`,
+            html: `<p>You have a new tour booking for <strong>${booking.tour.title}</strong>.</p>
+                   <p>Status: Pending payment</p>
+                   <p><a href="${process.env.APP_URL || ""}/dashboard/guide">Open dashboard</a></p>`,
+          });
+        }
+      } catch {}
+
+      // Redirect directly to payment page to ensure navigation proceeds
+      return redirect(`/book/payment/${booking.id}?type=tour`);
     } catch (error) {
       console.error("Error creating booking:", error);
       return json({ error: "Failed to create booking. Please try again." }, { status: 500 });
@@ -491,7 +618,7 @@ export default function TourBooking() {
                 </div>
 
                 {/* Recent Reviews */}
-                {tour.reviews.length > 0 && (
+                {tour.reviews.length > 0 ? (
                   <div>
                     <h3 className="font-semibold mb-4">Recent Reviews</h3>
                     <div className="space-y-4">
@@ -517,8 +644,8 @@ export default function TourBooking() {
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </div>

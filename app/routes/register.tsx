@@ -85,10 +85,10 @@ export async function action({ request }: ActionFunctionArgs) {
 
   // Redirect to role-specific onboarding
   const onboardingRoutes = {
-    CUSTOMER: "/register/customer",
-    PROPERTY_OWNER: "/register/property-owner", 
-    VEHICLE_OWNER: "/register/vehicle-owner",
-    TOUR_GUIDE: "/register/tour-guide"
+    CUSTOMER: "/dashboard",
+    PROPERTY_OWNER: "/onboarding/property-owner",
+    VEHICLE_OWNER: "/onboarding/vehicle-owner",
+    TOUR_GUIDE: "/onboarding/tour-guide"
   };
 
   return createUserSession(result.user.id, onboardingRoutes[role]);

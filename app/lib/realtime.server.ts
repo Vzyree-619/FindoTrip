@@ -6,6 +6,7 @@
 */
 
 const encoder = new TextEncoder();
+import { setOnline, setOffline } from "~/lib/chat/presence.server";
 
 type Client = {
   userId: string;
@@ -56,10 +57,13 @@ export function streamNotifications(userId: string): Response {
       // initial welcome
       send("connected", { ok: true });
 
+      // mark presence online
+      try { setOnline(userId); } catch {}
+
       const interval = setInterval(() => {
-        // keep-alive every 25s
+        // keep-alive every 30s
         try { controller.enqueue(encoder.encode(`:\n\n`)); } catch {}
-      }, 25000);
+      }, 30000);
 
       return () => {
         clearInterval(interval);
@@ -68,6 +72,8 @@ export function streamNotifications(userId: string): Response {
           s.delete(client);
           if (s.size === 0) clients.delete(userId);
         }
+        // mark presence offline
+        try { setOffline(userId); } catch {}
       };
     },
     cancel() {

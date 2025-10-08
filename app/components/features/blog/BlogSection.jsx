@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import PropTypes from "prop-types";
+import { Card } from "~/components/ui/card";
+import { Button } from "~/components/ui/button";
 
 const blogPosts = [
   {
@@ -56,11 +58,10 @@ export default function BlogSection({ onReadBlog }) {
         <h1 className="text-3xl md:text-4xl font-semibold text-center mb-8">Blogs</h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {blogPosts.map((post, index) => (
-            <div
+            <Card
               key={post.id}
               ref={(el) => (cardsRef.current[index] = el)}
-              className="bg-white rounded-2xl shadow-lg overflow-hidden transform transition-transform duration-300 cursor-pointer h-full flex flex-col"
-              onClick={() => onReadBlog && onReadBlog(post)}
+              className="rounded-2xl overflow-hidden transform transition-transform duration-300 cursor-pointer h-full flex flex-col"
             >
               <div className="w-full h-56 sm:h-48 md:h-56 lg:h-64 overflow-hidden">
                 <img
@@ -72,8 +73,11 @@ export default function BlogSection({ onReadBlog }) {
               <div className="p-6 flex-1 flex flex-col justify-between">
                 <h2 className="text-xl font-semibold mb-2">{post.title}</h2>
                 <p className="text-gray-600">{post.excerpt}</p>
+                <div className="mt-4">
+                  <Button onClick={() => onReadBlog && onReadBlog(post)}>Read More</Button>
+                </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
         {modalOpen && selectedBlog && (

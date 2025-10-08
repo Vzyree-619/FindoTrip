@@ -5,6 +5,7 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { Form, useLoaderData, useActionData, useNavigation } from "@remix-run/react";
+import { unstable_parseMultipartFormData, unstable_createMemoryUploadHandler } from "@remix-run/node";
 import { useState } from "react";
 import { requireUserId, getUser } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
@@ -34,7 +35,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const formData = await request.formData();
+  const contentType = request.headers.get('Content-Type') || '';
+  const isMultipart = contentType.includes('multipart/form-data');
+  const formData = isMultipart
+    ? await unstable_parseMultipartFormData(request, unstable_createMemoryUploadHandler({ maxPartSize: 5 * 1024 * 1024 }))
+    : await request.formData();
   const intent = formData.get("intent");
 
   if (intent === "update-profile") {
@@ -61,6 +66,26 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ success: "Profile updated successfully!" });
     } catch (error) {
       return json({ error: "Failed to update profile" }, { status: 500 });
+    }
+  }
+
+  if (intent === "update-avatar") {
+    const avatarUrl = formData.get("avatarUrl");
+    const file = formData.get("file") as File | null;
+    if (!file && (typeof avatarUrl !== "string" || !avatarUrl)) {
+      return json({ error: "Provide an image file or URL" }, { status: 400 });
+    }
+    try {
+      let urlToSave = typeof avatarUrl === 'string' && avatarUrl ? avatarUrl : undefined;
+      if (file) {
+        const name = `${Date.now()}-${file.name}`;
+        urlToSave = `/uploads/${name}`;
+      }
+      if (!urlToSave) return json({ error: "Invalid image input" }, { status: 400 });
+      await prisma.user.update({ where: { id: userId }, data: { avatar: urlToSave } });
+      return json({ success: "Profile picture updated!" });
+    } catch (e) {
+      return json({ error: "Failed to update profile picture" }, { status: 500 });
     }
   }
 
@@ -100,9 +125,19 @@ export default function Profile() {
                     </span>
                   </div>
                 )}
-                <button className="absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg hover:bg-gray-50 transition">
-                  <Camera className="h-5 w-5 text-gray-600" />
-                </button>
+                <Form method="post" encType="multipart/form-data" className="absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg hover:bg-gray-50 transition flex items-center gap-2">
+                  <input type="hidden" name="intent" value="update-avatar" />
+                  <input type="file" name="file" accept="image/*" className="text-xs" />
+                  <input
+                    type="url"
+                    name="avatarUrl"
+                    placeholder="Image URL"
+                    className="w-32 text-xs border rounded px-2 py-1"
+                  />
+                  <button type="submit" title="Update avatar">
+                    <Camera className="h-5 w-5 text-gray-600" />
+                  </button>
+                </Form>
               </div>
             </div>
 

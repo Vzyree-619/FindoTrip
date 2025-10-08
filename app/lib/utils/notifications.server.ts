@@ -461,3 +461,40 @@ export async function getNotificationStats(userId: string) {
     })),
   };
 }
+
+/**
+ * Create both customer and provider notifications for a new booking
+ */
+export async function createBookingNotifications(
+  bookingId: string,
+  bookingType: "property" | "vehicle" | "tour",
+  customerId: string,
+  providerId: string,
+  bookingNumber: string,
+  serviceName: string
+): Promise<void> {
+  await notifyBookingConfirmation(
+    customerId,
+    bookingNumber,
+    serviceName,
+    bookingType,
+    bookingId
+  );
+
+  const providerRole: UserRole =
+    bookingType === "property"
+      ? "PROPERTY_OWNER"
+      : bookingType === "vehicle"
+      ? "VEHICLE_OWNER"
+      : "TOUR_GUIDE";
+
+  await notifyProviderNewBooking(
+    providerId,
+    providerRole,
+    bookingNumber,
+    serviceName,
+    bookingType,
+    bookingId,
+    "Customer"
+  );
+}

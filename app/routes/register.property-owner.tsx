@@ -454,7 +454,7 @@ export default function PropertyOwnerOnboarding() {
                   </button>
                 )}
                 <Link
-                  to="/dashboard"
+                  to="/dashboard/provider"
                   className="text-gray-600 hover:text-gray-800 font-medium"
                 >
                   Skip for now

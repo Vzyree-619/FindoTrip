@@ -5,7 +5,7 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { useLoaderData, useActionData, Form, useNavigation } from "@remix-run/react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { requireUserId, getUser } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import { hashPassword, verifyPassword } from "~/lib/auth/auth.server";
@@ -131,6 +131,40 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   }
 
+  if (intent === "update-avatar") {
+    const file = formData.get("avatar") as File | null;
+    if (!file) return json({ error: "No file provided" }, { status: 400 });
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return json({ error: "Invalid file type" }, { status: 400 });
+    if (file.size > 5 * 1024 * 1024) return json({ error: "File too large (max 5MB)" }, { status: 400 });
+
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+    let url: string | null = null;
+    try {
+      if (cloudName && apiKey && apiSecret) {
+        const arrayBuffer = await file.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString("base64");
+        url = `data:${file.type};base64,${base64}`;
+      } else {
+        const uploadsDir = "public/uploads/profiles";
+        const fs = await import("fs");
+        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+        const ext = file.name.split(".").pop() || "jpg";
+        const filename = `${userId}-${Date.now()}.${ext}`;
+        const arrayBuffer = await file.arrayBuffer();
+        fs.writeFileSync(`${uploadsDir}/${filename}`, Buffer.from(arrayBuffer));
+        url = `/uploads/profiles/${filename}`;
+      }
+
+      await prisma.user.update({ where: { id: userId }, data: { avatar: url! } });
+      return json({ success: "Profile picture updated!" });
+    } catch (e) {
+      return json({ error: "Failed to upload image" }, { status: 500 });
+    }
+  }
+
   if (intent === "delete-account") {
     const confirmDelete = formData.get("confirmDelete") as string;
     const password = formData.get("password") as string;
@@ -242,15 +276,7 @@ export default function ProfileSettings() {
                     </span>
                   </div>
                 )}
-                <div className="ml-4">
-                  <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                    <Camera className="w-4 h-4 mr-2" />
-                    Change Photo
-                  </button>
-                  <p className="text-xs text-gray-500 mt-1">
-                    JPG, GIF or PNG. 1MB max.
-                  </p>
-                </div>
+                <AvatarUploader userName={user.name} />
               </div>
 
               <Form method="post" className="space-y-4">
@@ -653,3 +679,82 @@ export default function ProfileSettings() {
     </div>
   );
 }
+
+function AvatarUploader({ userName }: { userName: string }) {
+  const [preview, setPreview] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  return (
+    <div className="ml-4">
+      <Form method="post" encType="multipart/form-data">
+        <input type="hidden" name="intent" value="update-avatar" />
+        <input
+          ref={inputRef}
+          type="file"
+          name="avatar"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) setPreview(URL.createObjectURL(file));
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+        >
+          <Camera className="w-4 h-4 mr-2" />
+          Change Photo
+        </button>
+        <p className="text-xs text-gray-500 mt-1">JPG, PNG, WEBP. 5MB max.</p>
+        {preview && (
+          <div className="mt-2">
+            <img src={preview} alt={userName} className="h-20 w-20 rounded-full object-cover" />
+          </div>
+        )}
+        {preview && (
+          <div className="mt-2">
+            <button type="submit" className="px-3 py-2 bg-[#01502E] text-white rounded-md">Save</button>
+          </div>
+        )}
+      </Form>
+    </div>
+  );
+}
+// Removed misplaced top-level action block; handled in `action` above.
+/* if (intent === "update-avatar") {
+    const file = formData.get("avatar") as File | null;
+    if (!file) return json({ error: "No file provided" }, { status: 400 });
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return json({ error: "Invalid file type" }, { status: 400 });
+    if (file.size > 5 * 1024 * 1024) return json({ error: "File too large (max 5MB)" }, { status: 400 });
+
+    // Cloudinary env vars
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+    let url: string | null = null;
+    try {
+      if (cloudName && apiKey && apiSecret) {
+        // Fallback: base64 store if network restricted. In production, use Cloudinary SDK.
+        const arrayBuffer = await file.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString("base64");
+        url = `data:${file.type};base64,${base64}`;
+      } else {
+        // Local storage fallback
+        const uploadsDir = "public/uploads/profiles";
+        const fs = await import("fs");
+        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+        const ext = file.name.split(".").pop() || "jpg";
+        const filename = `${userId}-${Date.now()}.${ext}`;
+        const arrayBuffer = await file.arrayBuffer();
+        fs.writeFileSync(`${uploadsDir}/${filename}`, Buffer.from(arrayBuffer));
+        url = `/uploads/profiles/${filename}`;
+      }
+
+      await prisma.user.update({ where: { id: userId }, data: { avatar: url! } });
+      return json({ success: "Profile picture updated!" });
+    } catch (e) {
+      return json({ error: "Failed to upload image" }, { status: 500 });
+    }
+  } */

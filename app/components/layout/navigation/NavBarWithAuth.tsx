@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, User, LogOut, Settings, Heart, Calendar, ChevronDown } from "lucide-react";
+import { Menu, X, User, LogOut, Settings, Heart, Calendar, ChevronDown, MessageCircle } from "lucide-react";
 import { Link, Form, useLocation } from "@remix-run/react";
 
 interface NavBarUser {
@@ -41,6 +41,13 @@ const NavBar = ({ user }: NavBarProps) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showUserMenu]);
+
+  // Role-aware dashboard path
+  const dashboardPath = user?.role === "PROPERTY_OWNER"
+    ? "/dashboard/provider"
+    : user?.role === "TOUR_GUIDE"
+      ? "/dashboard/guide"
+      : "/dashboard";
 
   return (
     <>
@@ -122,6 +129,37 @@ const NavBar = ({ user }: NavBarProps) => {
           </Link>
         </li>
 
+        {user && (
+          <li>
+            <Link
+              to={dashboardPath}
+              reloadDocument
+              className={`cursor-pointer transition-colors duration-200 ${
+                isActive(dashboardPath)
+                  ? 'font-semibold text-[#01502E]'
+                  : 'font-normal text-gray-700 hover:text-orange-500'
+              }`}
+            >
+              Dashboard
+            </Link>
+          </li>
+        )}
+        {user && (
+          <li>
+            <Link
+              to="/dashboard/messages"
+              className={`relative cursor-pointer transition-colors duration-200 ${
+                isActive('/dashboard/messages')
+                  ? 'font-semibold text-[#01502E]'
+                  : 'font-normal text-gray-700 hover:text-orange-500'
+              }`}
+            >
+              <span className="inline-flex items-center gap-1"><MessageCircle className="w-4 h-4" /> Messages</span>
+              <UnreadBadge />
+            </Link>
+          </li>
+        )}
+
         {user ? (
           /* User Menu (Logged In) */
           <li className="relative z-50">
@@ -166,6 +204,16 @@ const NavBar = ({ user }: NavBarProps) => {
                       {user.role.replace("_", " ")}
                     </span>
                   </div>
+
+                  <Link
+                    to={dashboardPath}
+                    reloadDocument
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
+                    onClick={() => setShowUserMenu(false)}
+                 >
+                    <User size={16} />
+                    Dashboard
+                  </Link>
 
                   <Link
                     to="/dashboard/profile"
@@ -339,6 +387,17 @@ const NavBar = ({ user }: NavBarProps) => {
               <>
                 <li className="pt-4 border-t border-gray-200">
                   <Link
+                    to={dashboardPath}
+                    reloadDocument
+                    className="flex items-center gap-3 text-gray-700 hover:text-[#01502E] transition"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <User size={18} />
+                    Dashboard
+                  </Link>
+                </li>
+                <li className="pt-4 border-t border-gray-200">
+                  <Link
                     to="/dashboard/profile"
                     className="flex items-center gap-3 text-gray-700 hover:text-[#01502E] transition"
                     onClick={() => setIsOpen(false)}
@@ -420,3 +479,32 @@ const NavBar = ({ user }: NavBarProps) => {
 };
 
 export default NavBar;
+
+function UnreadBadge() {
+  const [count, setCount] = useState<number>(0);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/chat/unread-count');
+        const json = await res.json();
+        if (mounted) setCount(json?.data?.total || 0);
+      } catch {}
+    })();
+    // Poll every 30s
+    const t = setInterval(async () => {
+      try {
+        const res = await fetch('/api/chat/unread-count');
+        const json = await res.json();
+        setCount(json?.data?.total || 0);
+      } catch {}
+    }, 30000);
+    return () => { mounted = false; clearInterval(t); };
+  }, []);
+  if (!count) return null;
+  return (
+    <span className="absolute -top-2 -right-3 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-600 text-white">
+      {count}
+    </span>
+  );
+}

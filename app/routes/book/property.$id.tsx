@@ -1,4 +1,4 @@
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
+import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useActionData, Form, useNavigation, useSearchParams } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
@@ -13,6 +13,12 @@ import { Calendar } from "~/components/ui/calendar";
 // import { Checkbox } from "~/components/ui/checkbox";
 // import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Loader2, MapPin, Users, Wifi, Car, Coffee, Shield, Star } from "lucide-react";
+import { blockServiceDates } from "~/lib/utils/calendar.server";
+import { createAndDispatchNotification } from "~/lib/notifications.server";
+import { publishToUser } from "~/lib/realtime.server";
+import { sendEmail } from "~/lib/email/email.server";
+import { calculateCommission, createCommission } from "~/lib/utils/commission.server";
+import type { PaymentMethod } from "@prisma/client";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -325,16 +331,140 @@ export async function action({ request, params }: ActionFunctionArgs) {
               address: true,
               city: true,
               country: true,
+              ownerId: true,
+              owner: {
+                include: {
+                  user: { select: { id: true, name: true, email: true } },
+                },
+              },
             },
           },
         },
       });
 
-      return json({
-        success: true,
-        booking,
-        redirectUrl: `/book/payment/${booking.id}?type=property`,
+      // 1) Create a pending payment record (will be updated on payment step)
+      const pendingTxnId = `PENDING-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      await prisma.payment.create({
+        data: {
+          amount: booking.totalPrice,
+          currency: booking.currency,
+          method: "CREDIT_CARD" as PaymentMethod, // default placeholder, updated later
+          transactionId: pendingTxnId,
+          status: "PENDING",
+          userId,
+          bookingId: booking.id,
+          bookingType: "property",
+        },
       });
+
+      // 2) Block availability immediately so other customers can't double-book
+      try {
+        await blockServiceDates(
+          propertyId,
+          "property",
+          checkInDate,
+          checkOutDate,
+          "booked",
+          booking.property.ownerId
+        );
+      } catch (e) {
+        console.error("Failed to block dates for property booking", e);
+      }
+
+      // 3) Notify provider (PROPERTY_OWNER) and customer (pending confirmation)
+      const providerUserId = booking.property.owner?.user?.id;
+      if (providerUserId) {
+        await createAndDispatchNotification({
+          userId: providerUserId,
+          userRole: "PROPERTY_OWNER",
+          type: "BOOKING_CONFIRMED",
+          title: "New Booking Received",
+          message: `You have a new property booking (#${booking.bookingNumber}). Status: Pending payment`,
+          actionUrl: `/dashboard/bookings/${booking.id}?type=property`,
+          data: {
+            bookingId: booking.id,
+            bookingType: "property",
+            bookingNumber: booking.bookingNumber,
+            serviceName: booking.property.name,
+          },
+          priority: "HIGH",
+        });
+      }
+
+      await createAndDispatchNotification({
+        userId,
+        userRole: "CUSTOMER",
+        type: "BOOKING_CONFIRMED",
+        title: "Booking Created",
+        message: `Your booking for ${booking.property.name} is created. Please complete payment to confirm.`,
+        actionUrl: `/book/payment/${booking.id}?type=property`,
+        data: {
+          bookingId: booking.id,
+          bookingType: "property",
+          bookingNumber: booking.bookingNumber,
+          serviceName: booking.property.name,
+        },
+        priority: "HIGH",
+      });
+
+      // 4) Pre-calculate commission for provider (status stays PENDING)
+      try {
+        const calc = await calculateCommission(
+          booking.id,
+          "property",
+          propertyId,
+          providerUserId || userId,
+          booking.totalPrice
+        );
+        await createCommission(calc);
+      } catch (e) {
+        console.error("Failed to create commission for property booking", e);
+      }
+
+      // 5) Revalidation hints via SSE messages
+      try {
+        publishToUser(userId, "message", {
+          type: "revalidate",
+          reason: "booking-created",
+          paths: ["/dashboard", "/dashboard/bookings"],
+          bookingId: booking.id,
+          bookingType: "property",
+        });
+        if (providerUserId) {
+          publishToUser(providerUserId, "message", {
+            type: "revalidate",
+            reason: "new-booking",
+            paths: ["/dashboard/provider"],
+            bookingId: booking.id,
+            bookingType: "property",
+          });
+        }
+      } catch {}
+
+      // 6) Emails (simple): customer and provider
+      try {
+        if (guestEmail) {
+          await sendEmail({
+            to: guestEmail,
+            subject: `Complete your booking for ${booking.property.name} (Pending Payment)`,
+            html: `<p>Hi ${guestName || "there"},</p>
+                   <p>Your booking <strong>#${booking.bookingNumber}</strong> for <strong>${booking.property.name}</strong> was created and is pending payment.</p>
+                   <p>Please complete payment to confirm your reservation.</p>
+                   <p><a href="${process.env.APP_URL || ""}/book/payment/${booking.id}?type=property">Pay now</a></p>`,
+          });
+        }
+        if (providerUserId && booking.property.owner?.user?.email) {
+          await sendEmail({
+            to: booking.property.owner.user.email,
+            subject: `New booking received (#${booking.bookingNumber})`,
+            html: `<p>You have a new property booking for <strong>${booking.property.name}</strong>.</p>
+                   <p>Status: Pending payment</p>
+                   <p><a href="${process.env.APP_URL || ""}/dashboard/provider">Open dashboard</a></p>`,
+          });
+        }
+      } catch {}
+
+      return redirect(`/book/payment/${booking.id}?type=property`);
     } catch (error) {
       console.error("Error creating booking:", error);
       return json({ error: "Failed to create booking. Please try again." }, { status: 500 });
@@ -462,7 +592,7 @@ export default function PropertyBooking() {
                 </div>
 
                 {/* Recent Reviews */}
-                {property.reviews.length > 0 && (
+                {property.reviews.length > 0 ? (
                   <div>
                     <h3 className="font-semibold mb-4">Recent Reviews</h3>
                     <div className="space-y-4">
@@ -488,8 +618,8 @@ export default function PropertyBooking() {
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </div>

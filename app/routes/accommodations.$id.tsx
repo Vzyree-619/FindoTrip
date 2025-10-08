@@ -1,5 +1,6 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link, useNavigate } from "@remix-run/react";
+import { useLoaderData, Link, useNavigate, useRevalidator } from "@remix-run/react";
+import { ChatInterface } from "~/components/chat";
 import { useState } from "react";
 import { prisma } from "~/lib/db/db.server";
 import { getUser } from "~/lib/auth/auth.server";
@@ -26,11 +27,18 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
   const user = await getUser(request);
 
-  const accommodation = await prisma.accommodation.findUnique({
+  const property = await prisma.property.findUnique({
     where: { id },
+    include: {
+      reviews: {
+        orderBy: { createdAt: "desc" },
+        include: { user: { select: { name: true, avatar: true } } },
+        take: 10,
+      },
+    },
   });
 
-  if (!accommodation) {
+  if (!property) {
     throw new Response("Property not found", { status: 404 });
   }
 
@@ -38,31 +46,13 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   let isWishlisted = false;
   if (user) {
     const wishlist = await prisma.wishlist.findFirst({
-      where: {
-        userId: user.id,
-        accommodationId: id,
-      },
+      where: { userId: user.id, propertyIds: { has: id } },
     });
     isWishlisted = !!wishlist;
   }
 
   // Fetch reviews with user data
-  const reviewsData = await prisma.review.findMany({
-    where: { accommodationId: id },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  });
-
-  // Fetch user data for reviews
-  const reviews = await Promise.all(
-    reviewsData.map(async (review) => {
-      const reviewUser = await prisma.user.findUnique({
-        where: { id: review.userId },
-        select: { name: true, avatar: true },
-      });
-      return { ...review, user: reviewUser };
-    })
-  );
+  const reviews = property.reviews;
 
   // Calculate rating breakdown
   const ratingBreakdown = {
@@ -74,16 +64,20 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   };
 
   // Fetch similar properties
-  const similarProperties = await prisma.accommodation.findMany({
+  const similarProperties = await prisma.property.findMany({
     where: {
       id: { not: id },
-      city: accommodation.city,
-      type: accommodation.type,
+      city: property.city,
+      type: property.type,
       available: true,
+      approvalStatus: "APPROVED",
     },
     take: 4,
     orderBy: { rating: "desc" },
   });
+
+  // Map property -> accommodation shape used by UI
+  const accommodation = { ...property, pricePerNight: property.basePrice } as any;
 
   return json({ 
     accommodation, 
@@ -98,11 +92,14 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 export default function AccommodationDetail() {
   const { accommodation, user, isWishlisted, reviews, ratingBreakdown, similarProperties } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const revalidator = useRevalidator();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(1);
+  const [wishlisted, setWishlisted] = useState(isWishlisted);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const images = accommodation.images.length > 0 
     ? accommodation.images 
@@ -123,12 +120,11 @@ export default function AccommodationDetail() {
     }
     
     const params = new URLSearchParams({
-      accommodationId: accommodation.id,
       checkIn,
       checkOut,
       guests: guests.toString(),
     });
-    navigate(`/book?${params}`);
+    navigate(`/book/property/${accommodation.id}?${params.toString()}`);
   };
 
   const calculateNights = () => {
@@ -222,19 +218,39 @@ export default function AccommodationDetail() {
           </div>
 
           <div className="flex gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-              <Share2 size={18} />
-              Share
-            </button>
+              <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                <Share2 size={18} />
+                Share
+              </button>
             <button
+              onClick={async () => {
+                const next = !wishlisted;
+                setWishlisted(next); // optimistic
+                try {
+                  await fetch('/api/wishlist.toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ serviceType: 'property', serviceId: accommodation.id, action: next ? 'add' : 'remove' })
+                  });
+                  revalidator.revalidate();
+                } catch {
+                  setWishlisted(!next); // revert on error
+                }
+              }}
               className={`flex items-center gap-2 px-4 py-2 border rounded-lg ${
-                isWishlisted
+                wishlisted
                   ? "bg-red-50 border-red-300 text-red-600"
                   : "border-gray-300 hover:bg-gray-50"
               }`}
             >
-              <Heart size={18} fill={isWishlisted ? "currentColor" : "none"} />
+              <Heart size={18} fill={wishlisted ? "currentColor" : "none"} />
               Save
+            </button>
+            <button
+              onClick={() => setChatOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 border rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Message Host
             </button>
           </div>
         </div>
@@ -254,7 +270,7 @@ export default function AccommodationDetail() {
               className="w-full h-full object-cover hover:scale-105 transition"
             />
           </div>
-          {images.slice(1, 5).map((image, idx) => (
+          {images.slice(1, 5).map((image: string, idx: number) => (
             <div
               key={idx}
               className={`cursor-pointer overflow-hidden ${
@@ -330,7 +346,7 @@ export default function AccommodationDetail() {
               <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                 <h2 className="text-xl font-semibold mb-4">Amenities</h2>
                 <div className="grid grid-cols-2 gap-3">
-                  {accommodation.amenities.map((amenity, idx) => (
+                  {accommodation.amenities.map((amenity: string, idx: number) => (
                     <div key={idx} className="flex items-center gap-2">
                       <Check size={18} className="text-[#01502E]" />
                       <span className="text-gray-700">{amenity}</span>
@@ -363,7 +379,7 @@ export default function AccommodationDetail() {
               <div className="mb-4">
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-[#01502E]">
-                    ${accommodation.pricePerNight}
+                    ${accommodation.basePrice}
                   </span>
                   <span className="text-gray-600">/ night</span>
                 </div>
@@ -589,7 +605,7 @@ export default function AccommodationDetail() {
                     <div className="flex justify-between items-center mt-3">
                       <div>
                         <span className="text-xl font-bold text-[#01502E]">
-                          ${property.pricePerNight}
+                          ${property.basePrice}
                         </span>
                         <span className="text-sm text-gray-600"> /night</span>
                       </div>
@@ -610,6 +626,13 @@ export default function AccommodationDetail() {
           </div>
         )}
       </div>
+      {/* Chat Interface Modal */}
+      <ChatInterface
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        targetUserId={accommodation.ownerId}
+        initialMessage={`Hi, I'm interested in ${accommodation.name}${checkIn && checkOut ? ` for ${checkIn} to ${checkOut}` : ''}.`}
+      />
     </div>
   );
 }

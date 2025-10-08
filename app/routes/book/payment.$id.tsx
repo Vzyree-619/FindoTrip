@@ -1,6 +1,8 @@
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useActionData, Form, useNavigation, useSearchParams, redirect } from "@remix-run/react";
+import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
+import { useLoaderData, useActionData, Form, useNavigation, useSearchParams } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
+import { NotificationType, UserRole } from "@prisma/client";
+import { sendBookingConfirmationEmail, sendEmail } from "~/lib/email/email.server";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { useState, useEffect } from "react";
 import { Button } from "~/components/ui/button";
@@ -12,6 +14,9 @@ import { Separator } from "~/components/ui/separator";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Loader2, CreditCard, Shield, CheckCircle, Calendar, MapPin, Users, Car, Star } from "lucide-react";
+import { createAndDispatchNotification } from "~/lib/notifications.server";
+import type { PaymentMethod } from "@prisma/client";
+import { publishToUser } from "~/lib/realtime.server";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -179,8 +184,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
           property: {
             select: {
               name: true,
+              address: true,
+              city: true,
+              country: true,
               ownerId: true,
+              owner: { select: { user: { select: { id: true, name: true, email: true } } } },
             },
+          },
+          user: {
+            select: { name: true, email: true },
           },
         },
       });
@@ -191,9 +203,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
           vehicle: {
             select: {
               name: true,
+              brand: true,
+              model: true,
+              year: true,
+              type: true,
               ownerId: true,
+              owner: { select: { user: { select: { id: true, name: true, email: true } } } },
             },
           },
+          user: { select: { name: true, email: true } },
         },
       });
     } else if (bookingType === "tour") {
@@ -203,9 +221,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
           tour: {
             select: {
               title: true,
+              type: true,
+              duration: true,
+              meetingPoint: true,
+              city: true,
+              country: true,
               guideId: true,
+              guide: { select: { user: { select: { id: true, name: true, email: true } } } },
             },
           },
+          user: { select: { name: true, email: true } },
         },
       });
     }
@@ -213,38 +238,70 @@ export async function action({ request, params }: ActionFunctionArgs) {
     if (!booking) {
       return json({ error: "Booking not found" }, { status: 404 });
     }
-
-    if (booking.userId !== userId) {
-      return json({ error: "Unauthorized" }, { status: 403 });
-    }
-
     if (booking.status !== "PENDING") {
       return json({ error: "Booking is no longer pending" }, { status: 400 });
     }
 
     try {
-      // Generate transaction ID
+      // Generate transaction ID and map payment method
       const transactionId = `TXN${Date.now()}${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
+      const mapPaymentMethod = (pm: string): PaymentMethod => {
+        switch (pm) {
+          case "stripe":
+            return "CREDIT_CARD" as PaymentMethod;
+          case "paypal":
+            return "MOBILE_WALLET" as PaymentMethod;
+          case "bank_transfer":
+            return "BANK_TRANSFER" as PaymentMethod;
+          default:
+            return "CREDIT_CARD" as PaymentMethod;
+        }
+      };
 
-      // Create payment record
-      const payment = await prisma.payment.create({
-        data: {
-          amount: booking.totalPrice,
-          currency: booking.currency,
-          method: paymentMethod.toUpperCase().replace("_", " ") as any,
-          transactionId,
-          status: "COMPLETED", // In a real app, this would be determined by the payment gateway
-          paymentGateway: paymentMethod,
-          gatewayResponse: {
-            success: true,
-            transactionId,
-            timestamp: new Date().toISOString(),
-          },
-          userId,
-          bookingId,
-          bookingType,
-        },
+      // Find existing pending payment for this booking
+      const existingPayment = await prisma.payment.findFirst({
+        where: { bookingId, bookingType, userId, status: "PENDING" },
       });
+
+      const methodMapped = mapPaymentMethod(paymentMethod);
+
+      // Stripe intent placeholder
+      if (paymentMethod === 'stripe' && process.env.STRIPE_SECRET) {
+        // In a real implementation:
+        // const stripe = new (await import('stripe')).default(process.env.STRIPE_SECRET);
+        // const intent = await stripe.paymentIntents.create({ amount: Math.round(booking.totalPrice * 100), currency: booking.currency.toLowerCase() });
+        // Save intent.id and client_secret in Payment.gatewayResponse
+      }
+
+      if (existingPayment) {
+        await prisma.payment.update({
+          where: { id: existingPayment.id },
+          data: {
+            method: methodMapped,
+            transactionId,
+            status: "COMPLETED",
+            paymentGateway: paymentMethod,
+            gatewayResponse: { success: true, transactionId, timestamp: new Date().toISOString() },
+            paidAt: new Date(),
+          },
+        });
+      } else {
+        await prisma.payment.create({
+          data: {
+            amount: booking.totalPrice,
+            currency: booking.currency,
+            method: methodMapped,
+            transactionId,
+            status: "COMPLETED",
+            paymentGateway: paymentMethod,
+            gatewayResponse: { success: true, transactionId, timestamp: new Date().toISOString() },
+            paidAt: new Date(),
+            userId,
+            bookingId,
+            bookingType,
+          },
+        });
+      }
 
       // Update booking status
       if (bookingType === "property") {
@@ -273,70 +330,190 @@ export async function action({ request, params }: ActionFunctionArgs) {
         });
       }
 
-      // Create commission record for the service provider
-      let providerId;
-      if (bookingType === "property" && "property" in booking) {
-        providerId = booking.property.ownerId;
-      } else if (bookingType === "vehicle" && "vehicle" in booking) {
-        providerId = booking.vehicle.ownerId;
-      } else if (bookingType === "tour" && "tour" in booking) {
-        providerId = booking.tour.guideId;
-      }
-
-      if (providerId) {
-        const commissionRate = 0.1; // 10% commission
-        const commissionAmount = booking.totalPrice * commissionRate;
-
-        await prisma.commission.create({
-          data: {
-            amount: commissionAmount,
-            percentage: commissionRate * 100,
-            currency: booking.currency,
-            status: "PENDING",
-            bookingId,
-            bookingType,
-            serviceId: providerId,
-            serviceType: bookingType,
-            userId: providerId,
-            calculatedAt: new Date(),
+      // Avoid duplicate availability blocks (already created at booking time). Create only if missing.
+      if (bookingType === "property" && "propertyId" in booking && "property" in booking) {
+        const exists = await prisma.unavailableDate.findFirst({
+          where: {
+            serviceId: booking.propertyId,
+            serviceType: "property",
+            startDate: booking.checkIn,
+            endDate: booking.checkOut,
+            type: "booked",
           },
         });
+        if (!exists) {
+          await prisma.unavailableDate.create({
+            data: {
+              serviceId: booking.propertyId,
+              serviceType: "property",
+              startDate: booking.checkIn,
+              endDate: booking.checkOut,
+              type: "booked",
+              ownerId: booking.property.ownerId,
+            },
+          });
+        }
+      } else if (bookingType === "vehicle" && "vehicleId" in booking && "vehicle" in booking) {
+        const exists = await prisma.unavailableDate.findFirst({
+          where: {
+            serviceId: booking.vehicleId,
+            serviceType: "vehicle",
+            startDate: booking.startDate,
+            endDate: booking.endDate,
+            type: "booked",
+          },
+        });
+        if (!exists) {
+          await prisma.unavailableDate.create({
+            data: {
+              serviceId: booking.vehicleId,
+              serviceType: "vehicle",
+              startDate: booking.startDate,
+              endDate: booking.endDate,
+              type: "booked",
+              ownerId: booking.vehicle.ownerId,
+            },
+          });
+        }
+      } else if (bookingType === "tour" && "tourId" in booking && "tour" in booking) {
+        const exists = await prisma.unavailableDate.findFirst({
+          where: {
+            serviceId: booking.tourId,
+            serviceType: "tour",
+            startDate: booking.tourDate,
+            endDate: booking.tourDate,
+            type: "booked",
+          },
+        });
+        if (!exists) {
+          await prisma.unavailableDate.create({
+            data: {
+              serviceId: booking.tourId,
+              serviceType: "tour",
+              startDate: booking.tourDate,
+              endDate: booking.tourDate,
+              type: "booked",
+              ownerId: booking.tour.guideId,
+            },
+          });
+        }
       }
 
-      // Create notifications
-      const notifications = [];
+      // Ensure a single commission record exists (was pre-created at booking time)
+      let providerId: string | undefined;
+      let providerUserIdX: string | undefined;
+      let serviceId: string | undefined;
+      if (bookingType === "property" && "property" in booking) {
+        providerId = booking.property.ownerId;
+        providerUserIdX = booking.property.owner?.user?.id;
+        serviceId = booking.propertyId;
+      } else if (bookingType === "vehicle" && "vehicle" in booking) {
+        providerId = booking.vehicle.ownerId;
+        providerUserIdX = booking.vehicle.owner?.user?.id;
+        serviceId = booking.vehicleId;
+      } else if (bookingType === "tour" && "tour" in booking) {
+        providerId = booking.tour.guideId;
+        providerUserIdX = booking.tour.guide?.user?.id;
+        serviceId = booking.tourId;
+      }
 
-      // Notify the customer
-      notifications.push({
+      if (providerId && serviceId) {
+        const existingCommission = await prisma.commission.findFirst({
+          where: { bookingId, bookingType },
+        });
+        if (!existingCommission) {
+          const commissionRate = 0.1;
+          const commissionAmount = booking.totalPrice * commissionRate;
+          await prisma.commission.create({
+            data: {
+              amount: commissionAmount,
+              percentage: commissionRate * 100,
+              currency: booking.currency,
+              status: "PENDING",
+              bookingId,
+              bookingType,
+              serviceId,
+              serviceType: bookingType,
+              userId: providerUserIdX || providerId,
+              calculatedAt: new Date(),
+            },
+          });
+        }
+
+        // Update provider total revenue
+        if (bookingType === "property") {
+          await prisma.propertyOwner.update({
+            where: { id: providerId },
+            data: { totalRevenue: { increment: booking.totalPrice } },
+          });
+        } else if (bookingType === "vehicle") {
+          await prisma.vehicleOwner.update({
+            where: { id: providerId },
+            data: { totalRevenue: { increment: booking.totalPrice } },
+          });
+        } else if (bookingType === "tour") {
+          await prisma.tourGuide.update({
+            where: { id: providerId },
+            data: { totalRevenue: { increment: booking.totalPrice } },
+          });
+        }
+      }
+
+      // Real-time notifications via SSE
+      const providerUserId =
+        bookingType === "property" && "property" in booking ? booking.property.owner?.user?.id :
+        bookingType === "vehicle" && "vehicle" in booking ? booking.vehicle.owner?.user?.id :
+        bookingType === "tour" && "tour" in booking ? booking.tour.guide?.user?.id :
+        undefined;
+
+      await createAndDispatchNotification({
+        userId,
+        userRole: "CUSTOMER",
         type: "BOOKING_CONFIRMED",
         title: "Booking Confirmed!",
         message: `Your ${bookingType} booking has been confirmed. Booking number: ${booking.bookingNumber}`,
-        userId,
-        userRole: "CUSTOMER",
         actionUrl: `/dashboard/bookings/${bookingId}?type=${bookingType}`,
+        data: { bookingId, bookingType, bookingNumber: booking.bookingNumber },
+        priority: "HIGH",
       });
 
-      // Notify the service provider
-      if (providerId) {
-        let providerRole;
-        if (bookingType === "property") providerRole = "PROPERTY_OWNER";
-        else if (bookingType === "vehicle") providerRole = "VEHICLE_OWNER";
-        else if (bookingType === "tour") providerRole = "TOUR_GUIDE";
-
-        notifications.push({
-          type: "BOOKING_CONFIRMED",
-          title: "New Booking Received!",
-          message: `You have received a new ${bookingType} booking. Booking number: ${booking.bookingNumber}`,
-          userId: providerId,
-          userRole: providerRole,
+      if (providerUserId) {
+        await createAndDispatchNotification({
+          userId: providerUserId,
+          userRole:
+            bookingType === "property" ? "PROPERTY_OWNER" :
+            bookingType === "vehicle" ? "VEHICLE_OWNER" : "TOUR_GUIDE",
+          type: "PAYMENT_RECEIVED",
+          title: "Payment Received!",
+          message: `Payment received for booking #${booking.bookingNumber}.`,
           actionUrl: `/dashboard/bookings/${bookingId}?type=${bookingType}`,
+          data: { bookingId, bookingType, bookingNumber: booking.bookingNumber, amount: booking.totalPrice, currency: booking.currency },
+          priority: "HIGH",
         });
       }
 
-      // Create all notifications
-      await prisma.notification.createMany({
-        data: notifications,
-      });
+      // Revalidation hints
+      try {
+        publishToUser(userId, "message", {
+          type: "revalidate",
+          reason: "payment-confirmed",
+          paths: ["/dashboard", "/dashboard/bookings"],
+          bookingId,
+          bookingType,
+        });
+        if (providerUserId) {
+          publishToUser(providerUserId, "message", {
+            type: "revalidate",
+            reason: "payment-received",
+            paths: [
+              bookingType === "property" ? "/dashboard/provider" :
+              bookingType === "vehicle" ? "/dashboard/vehicle-owner" : "/dashboard/guide"
+            ],
+            bookingId,
+            bookingType,
+          });
+        }
+      } catch {}
 
       // Update service statistics
       if (bookingType === "property" && "property" in booking) {
@@ -360,6 +537,49 @@ export async function action({ request, params }: ActionFunctionArgs) {
             totalBookings: { increment: 1 },
           },
         });
+      }
+
+      // Send confirmation emails
+      if (bookingType === "property" && "property" in booking) {
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
+        if (user) {
+          await sendBookingConfirmationEmail(
+            {
+              id: booking.id,
+              bookingNumber: booking.bookingNumber,
+              user: { name: user.name, email: user.email },
+              accommodation: {
+                name: booking.property.name,
+                address: booking.property.address,
+                city: booking.property.city,
+                country: booking.property.country,
+              },
+              checkIn: booking.checkIn,
+              checkOut: booking.checkOut,
+              guests: booking.guests,
+              totalPrice: booking.totalPrice,
+              specialRequests: booking.specialRequests || undefined,
+            },
+            {
+              method: paymentMethod,
+              transactionId,
+              amount: booking.totalPrice,
+            }
+          );
+        }
+      } else {
+        // Generic confirmation email for vehicle/tour
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
+        if (user?.email) {
+          await sendEmail({
+            to: user.email,
+            subject: `Booking Confirmed - ${bookingType.toUpperCase()} | FindoTrip`,
+            html: `<p>Hi ${user.name},</p>
+                   <p>Your ${bookingType} booking <strong>#${booking.bookingNumber}</strong> has been confirmed.</p>
+                   <p>Total Paid: ${booking.currency} ${booking.totalPrice.toFixed(2)}</p>
+                   <p><a href="${process.env.APP_URL || ""}/book/confirmation/${bookingId}?type=${bookingType}">View details</a></p>`,
+          });
+        }
       }
 
       return redirect(`/book/confirmation/${bookingId}?type=${bookingType}`);
@@ -754,7 +974,7 @@ export default function PaymentPage() {
                     <Checkbox
                       id="agreeToTerms"
                       checked={agreeToTerms}
-                      onCheckedChange={(checked) => setAgreeToTerms(checked as boolean)}
+                      onCheckedChange={(checked: boolean) => setAgreeToTerms(checked)}
                     />
                     <Label htmlFor="agreeToTerms" className="text-sm">
                       I agree to the{" "}

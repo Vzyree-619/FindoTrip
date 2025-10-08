@@ -35,7 +35,7 @@ export async function getProperties(filters?: {
   checkOut?: Date;
   guests?: number;
 }) {
-  const where: any = { available: true, approvalStatus: "APPROVED" };
+  const where: any = { available: true, approvalStatus: "APPROVED", owner: { verified: true } };
 
   if (filters?.city)
     where.city = { contains: filters.city, mode: "insensitive" };
@@ -55,6 +55,7 @@ export async function getProperties(filters?: {
         select: {
           businessName: true,
           businessPhone: true,
+          verified: true,
         },
       },
       _count: {
@@ -125,6 +126,7 @@ export async function getVehicles(filters?: {
         select: {
           businessName: true,
           businessPhone: true,
+          verified: true,
         },
       },
       _count: {
@@ -193,6 +195,7 @@ export async function getTours(filters?: {
           lastName: true,
           languages: true,
           yearsOfExperience: true,
+          verified: true,
         },
       },
       _count: {

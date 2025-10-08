@@ -1,7 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useSearchParams, Link } from "@remix-run/react";
 import { useState } from "react";
-import { getAccommodations } from "~/lib/db/db.server";
+import { getProperties } from "~/lib/db/db.server";
 import PropertyCard from "~/components/features/accommodations/PropertyCard";
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 
@@ -30,7 +30,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const limit = 12;
 
   try {
-    const accommodations = await getAccommodations({
+    const accommodations = await getProperties({
       city,
       country,
       type,
@@ -114,7 +114,7 @@ export default function AccommodationSearch() {
           <div className="flex justify-between items-center mb-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                {filters.city || "All"} Accommodations
+                {filters.city || "All"} Stays
               </h1>
               <p className="text-gray-600 mt-1">
                 {pagination.total} properties found
@@ -244,7 +244,7 @@ export default function AccommodationSearch() {
                       city={property.city}
                       country={property.country}
                       type={property.type}
-                      pricePerNight={property.pricePerNight}
+                      pricePerNight={property.basePrice}
                       maxGuests={property.maxGuests}
                       bedrooms={property.bedrooms}
                       bathrooms={property.bathrooms}
