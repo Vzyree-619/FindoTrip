@@ -114,6 +114,7 @@ const NavBar = ({ user }: NavBarProps) => {
 
       {/* Desktop Menu */}
       <ul className="hidden md:flex space-x-6 items-center">
+        {!isProvider && (
         <li>
           <Link 
             to="/accommodations/search"
@@ -126,6 +127,8 @@ const NavBar = ({ user }: NavBarProps) => {
             Stays
           </Link>
         </li>
+        )}
+        {!isProvider && (
         <li>
           <Link 
             to="/vehicles"
@@ -138,6 +141,8 @@ const NavBar = ({ user }: NavBarProps) => {
             Car Rentals
           </Link>
         </li>
+        )}
+        {!isProvider && (
         <li>
           <Link 
             to="/tours"
@@ -150,6 +155,8 @@ const NavBar = ({ user }: NavBarProps) => {
             Tours
           </Link>
         </li>
+        )}
+        {!isProvider && (
         <li>
           <Link 
             to="/blogs"
@@ -162,6 +169,7 @@ const NavBar = ({ user }: NavBarProps) => {
             Blogs
           </Link>
         </li>
+        )}
 
         {/* Removed top-level Dashboard item to avoid duplication and reduce redirect loops */}
         {user && (
@@ -382,6 +390,7 @@ const NavBar = ({ user }: NavBarProps) => {
               </li>
             )}
 
+            {!isProvider && (
             <li>
               <Link 
                 to="/accommodations/search" 
@@ -395,6 +404,8 @@ const NavBar = ({ user }: NavBarProps) => {
                 Stays
               </Link>
             </li>
+            )}
+            {!isProvider && (
             <li>
               <Link 
                 to="/vehicles" 
@@ -408,6 +419,8 @@ const NavBar = ({ user }: NavBarProps) => {
                 Car Rentals
               </Link>
             </li>
+            )}
+            {!isProvider && (
             <li>
               <Link 
                 to="/tours" 
@@ -421,6 +434,8 @@ const NavBar = ({ user }: NavBarProps) => {
                 Tours
               </Link>
             </li>
+            )}
+            {!isProvider && (
             <li>
               <Link 
                 to="/blogs" 
@@ -434,6 +449,7 @@ const NavBar = ({ user }: NavBarProps) => {
                 Blogs
               </Link>
             </li>
+            )}
 
             {user ? (
               <>

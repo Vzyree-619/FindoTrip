@@ -14,7 +14,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma db push --force-reset && npm run db:seed",
-    "test:features": "tsx tests/feature.test.ts"
+    "test:features": "tsx tests/feature.test.ts",
+    "avatars:migrate": "tsx scripts/migrate-avatars-to-cloudinary.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

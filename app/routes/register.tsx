@@ -72,28 +72,33 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
-  const result = await register(email, password, name, role, phone as string);
-
-  if ("error" in result) {
-    return json({ error: result.error }, { status: 400 });
-  }
-
-  // Send welcome email (don't block registration if email fails)
   try {
-    await sendWelcomeEmail(result.user.email, result.user.name, result.user.role);
-  } catch (error) {
-    console.error('Failed to send welcome email:', error);
+    const result = await register(email, password, name, role, phone as string);
+
+    if ("error" in result) {
+      return json({ error: result.error }, { status: 400 });
+    }
+
+    // Send welcome email (don't block registration if email fails)
+    try {
+      await sendWelcomeEmail(result.user.email, result.user.name, result.user.role);
+    } catch (error) {
+      console.error('Failed to send welcome email:', error);
+    }
+
+    // Redirect to role-specific onboarding
+    const onboardingRoutes = {
+      CUSTOMER: "/dashboard",
+      PROPERTY_OWNER: "/onboarding/property-owner",
+      VEHICLE_OWNER: "/onboarding/vehicle-owner",
+      TOUR_GUIDE: "/onboarding/tour-guide"
+    } as const;
+
+    return createUserSession(result.user.id, onboardingRoutes[role]);
+  } catch (e) {
+    console.error('Registration failed:', e);
+    return json({ error: "Registration failed due to a server/database issue. Please verify DATABASE_URL and Prisma setup." }, { status: 500 });
   }
-
-  // Redirect to role-specific onboarding
-  const onboardingRoutes = {
-    CUSTOMER: "/dashboard",
-    PROPERTY_OWNER: "/onboarding/property-owner",
-    VEHICLE_OWNER: "/onboarding/vehicle-owner",
-    TOUR_GUIDE: "/onboarding/tour-guide"
-  };
-
-  return createUserSession(result.user.id, onboardingRoutes[role]);
 }
 
 export default function Register() {
@@ -108,6 +113,8 @@ export default function Register() {
   const [showTerms, setShowTerms] = useState(false);
   const [modalAgree, setModalAgree] = useState(false);
   const [reachedEnd, setReachedEnd] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [modalScrollPos, setModalScrollPos] = useState(0);
   const termsContentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -118,7 +125,15 @@ export default function Register() {
     const el = termsContentRef.current;
     if (!el) return;
 
+    // Restore previous scroll position if any
+    if (modalScrollPos > 0) {
+      el.scrollTop = modalScrollPos;
+    }
+
     const onScroll = () => {
+      const visible = el.scrollTop + el.clientHeight;
+      const percent = Math.min(100, Math.max(0, (visible / el.scrollHeight) * 100));
+      setScrollProgress(percent);
       const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
       if (distanceFromBottom <= 8) {
         setReachedEnd(true);
@@ -130,7 +145,13 @@ export default function Register() {
     // Initial check in case content fits without scroll
     onScroll();
     return () => el.removeEventListener('scroll', onScroll);
-  }, [showTerms]);
+  }, [showTerms, modalScrollPos]);
+
+  const closeTermsModal = () => {
+    const el = termsContentRef.current;
+    if (el) setModalScrollPos(el.scrollTop);
+    setShowTerms(false);
+  };
 
   // Password strength calculation
   const getPasswordStrength = (pwd: string) => {
@@ -515,6 +536,22 @@ export default function Register() {
                     <X className="h-5 w-5" />
                   </button>
                   <h3 className="text-lg font-semibold mb-2">Terms & Privacy</h3>
+                  {/* Progress bar */}
+                  <div className="mb-2">
+                    <div className="h-2 bg-gray-200 rounded">
+                      <div
+                        className="h-2 bg-[#01502E] rounded"
+                        style={{ width: `${scrollProgress}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-xs text-gray-600 flex items-center justify-between">
+                      <span>Read progress: {Math.round(scrollProgress)}%</span>
+                      <span className="space-x-2">
+                        <button type="button" className="underline" onClick={() => { const el = termsContentRef.current; if (el) el.scrollTop = 0; }}>Jump to top</button>
+                        <button type="button" className="underline" onClick={() => { const el = termsContentRef.current; if (el) el.scrollTop = el.scrollHeight; }}>Jump to bottom</button>
+                      </span>
+                    </div>
+                  </div>
                   {/* Condensed summary */}
                   <div className="mb-3 text-sm text-gray-700">
                     Please review our key points below. Scroll to the bottom or check the box to enable Accept.
@@ -545,16 +582,19 @@ export default function Register() {
                       I have read and agree to the Terms of Service and Privacy Policy
                     </label>
                   </div>
-                  <div className="mt-4 flex justify-end gap-2">
-                    <button type="button" className="px-4 py-2 rounded border" onClick={() => setShowTerms(false)}>Close</button>
-                    <button
-                      type="button"
-                      className={`px-4 py-2 rounded text-white ${modalAgree ? 'bg-[#01502E] hover:bg-[#013d23]' : 'bg-gray-300 cursor-not-allowed'}`}
-                      disabled={!modalAgree}
-                      onClick={() => { setAcceptedTerms(true); setShowTerms(false); }}
-                    >
-                      Accept
-                    </button>
+                  <div className="mt-4 flex justify-between gap-2">
+                    <button type="button" className="px-4 py-2 rounded border" onClick={closeTermsModal}>Back to Form</button>
+                    <div className="flex gap-2">
+                      <button type="button" className="px-4 py-2 rounded border" onClick={closeTermsModal}>Close</button>
+                      <button
+                        type="button"
+                        className={`px-4 py-2 rounded text-white ${modalAgree ? 'bg-[#01502E] hover:bg-[#013d23]' : 'bg-gray-300 cursor-not-allowed'}`}
+                        disabled={!modalAgree}
+                        onClick={() => { setAcceptedTerms(true); setShowTerms(false); }}
+                      >
+                        Accept
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

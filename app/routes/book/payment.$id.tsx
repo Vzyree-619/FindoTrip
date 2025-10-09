@@ -17,6 +17,7 @@ import { Loader2, CreditCard, Shield, CheckCircle, Calendar, MapPin, Users, Car,
 import { createAndDispatchNotification } from "~/lib/notifications.server";
 import type { PaymentMethod } from "@prisma/client";
 import { publishToUser } from "~/lib/realtime.server";
+import { prisma as db } from "~/lib/db/db.server";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -132,8 +133,10 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
     // Get payment methods (in a real app, this would come from your payment provider)
     const paymentMethods = [
-      { id: "stripe", name: "Stripe (Card)", icon: "💳", description: "Secure card payment" },
-      { id: "jazzcash", name: "JazzCash", icon: "📱", description: "Mobile wallet payment" },
+      { id: "stripe", name: "Credit/Debit Card", icon: "💳", description: "Pay with card (Stripe)" },
+      { id: "paypal", name: "PayPal", icon: "🅿️", description: "Checkout with PayPal" },
+      { id: "pay_at_pickup", name: "Pay at Pickup/Check-in", icon: "🏁", description: "Pay later at service" },
+      { id: "bank_transfer", name: "Bank Transfer", icon: "🏦", description: "Manual transfer with proof" },
     ];
 
     return json({
@@ -161,13 +164,20 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (intent === "startPayment") {
     const paymentMethod = formData.get("paymentMethod") as string;
+    const bankProofUrl = formData.get("bankProofUrl") as string | null;
     const type = bookingType;
     if (!paymentMethod) return json({ error: "Payment method required" }, { status: 400 });
-    if (paymentMethod === 'jazzcash') {
-      return redirect(`/payment/jazzcash/${bookingId}?type=${type}`);
+    if (paymentMethod === 'paypal') {
+      return json({ message: 'Redirecting to PayPal...' });
     }
     if (paymentMethod === 'stripe') {
       return redirect(`/payment/stripe/${bookingId}?type=${type}`);
+    }
+    if (paymentMethod === 'pay_at_pickup') {
+      return json({ message: 'Pay at pickup selected' });
+    }
+    if (paymentMethod === 'bank_transfer') {
+      return json({ message: 'Bank transfer selected' });
     }
     return json({ error: "Unsupported payment method" }, { status: 400 });
   }
@@ -277,15 +287,130 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       const methodMapped = mapPaymentMethod(paymentMethod);
 
-      // Stripe intent placeholder
-      if (paymentMethod === 'stripe' && process.env.STRIPE_SECRET) {
-        // In a real implementation:
-        // const stripe = new (await import('stripe')).default(process.env.STRIPE_SECRET);
-        // const intent = await stripe.paymentIntents.create({ amount: Math.round(booking.totalPrice * 100), currency: booking.currency.toLowerCase() });
-        // Save intent.id and client_secret in Payment.gatewayResponse
+      // Stripe integration (server-side intent creation)
+      if (paymentMethod === 'stripe') {
+        if (process.env.STRIPE_SECRET) {
+          try {
+            const stripeMod = await import('stripe');
+            const stripe = new stripeMod.default(process.env.STRIPE_SECRET as string, { apiVersion: '2023-10-16' });
+            const amountMinor = Math.round((booking.totalPrice || 0) * 100);
+            const currency = (booking.currency || 'PKR').toLowerCase();
+            const intent = await stripe.paymentIntents.create({
+              amount: amountMinor,
+              currency,
+              automatic_payment_methods: { enabled: true },
+              metadata: { bookingId, bookingType },
+            });
+            if (intent.status === 'requires_action' || intent.status === 'requires_payment_method') {
+              return json({ error: 'Additional authentication required. Please complete verification.' }, { status: 402 });
+            }
+            if (intent.status === 'succeeded') {
+              await prisma.payment.create({
+                data: {
+                  amount: booking.totalPrice,
+                  currency: booking.currency,
+                  method: "CREDIT_CARD",
+                  transactionId: intent.id,
+                  status: "COMPLETED",
+                  paymentGateway: 'stripe',
+                  gatewayResponse: { intent },
+                  paidAt: new Date(),
+                  userId,
+                  bookingId,
+                  bookingType,
+                }
+              });
+            } else {
+              return json({ error: `Payment not completed. Status: ${intent.status}` }, { status: 402 });
+            }
+          } catch (err) {
+            console.error('Stripe error', err);
+            return json({ error: 'Payment processing error. Please try again.' }, { status: 500 });
+          }
+        } else {
+          await prisma.payment.create({
+            data: {
+              amount: booking.totalPrice,
+              currency: booking.currency,
+              method: "CREDIT_CARD",
+              transactionId: `DEV-${Date.now()}`,
+              status: "PENDING",
+              paymentGateway: 'stripe',
+              gatewayResponse: { message: 'Payment gateway not configured' },
+              userId,
+              bookingId,
+              bookingType,
+            }
+          });
+          if (bookingType === 'property') {
+            await prisma.propertyBooking.update({ where: { id: bookingId }, data: { status: 'PENDING', paymentStatus: 'PENDING' } });
+          } else if (bookingType === 'vehicle') {
+            await prisma.vehicleBooking.update({ where: { id: bookingId }, data: { status: 'PENDING', paymentStatus: 'PENDING' } });
+          } else if (bookingType === 'tour') {
+            await prisma.tourBooking.update({ where: { id: bookingId }, data: { status: 'PENDING', paymentStatus: 'PENDING' } });
+          }
+        }
       }
 
-      if (existingPayment) {
+      if (paymentMethod === 'pay_at_pickup') {
+        await prisma.payment.create({
+          data: {
+            amount: booking.totalPrice,
+            currency: booking.currency,
+            method: "CASH",
+            transactionId: `PICKUP-${Date.now()}`,
+            status: "PENDING",
+            paymentGateway: 'offline',
+            gatewayResponse: { note: 'Pay at pickup/check-in' },
+            userId,
+            bookingId,
+            bookingType,
+          }
+        });
+        const admins = await db.user.findMany({ where: { role: 'SUPER_ADMIN' }, select: { id: true, role: true } });
+        if (admins.length) {
+          await db.notification.createMany({
+            data: admins.map(a => ({
+              userId: a.id,
+              userRole: a.role,
+              type: 'SYSTEM_ANNOUNCEMENT',
+              title: 'Offline payment selected',
+              message: `Booking #${booking.bookingNumber} selected pay at pickup/check-in. Await provider approval.`,
+              data: { bookingId, bookingType, amount: booking.totalPrice, currency: booking.currency },
+              priority: 'MEDIUM',
+            }))
+          });
+        }
+      } else if (paymentMethod === 'bank_transfer') {
+        await prisma.payment.create({
+          data: {
+            amount: booking.totalPrice,
+            currency: booking.currency,
+            method: "BANK_TRANSFER",
+            transactionId: `BANK-${Date.now()}`,
+            status: "PENDING",
+            paymentGateway: 'bank',
+            gatewayResponse: { proof: bankProofUrl || null },
+            userId,
+            bookingId,
+            bookingType,
+          }
+        });
+        const admins = await db.user.findMany({ where: { role: 'SUPER_ADMIN' }, select: { id: true, role: true } });
+        if (admins.length) {
+          await db.notification.createMany({
+            data: admins.map(a => ({
+              userId: a.id,
+              userRole: a.role,
+              type: 'SYSTEM_ANNOUNCEMENT',
+              title: 'Bank transfer pending verification',
+              message: `Booking #${booking.bookingNumber} submitted bank transfer. Verify proof and approve.`,
+              data: { bookingId, bookingType, amount: booking.totalPrice, currency: booking.currency, proof: bankProofUrl || null },
+              priority: 'HIGH',
+            }))
+          });
+        }
+      } else if (existingPayment) {
         await prisma.payment.update({
           where: { id: existingPayment.id },
           data: {
@@ -316,7 +441,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }
 
       // Update booking status
-      if (bookingType === "property") {
+      if (paymentMethod === 'pay_at_pickup' || paymentMethod === 'bank_transfer') {
+        // Keep status as PENDING for provider approval/payment later
+      } else if (bookingType === "property") {
         await prisma.propertyBooking.update({
           where: { id: bookingId },
           data: {
@@ -622,6 +749,13 @@ export default function PaymentPage() {
     country: "",
     postalCode: "",
   });
+  const [bankDetails] = useState({
+    bankName: "HBL Skardu",
+    accountName: "FindoTrip Pvt Ltd",
+    accountNumber: "1234 5678 9012",
+    iban: "PK00HABB000000000123456789",
+  });
+  const [bankProofUrl, setBankProofUrl] = useState("");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
 
   const isSubmitting = navigation.state === "submitting";
@@ -925,6 +1059,63 @@ export default function PaymentPage() {
                           required
                         />
                       </div>
+                    </div>
+                  )}
+
+                  {selectedPaymentMethod === "paypal" && (
+                    <div className="space-y-4">
+                      <Alert>
+                        <AlertDescription>
+                          You will be redirected to PayPal to complete your payment.
+                        </AlertDescription>
+                      </Alert>
+                      <Form method="post">
+                        <input type="hidden" name="intent" value="startPayment" />
+                        <input type="hidden" name="bookingType" value={bookingType} />
+                        <input type="hidden" name="paymentMethod" value="paypal" />
+                        <Button type="submit" className="w-full">Continue with PayPal</Button>
+                      </Form>
+                    </div>
+                  )}
+
+                  {selectedPaymentMethod === "pay_at_pickup" && (
+                    <div className="space-y-4">
+                      <Alert>
+                        <AlertDescription>
+                          You'll pay at pickup/check-in. Booking confirmed after provider approval.
+                        </AlertDescription>
+                      </Alert>
+                      <Form method="post">
+                        <input type="hidden" name="intent" value="processPayment" />
+                        <input type="hidden" name="bookingType" value={bookingType} />
+                        <input type="hidden" name="paymentMethod" value="pay_at_pickup" />
+                        <Button type="submit" className="w-full">Confirm Pay at Pickup</Button>
+                      </Form>
+                    </div>
+                  )}
+
+                  {selectedPaymentMethod === "bank_transfer" && (
+                    <div className="space-y-4">
+                      <div className="rounded border p-4">
+                        <h4 className="font-semibold mb-2">Bank Details</h4>
+                        <div className="text-sm text-gray-700 space-y-1">
+                          <div>Bank: {bankDetails.bankName}</div>
+                          <div>Account Name: {bankDetails.accountName}</div>
+                          <div>Account Number: {bankDetails.accountNumber}</div>
+                          <div>IBAN: {bankDetails.iban}</div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Upload Proof of Payment (URL)</Label>
+                        <Input value={bankProofUrl} onChange={(e) => setBankProofUrl(e.target.value)} placeholder="https://.../receipt.jpg" />
+                      </div>
+                      <Form method="post">
+                        <input type="hidden" name="intent" value="processPayment" />
+                        <input type="hidden" name="bookingType" value={bookingType} />
+                        <input type="hidden" name="paymentMethod" value="bank_transfer" />
+                        <input type="hidden" name="bankProofUrl" value={bankProofUrl} />
+                        <Button type="submit" className="w-full">Submit Bank Transfer</Button>
+                      </Form>
                     </div>
                   )}
 

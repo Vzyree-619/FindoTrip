@@ -6,6 +6,7 @@ import {
 } from "@remix-run/node";
 import { Form, useLoaderData, useActionData, useNavigation } from "@remix-run/react";
 import { unstable_parseMultipartFormData, unstable_createMemoryUploadHandler } from "@remix-run/node";
+import { v2 as cloudinary } from "cloudinary";
 import { useState } from "react";
 import { requireUserId, getUser } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
@@ -78,8 +79,23 @@ export async function action({ request }: ActionFunctionArgs) {
     try {
       let urlToSave = typeof avatarUrl === 'string' && avatarUrl ? avatarUrl : undefined;
       if (file) {
-        const name = `${Date.now()}-${file.name}`;
-        urlToSave = `/uploads/${name}`;
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+        const apiKey = process.env.CLOUDINARY_API_KEY;
+        const apiSecret = process.env.CLOUDINARY_API_SECRET;
+        if (cloudName && apiKey && apiSecret) {
+          cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
+          const arrayBuffer = await file.arrayBuffer();
+          const uploadResult: any = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream({ folder: 'findo' }, (err, result) => {
+              if (err) reject(err); else resolve(result);
+            });
+            stream.end(Buffer.from(arrayBuffer));
+          });
+          urlToSave = uploadResult.secure_url as string;
+        } else {
+          const name = `${Date.now()}-${file.name}`;
+          urlToSave = `/uploads/${name}`;
+        }
       }
       if (!urlToSave) return json({ error: "Invalid image input" }, { status: 400 });
       await prisma.user.update({ where: { id: userId }, data: { avatar: urlToSave } });

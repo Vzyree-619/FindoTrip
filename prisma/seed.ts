@@ -215,6 +215,66 @@ async function main() {
     }
   });
 
+  const vehicle3 = await prisma.vehicle.create({
+    data: {
+      name: "Suzuki Swift",
+      brand: "Suzuki",
+      model: "Swift",
+      year: 2022,
+      type: "CAR",
+      category: "ECONOMY",
+      description: "Compact hatchback, great fuel economy and city driving.",
+      seats: 5,
+      transmission: "MANUAL",
+      fuelType: "PETROL",
+      basePrice: 40,
+      images: ["https://images.unsplash.com/photo-1621135802920-133df287f89f?w=800"],
+      features: ["AC", "Bluetooth"],
+      location: "Lahore",
+      city: "Lahore",
+      country: "Pakistan",
+      licensePlate: "LHR-2022",
+      registrationNo: "REG-2022",
+      insurancePolicy: "POL-2022",
+      insuranceExpiry: new Date("2026-09-30"),
+      ownerId: vehOwner.id,
+      approvalStatus: "APPROVED",
+      available: true,
+      rating: 4.3,
+      reviewCount: 12,
+    }
+  });
+
+  const vehicle4 = await prisma.vehicle.create({
+    data: {
+      name: "Toyota Hiace",
+      brand: "Toyota",
+      model: "Hiace",
+      year: 2021,
+      type: "VAN",
+      category: "VAN",
+      description: "Spacious van ideal for group transport and tours.",
+      seats: 12,
+      transmission: "MANUAL",
+      fuelType: "DIESEL",
+      basePrice: 90,
+      images: ["https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800"],
+      features: ["AC", "Extra Space"],
+      location: "Islamabad",
+      city: "Islamabad",
+      country: "Pakistan",
+      licensePlate: "ISB-7788",
+      registrationNo: "REG-7788",
+      insurancePolicy: "POL-7788",
+      insuranceExpiry: new Date("2026-05-15"),
+      ownerId: vehOwner.id,
+      approvalStatus: "APPROVED",
+      available: true,
+      rating: 4.6,
+      reviewCount: 22,
+    }
+  });
+
   // Tours
   console.log("🗺️  Creating tours...");
   const tour1 = await prisma.tour.create({
@@ -226,6 +286,7 @@ async function main() {
       duration: 6,
       groupSize: 10,
       maxGroupSize: 12,
+      difficulty: "easy",
       city: "Skardu",
       country: "Pakistan",
       meetingPoint: "City Center",

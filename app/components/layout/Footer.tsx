@@ -23,8 +23,15 @@ import {
   ChevronRight
 } from 'lucide-react';
 
+import { useRouteLoaderData } from '@remix-run/react';
+
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  // Pull user from root loader if available (NavBarWithAuth already uses it)
+  // Fallback: hide consumer links when any provider role is detected in path or user context
+  const rootData: any = useRouteLoaderData('root');
+  const user = rootData?.user;
+  const isProvider = user && (user.role === 'PROPERTY_OWNER' || user.role === 'VEHICLE_OWNER' || user.role === 'TOUR_GUIDE');
 
   const footerSections = [
     {
@@ -184,7 +191,7 @@ export default function Footer() {
 
         {/* Links Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-8 mb-12">
-          {footerSections.map((section, index) => (
+          {(isProvider ? footerSections.filter(s => !['Travel Services','Resources'].includes(s.title)) : footerSections).map((section, index) => (
             <div key={index}>
               <h4 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
                 {section.title}

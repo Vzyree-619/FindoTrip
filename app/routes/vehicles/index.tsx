@@ -80,17 +80,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const category = searchParams.get("category") || "";
     const fuelType = searchParams.get("fuelType") || "";
     const transmission = searchParams.get("transmission") || "";
-    const minPrice = parseInt(searchParams.get("minPrice") || "0");
-    const maxPrice = parseInt(searchParams.get("maxPrice") || "1000");
+    const minPriceParam = searchParams.get("minPrice");
+    const maxPriceParam = searchParams.get("maxPrice");
+    const minPrice = minPriceParam ? parseInt(minPriceParam) : undefined;
+    const maxPrice = maxPriceParam ? parseInt(maxPriceParam) : undefined;
     const location = searchParams.get("location") || "";
     const sortBy = searchParams.get("sortBy") || "featured";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "12");
 
-    // Build where clause
+    // Build where clause (aligned with current schema)
     const where: any = {
-      isActive: true,
-      isApproved: true
+      available: true,
+      approvalStatus: 'APPROVED'
     };
 
     if (search) {
@@ -114,10 +116,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       where.transmission = transmission;
     }
 
-    if (minPrice || maxPrice) {
+    if (minPrice !== undefined || maxPrice !== undefined) {
       where.basePrice = {};
-      if (minPrice) where.basePrice.gte = minPrice;
-      if (maxPrice) where.basePrice.lte = maxPrice;
+      if (minPrice !== undefined) where.basePrice.gte = minPrice;
+      if (maxPrice !== undefined) where.basePrice.lte = maxPrice;
     }
 
     if (location) {
@@ -128,8 +130,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     let orderBy: any = { createdAt: 'desc' };
     if (sortBy === 'price_low') orderBy = { basePrice: 'asc' };
     if (sortBy === 'price_high') orderBy = { basePrice: 'desc' };
-    if (sortBy === 'rating') orderBy = { averageRating: 'desc' };
-    if (sortBy === 'featured') orderBy = [{ isFeatured: 'desc' }, { averageRating: 'desc' }];
+    if (sortBy === 'rating') orderBy = { rating: 'desc' };
+    // No explicit featured flag in schema; prioritize bookings and rating
+    if (sortBy === 'featured') orderBy = [{ totalBookings: 'desc' }, { rating: 'desc' }];
 
     // Try to get vehicles from database; fallback to mock data if DB unavailable
     let vehicles, total, categories, fuelTypes, transmissions, priceStats, locations;
@@ -142,15 +145,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
             select: {
               id: true,
               name: true,
-              avatar: true,
               averageRating: true,
               totalReviews: true,
-              isVerified: true
+              verified: true
             }
           },
-          images: true,
           reviews: {
-            where: { isActive: true },
             select: { rating: true }
           }
         },
@@ -164,31 +164,31 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       // Get filter options
       categories = await prisma.vehicle.findMany({
-        where: { isActive: true, isApproved: true },
+        where: { available: true, approvalStatus: 'APPROVED' },
         select: { category: true },
         distinct: ['category']
       });
 
       fuelTypes = await prisma.vehicle.findMany({
-        where: { isActive: true, isApproved: true },
+        where: { available: true, approvalStatus: 'APPROVED' },
         select: { fuelType: true },
         distinct: ['fuelType']
       });
 
       transmissions = await prisma.vehicle.findMany({
-        where: { isActive: true, isApproved: true },
+        where: { available: true, approvalStatus: 'APPROVED' },
         select: { transmission: true },
         distinct: ['transmission']
       });
 
       priceStats = await prisma.vehicle.aggregate({
-        where: { isActive: true, isApproved: true },
+        where: { available: true, approvalStatus: 'APPROVED' },
         _min: { basePrice: true },
         _max: { basePrice: true }
       });
 
       locations = await prisma.vehicle.findMany({
-        where: { isActive: true, isApproved: true },
+        where: { available: true, approvalStatus: 'APPROVED' },
         select: { location: true },
         distinct: ['location']
       });
@@ -266,57 +266,59 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // Format vehicles
     const formattedVehicles: Vehicle[] = vehicles.map(vehicle => {
-      const averageRating = vehicle.reviews.length > 0 
-        ? vehicle.reviews.reduce((sum, review) => sum + review.rating, 0) / vehicle.reviews.length
+      // Prefer stored rating; fallback to computed from reviews
+      const storedRating = (vehicle as any).rating ?? 0;
+      const reviewsArray = (vehicle as any).reviews || [];
+      const computedRating = reviewsArray.length > 0
+        ? reviewsArray.reduce((sum: number, review: any) => sum + review.rating, 0) / reviewsArray.length
         : 0;
+      const averageRating = storedRating || computedRating;
 
-      const isNew = new Date(vehicle.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const isPopular = vehicle.totalBookings > 10;
-      const isFeatured = vehicle.isFeatured || false;
+      const isNew = new Date((vehicle as any).createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const isPopular = ((vehicle as any).totalBookings || 0) > 10;
 
-      // Mock availability (would be real data in production)
-      const availabilityOptions = ['Available', 'Limited', 'Fully Booked'];
-      const availability = availabilityOptions[Math.floor(Math.random() * availabilityOptions.length)] as 'Available' | 'Limited' | 'Fully Booked';
+      // Availability based on actual flag
+      const availability = ((vehicle as any).available ? 'Available' : 'Fully Booked') as 'Available' | 'Limited' | 'Fully Booked';
 
-      // Mock features (would be real data in production)
-      const allFeatures = [
-        'GPS Navigation', 'Bluetooth', 'Backup Camera', 'Child Seat Available',
-        'Air Conditioning', 'USB Charging', 'Sunroof', 'Leather Seats',
-        'Heated Seats', 'Cruise Control', 'Parking Sensors', 'Keyless Entry'
-      ];
-      const features = allFeatures.slice(0, Math.floor(Math.random() * 6) + 3);
+      // Basic features fallback (until features UI is finalized)
+      const features = Array.isArray((vehicle as any).features) && (vehicle as any).features.length
+        ? (vehicle as any).features
+        : [
+            'GPS Navigation', 'Bluetooth', 'Backup Camera', 'Child Seat Available',
+            'Air Conditioning', 'USB Charging'
+          ];
 
       return {
-        id: vehicle.id,
-        name: vehicle.name,
-        model: vehicle.model,
-        year: vehicle.year,
-        mileage: vehicle.mileage,
-        images: vehicle.images || ['/placeholder-vehicle.jpg'],
-        price: vehicle.basePrice,
-        originalPrice: vehicle.originalPrice,
-        category: vehicle.category as 'Economy' | 'SUV' | 'Luxury' | 'Van' | 'Sports' | 'Electric',
-        transmission: vehicle.transmission as 'Automatic' | 'Manual',
-        fuelType: vehicle.fuelType as 'Gasoline' | 'Diesel' | 'Electric' | 'Hybrid',
-        isElectric: vehicle.fuelType === 'Electric',
+        id: (vehicle as any).id,
+        name: (vehicle as any).name,
+        model: (vehicle as any).model,
+        year: (vehicle as any).year,
+        mileage: (vehicle as any).mileage,
+        images: (vehicle as any).images || ['/placeholder-vehicle.jpg'],
+        price: (vehicle as any).basePrice,
+        originalPrice: (vehicle as any).originalPrice,
+        category: (vehicle as any).category as 'Economy' | 'SUV' | 'Luxury' | 'Van' | 'Sports' | 'Electric',
+        transmission: (vehicle as any).transmission as 'Automatic' | 'Manual',
+        fuelType: (vehicle as any).fuelType as 'Gasoline' | 'Diesel' | 'Electric' | 'Hybrid',
+        isElectric: (vehicle as any).fuelType === 'Electric',
         owner: {
-          id: vehicle.owner.id,
-          name: vehicle.owner.name,
-          avatar: vehicle.owner.avatar,
-          rating: vehicle.owner.averageRating || 0,
-          reviewCount: vehicle.owner.totalReviews || 0,
-          isVerified: vehicle.owner.isVerified || false
+          id: (vehicle as any).owner.id,
+          name: (vehicle as any).owner.name,
+          avatar: null,
+          rating: (vehicle as any).owner.averageRating || 0,
+          reviewCount: (vehicle as any).owner.totalReviews || 0,
+          isVerified: (vehicle as any).owner.verified || false
         },
         rating: averageRating,
-        reviewCount: vehicle.reviews.length,
+        reviewCount: reviewsArray.length,
         specs: {
-          passengers: vehicle.passengerCapacity,
-          luggage: vehicle.luggageCapacity,
-          fuelEfficiency: vehicle.fuelEfficiency,
-          transmission: vehicle.transmission
+          passengers: (vehicle as any).seats,
+          luggage: 3,
+          fuelEfficiency: (vehicle as any).mileage || 0,
+          transmission: (vehicle as any).transmission
         },
         features,
-        location: vehicle.location,
+        location: (vehicle as any).location,
         distance: Math.floor(Math.random() * 50) + 1, // Mock distance
         availability,
         isSpecialOffer: Math.random() > 0.8,
@@ -607,7 +609,7 @@ export default function VehiclesPage() {
             />
           )}
           <div className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => (window.location.href = '/car_rentals')}>Browse All Vehicles</Button>
+            <Button variant="outline" onClick={() => (window.location.href = '/vehicles')}>Browse All Vehicles</Button>
           </div>
         </Card>
 

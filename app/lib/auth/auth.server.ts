@@ -105,27 +105,28 @@ export async function register(
   role: 'CUSTOMER' | 'PROPERTY_OWNER' | 'VEHICLE_OWNER' | 'TOUR_GUIDE' = 'CUSTOMER',
   phone?: string
 ) {
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) {
-    return { error: 'A user with this email already exists' };
-  }
+  try {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return { error: 'A user with this email already exists' };
+    }
 
-  const hashedPassword = await hashPassword(password);
-  const user = await prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      name,
-      role,
-      phone,
-    },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-    },
-  });
+    const hashedPassword = await hashPassword(password);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        role,
+        phone,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+      },
+    });
 
 
   if (role === 'TOUR_GUIDE') {
@@ -153,27 +154,36 @@ export async function register(
   }
 
   return { user };
+  } catch (e) {
+    console.error('Register error:', e);
+    return { error: 'Registration failed due to database connection/config issue' };
+  }
 }
 
 export async function login(email: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    return { error: 'Invalid email or password' };
-  }
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return { error: 'Invalid email or password' };
+    }
 
-  const isValid = await verifyPassword(password, user.password);
-  if (!isValid) {
-    return { error: 'Invalid email or password' };
-  }
+    const isValid = await verifyPassword(password, user.password);
+    if (!isValid) {
+      return { error: 'Invalid email or password' };
+    }
 
-  return {
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    },
-  };
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    };
+  } catch (e) {
+    console.error('Login error:', e);
+    return { error: 'Login failed due to database connection/config issue' };
+  }
 }
 
 // Authorization helpers

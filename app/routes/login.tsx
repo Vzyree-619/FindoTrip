@@ -5,13 +5,21 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { Form, Link, useActionData, useSearchParams, useNavigation } from "@remix-run/react";
-import { login, createUserSession, getUserId } from "~/lib/auth/auth.server";
-import { prisma } from "~/lib/db/db.server";
+import { login, createUserSession, getUserId, getUser } from "~/lib/auth/auth.server";
 import { Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const userId = await getUserId(request);
-  if (userId) return redirect("/");
+  const user = await getUser(request);
+  if (user) {
+    const redirectRoutes = {
+      CUSTOMER: "/dashboard",
+      PROPERTY_OWNER: "/dashboard/provider",
+      VEHICLE_OWNER: "/dashboard/vehicle-owner",
+      TOUR_GUIDE: "/dashboard/guide",
+      SUPER_ADMIN: "/dashboard/admin",
+    } as const;
+    return redirect((redirectRoutes as any)[user.role] || "/dashboard");
+  }
   return json({});
 }
 
@@ -33,27 +41,31 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: "Email and password are required" }, { status: 400 });
   }
 
-  const result = await login(email, password);
+  try {
+    const result = await login(email, password);
 
-  if ("error" in result) {
-    return json({ error: result.error }, { status: 400 });
+    if ("error" in result) {
+      return json({ error: result.error }, { status: 400 });
+    }
+
+    // Use role from auth result to avoid extra DB read
+    const role = result.user.role;
+    const redirectRoutes = {
+      CUSTOMER: "/dashboard",
+      PROPERTY_OWNER: "/dashboard/provider",
+      VEHICLE_OWNER: "/dashboard/vehicle-owner",
+      TOUR_GUIDE: "/dashboard/guide",
+      SUPER_ADMIN: "/dashboard/admin"
+    } as const;
+
+    return createUserSession(
+      result.user.id,
+      (redirectRoutes as any)[role] || "/dashboard"
+    );
+  } catch (e) {
+    console.error("Login action failed:", e);
+    return json({ error: "Login failed due to a server/database issue. Please check DATABASE_URL and try again." }, { status: 500 });
   }
-
-  // Get user role and redirect to appropriate dashboard
-  const user = await prisma.user.findUnique({
-    where: { id: result.user.id },
-    select: { role: true }
-  });
-
-  const redirectRoutes = {
-    CUSTOMER: "/dashboard",
-    PROPERTY_OWNER: "/dashboard/provider",
-    VEHICLE_OWNER: "/dashboard/vehicle-owner",
-    TOUR_GUIDE: "/dashboard/guide",
-    SUPER_ADMIN: "/dashboard/admin"
-  };
-
-  return createUserSession(result.user.id, redirectRoutes[user?.role as keyof typeof redirectRoutes] || "/dashboard");
 }
 
 export default function Login() {

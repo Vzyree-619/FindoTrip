@@ -149,7 +149,6 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       where: {
         bookingId,
         bookingType,
-        status: "COMPLETED",
       },
       orderBy: {
         createdAt: "desc",
@@ -171,6 +170,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
 export default function BookingConfirmation() {
   const { booking, service, provider, payment, bookingType } = useLoaderData<typeof loader>();
+  const isPendingPayment = !payment || payment.status === 'PENDING';
 
   const getServiceIcon = () => {
     if (bookingType === "property") return "🏨";
@@ -233,9 +233,11 @@ export default function BookingConfirmation() {
           <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Booking Confirmed!</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{isPendingPayment ? 'Booking Created' : 'Booking Confirmed!'}</h1>
           <p className="text-gray-600">
-            Your {bookingType} booking has been successfully confirmed. You'll receive a confirmation email shortly.
+            {isPendingPayment
+              ? "Your booking was created and is pending provider approval/payment verification. You'll be notified once confirmed."
+              : "Your booking has been successfully confirmed. You'll receive a confirmation email shortly."}
           </p>
         </div>
 
@@ -337,7 +339,7 @@ export default function BookingConfirmation() {
             )}
 
             {/* Payment Information */}
-            {payment && (
+            {payment && payment.status === 'COMPLETED' && (
               <Card>
                 <CardHeader>
                   <CardTitle>Payment Information</CardTitle>
@@ -359,6 +361,25 @@ export default function BookingConfirmation() {
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Payment Date</span>
                       <span className="text-sm">{new Date(payment.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {isPendingPayment && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Payment Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Status</span>
+                      <span className="text-sm">Pending</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Next Step</span>
+                      <span className="text-sm">Await provider approval/verification</span>
                     </div>
                   </div>
                 </CardContent>

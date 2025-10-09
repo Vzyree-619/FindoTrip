@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
+import { getUser } from "~/lib/auth/auth.server";
 import InputForm from "~/components/features/home/InputForm/InputForm";
 import NavBar from "~/components/layout/navigation/NavBar";
 import Footer from "~/components/layout/Footer";
@@ -13,15 +14,18 @@ import AddPage from "~/components/features/home/AddPage";
 import Stays from "~/components/features/home/Stays";
 export default function Index() {
   const data = useLoaderData();
+  // If providers somehow render the landing page, hide consumer sections
+  const user = data && data.user ? data.user : null;
+  const isProvider = user && (user.role === 'PROPERTY_OWNER' || user.role === 'VEHICLE_OWNER' || user.role === 'TOUR_GUIDE');
   return (
     <>
       <div className="w-full min-h-screen bg-white">
-        <InputForm />
-        <AddPage />
-        <Stays stays={data?.stays} />
-        <TourPackages />
-        <Register />
-        <CarRentalSection vehicles={data?.vehicles} />
+        {!isProvider && <InputForm />}
+        {!isProvider && <AddPage />}
+        {!isProvider && <Stays stays={data?.stays} />}
+        {!isProvider && <TourPackages />}
+        {!isProvider && <Register />}
+        {!isProvider && <CarRentalSection vehicles={data?.vehicles} />}
         <FAQSection />
         <SubscriptionForm />
         <Footer />
@@ -30,8 +34,21 @@ export default function Index() {
   );
 }
 
-export async function loader() {
+export async function loader({ request }) {
   try {
+    const user = await getUser(request);
+    if (user) {
+      const redirectRoutes = {
+        CUSTOMER: "/dashboard",
+        PROPERTY_OWNER: "/dashboard/provider",
+        VEHICLE_OWNER: "/dashboard/vehicle-owner",
+        TOUR_GUIDE: "/dashboard/guide",
+        SUPER_ADMIN: "/dashboard/admin",
+      };
+      // Return user in data if you want conditional render while redirecting (SSR edge cases)
+      // Mostly this path redirect short-circuits.
+      throw new Response(null, { status: 302, headers: { Location: redirectRoutes[user.role] || "/dashboard" } });
+    }
     const [stays, vehicles, tours] = await Promise.all([
       prisma.property.findMany({
         where: { approvalStatus: 'APPROVED', available: true },
@@ -41,7 +58,7 @@ export async function loader() {
       }),
       prisma.vehicle.findMany({
         where: { approvalStatus: 'APPROVED', available: true },
-        select: { id: true, name: true, model: true, category: true, seats: true, fuelType: true, transmission: true, basePrice: true, currency: true, images: true, location: true, rating: true, reviewCount: true },
+        select: { id: true, name: true, model: true, category: true, seats: true, fuelType: true, transmission: true, basePrice: true, currency: true, images: true, location: true, rating: true, reviewCount: true, available: true, features: true },
         orderBy: { rating: "desc" },
         take: 8,
       }),
@@ -64,11 +81,12 @@ export async function loader() {
       price: v.basePrice || 0,
       currency: v.currency || "PKR",
       rating: v.rating || 0,
-      reviews: v.reviewCount ? `${v.reviewCount} reviews` : "",
+      reviews: v.reviewCount || 0,
       image: (v.images?.[0]) || "/placeholder-vehicle.jpg",
       location: v.location || "",
-      available: true,
+      available: v.available ?? true,
       discount: 0,
+      features: Array.isArray(v.features) ? v.features : [],
     }));
 
     // Shape stays for home grid
@@ -89,8 +107,8 @@ export async function loader() {
       { id: 's3', name: 'Legend Hotel', location: 'Skardu, Pakistan', price: 'Starting from PKR 10000', rating: 9.2, reviews: '42 reviews', image: '/legend.jpg' },
       { id: 's4', name: 'Himmel Resort', location: 'Shigar, Pakistan', price: 'Starting from PKR 35000', rating: 9.8, reviews: '28 reviews', image: '/himmel.jpg' },
     ];
-    const vehiclesOut = shapedVehicles.length ? shapedVehicles : vehiclesDefault();
-    return json({ stays: staysOut, vehicles: vehiclesOut, tours });
+    const vehiclesOut = shapedVehicles;
+    return json({ stays: staysOut, vehicles: vehiclesOut, tours, user: null });
   } catch (e) {
     console.warn('Home loader fallback due to DB error', e);
     return json({ stays: null, vehicles: null, tours: null });

@@ -8,6 +8,7 @@ import { useLoaderData, useActionData, Form, useNavigation } from "@remix-run/re
 import { useState, useRef } from "react";
 import { requireUserId, getUser } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
+import { v2 as cloudinary } from "cloudinary";
 import { hashPassword, verifyPassword } from "~/lib/auth/auth.server";
 import {
   User,
@@ -142,11 +143,32 @@ export async function action({ request }: ActionFunctionArgs) {
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
     let url: string | null = null;
+    let target: 'cloudinary' | 'local' = 'local';
     try {
       if (cloudName && apiKey && apiSecret) {
-        const arrayBuffer = await file.arrayBuffer();
-        const base64 = Buffer.from(arrayBuffer).toString("base64");
-        url = `data:${file.type};base64,${base64}`;
+        try {
+          cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
+          const arrayBuffer = await file.arrayBuffer();
+          const uploadResult: any = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream({ folder: 'findo' }, (err, result) => {
+              if (err) reject(err); else resolve(result);
+            });
+            stream.end(Buffer.from(arrayBuffer));
+          });
+          url = uploadResult.secure_url as string;
+          target = 'cloudinary';
+        } catch (cloudErr) {
+          // Fallback to local storage if Cloudinary fails
+          const uploadsDir = "public/uploads/profiles";
+          const fs = await import("fs");
+          if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+          const ext = file.name.split(".").pop() || "jpg";
+          const filename = `${userId}-${Date.now()}.${ext}`;
+          const arrayBuffer = await file.arrayBuffer();
+          fs.writeFileSync(`${uploadsDir}/${filename}`, Buffer.from(arrayBuffer));
+          url = `/uploads/profiles/${filename}`;
+          target = 'local';
+        }
       } else {
         const uploadsDir = "public/uploads/profiles";
         const fs = await import("fs");
@@ -156,10 +178,11 @@ export async function action({ request }: ActionFunctionArgs) {
         const arrayBuffer = await file.arrayBuffer();
         fs.writeFileSync(`${uploadsDir}/${filename}`, Buffer.from(arrayBuffer));
         url = `/uploads/profiles/${filename}`;
+        target = 'local';
       }
 
       await prisma.user.update({ where: { id: userId }, data: { avatar: url! } });
-      return json({ success: "Profile picture updated!" });
+      return json({ success: "Profile picture updated!", target, url });
     } catch (e) {
       return json({ error: "Failed to upload image" }, { status: 500 });
     }
@@ -233,7 +256,7 @@ export default function ProfileSettings() {
               <CheckCircle className="h-5 w-5 text-green-400" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-green-800">
-                  {actionData.success}
+                  {actionData.success} {actionData?.target ? `(Uploaded to: ${actionData.target})` : ''}
                 </p>
               </div>
             </div>

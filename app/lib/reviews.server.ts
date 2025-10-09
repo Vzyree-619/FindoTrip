@@ -28,6 +28,10 @@ interface CreateReviewInput {
 function nowPk(): Date { return new Date(); }
 
 export async function getBookingsPendingReview(userId: string) {
+  // Sanitize any legacy reviews with null reviewerName to avoid schema decode errors
+  try {
+    await prisma.review.updateMany({ where: { reviewerName: null as any }, data: { reviewerName: "Anonymous" } });
+  } catch {}
   const now = nowPk();
 
   // Property bookings pending review
@@ -108,6 +112,10 @@ export async function getBookingsPendingReview(userId: string) {
 }
 
 export async function getUserReviews(userId: string) {
+  // Sanitize any legacy reviews with null reviewerName
+  try {
+    await prisma.review.updateMany({ where: { reviewerName: null as any }, data: { reviewerName: "Anonymous" } });
+  } catch {}
   return prisma.review.findMany({
     where: { userId },
     include: {
@@ -243,7 +251,7 @@ export async function createReview(input: CreateReviewInput) {
       images: input.images || [],
       verified: isVerified,
       userId: input.userId,
-      reviewerName: user?.name || "",
+      reviewerName: user?.name || "Anonymous",
       reviewerAvatar: user?.avatar || null,
       stayDuration: input.bookingType === "property" && booking ? Math.max(1, Math.ceil((booking.checkOut.getTime() - booking.checkIn.getTime()) / (1000 * 60 * 60 * 24))) : null,
       tripType: undefined,
