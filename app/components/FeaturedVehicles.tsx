@@ -61,29 +61,9 @@ interface FeaturedVehiclesProps {
 // UTILITY FUNCTIONS
 // ========================================
 
-const getCategoryColor = (category: string) => {
-  const colors = {
-    Economy: 'bg-gray-500',
-    SUV: 'bg-blue-500',
-    Luxury: 'bg-purple-500',
-    Van: 'bg-orange-500',
-    Sports: 'bg-red-500',
-    Electric: 'bg-green-500'
-  };
-  return colors[category as keyof typeof colors] || 'bg-gray-500';
-};
+const getCategoryColor = (_category: string) => 'bg-orange-500';
 
-const getCategoryGradient = (category: string) => {
-  const gradients = {
-    Economy: 'from-gray-500 to-gray-600',
-    SUV: 'from-blue-500 to-blue-600',
-    Luxury: 'from-purple-500 to-purple-600',
-    Van: 'from-orange-500 to-orange-600',
-    Sports: 'from-red-500 to-red-600',
-    Electric: 'from-green-500 to-green-600'
-  };
-  return gradients[category as keyof typeof gradients] || 'from-gray-500 to-gray-600';
-};
+const getCategoryGradient = (_category: string) => 'from-[#01502E] to-orange-500';
 
 const getFuelIcon = (fuelType: string) => {
   const icons = {
@@ -165,7 +145,7 @@ export default function FeaturedVehicles({
           {showViewAll && (
             <Link
               to="/vehicles"
-              className="inline-flex items-center mt-6 text-blue-600 hover:text-blue-800 font-medium transition-colors"
+            className="inline-flex items-center mt-6 text-[#01502E] hover:text-orange-600 font-medium transition-colors"
             >
               View all vehicles
               <ChevronRight className="w-4 h-4 ml-1" />
@@ -203,7 +183,7 @@ export default function FeaturedVehicles({
                           {/* Badges */}
                           <div className="flex flex-wrap gap-2 mb-4">
                             {vehicle.isSpecialOffer && (
-                              <span className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-bold px-3 py-1 rounded-full">
+                              <span className="bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-bold px-3 py-1 rounded-full">
                                 🔥 Special Offer
                               </span>
                             )}
@@ -254,7 +234,7 @@ export default function FeaturedVehicles({
                                 <div className="flex items-center space-x-2">
                                   <span className="text-white font-medium">{vehicle.owner.name}</span>
                                   {vehicle.owner.isVerified && (
-                                    <Shield className="w-4 h-4 text-blue-400" />
+                                    <Shield className="w-4 h-4 text-[#01502E]" />
                                   )}
                                 </div>
                                 <div className="flex items-center space-x-1">
@@ -270,13 +250,13 @@ export default function FeaturedVehicles({
                           {/* Special Features */}
                           <div className="flex items-center space-x-4 mb-6 text-sm">
                             {vehicle.instantBooking && (
-                              <div className="flex items-center space-x-1 text-green-400">
+                              <div className="flex items-center space-x-1 text-[#01502E]">
                                 <CheckCircle className="w-4 h-4" />
                                 <span>Instant booking</span>
                               </div>
                             )}
                             {vehicle.hasDelivery && (
-                              <div className="flex items-center space-x-1 text-blue-400">
+                              <div className="flex items-center space-x-1 text-orange-600">
                                 <Navigation className="w-4 h-4" />
                                 <span>Delivery available</span>
                               </div>

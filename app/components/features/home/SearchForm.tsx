@@ -108,8 +108,8 @@ export default function SearchForm({ className }: SearchFormProps) {
       if (vehicleForm.returnDate) params.set('returnDate', vehicleForm.returnDate);
       if (vehicleForm.pickupTime) params.set('pickupTime', vehicleForm.pickupTime);
 
-      // Navigate to car rentals page
-      navigate(`/car_rentals?${params.toString()}`);
+      // Navigate to vehicles page
+      navigate(`/vehicles?${params.toString()}`);
     } catch (error) {
       console.error('Search error:', error);
     } finally {

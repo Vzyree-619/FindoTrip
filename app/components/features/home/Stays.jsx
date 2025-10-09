@@ -1,6 +1,6 @@
 import { Link } from "@remix-run/react";
 
-const trendingStays = [
+const trendingStaysStatic = [
   {
     name: "Al Noor Starlet Hotel",
     location: "Skardu, Pakistan",
@@ -35,7 +35,7 @@ const trendingStays = [
   },
 ];
 
-export default function Stays() {
+export default function Stays({ stays }) {
   return (
     <div className="p-4 md:p-8">
       <div className="flex justify-between items-center mb-4">
@@ -46,7 +46,7 @@ export default function Stays() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {trendingStays.map((stay, idx) => (
+        {(stays || trendingStaysStatic).map((stay, idx) => (
           <div
             key={idx}
             className="bg-white shadow-md rounded-lg overflow-hidden transition transform hover:scale-105"

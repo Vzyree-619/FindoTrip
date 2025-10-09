@@ -48,7 +48,7 @@ export default function MobileNavigation({ user }: MobileNavigationProps) {
   const navigationItems = [
     { to: "/", icon: Home, label: "Home" },
     { to: "/accommodations/search", icon: Search, label: "Search" },
-    { to: "/car_rentals", icon: Car, label: "Car Rentals" },
+    { to: "/vehicles", icon: Car, label: "Car Rentals" },
     { to: "/tours", icon: MapPin, label: "Tours" },
   ];
 

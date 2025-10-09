@@ -82,6 +82,15 @@ export default function TourPackages() {
     // Change content
     tl.add(() => {
       setIndex((prev) => (prev + 1) % tourData.length);
+      // Navigate users to tours listing filtered by heading if available
+      try {
+        const current = tourData[(index + 1) % tourData.length];
+        if (current?.heading) {
+          window.location.href = `/tours?search=${encodeURIComponent(current.heading)}`;
+        } else {
+          window.location.href = '/tours';
+        }
+      } catch {}
     });
     
     // Animate in new content

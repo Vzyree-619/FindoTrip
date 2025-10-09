@@ -1,31 +1,20 @@
-import Landing from "~/components/features/vehicles/landing";
-import CarsPage from "~/components/features/vehicles/carsPage";
-import SubscriptionForm from "~/components/features/home/SubscriptionForm";
-import Footer from "~/components/layout/Footer";
-import { Card } from "~/components/ui/card";
-import { Button } from "~/components/ui/button";
 import { useNavigate } from "@remix-run/react";
+import { useEffect } from "react";
 
-export default function Room() {
+export default function CarRentalsRedirect() {
   const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Redirect to the modern vehicles page
+    navigate('/vehicles', { replace: true });
+  }, [navigate]);
+
   return (
-    <>
-      <div className="overflow-y-hidden">
-        <Landing />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <Card className="p-4">
-            <CarsPage
-              onBookCar={(car) => navigate(`/book/vehicle/${car.id}`)}
-              onViewDetails={(car) => navigate(`/vehicles/${car.id}`)}
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => navigate('/vehicles')}>Browse All Vehicles</Button>
-            </div>
-          </Card>
-        </div>
-        <SubscriptionForm />
-        <Footer />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#01502E] mx-auto mb-4"></div>
+        <p className="text-gray-600">Redirecting to vehicle rentals...</p>
       </div>
-    </>
+    </div>
   );
 }

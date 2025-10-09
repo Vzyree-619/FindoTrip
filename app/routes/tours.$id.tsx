@@ -2,7 +2,7 @@ import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link, useRevalidator } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { ChatInterface } from "~/components/chat";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   Star, 
   MapPin, 
@@ -89,43 +89,85 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       throw new Error("Tour ID required");
     }
 
-    // Get tour details
-    const tour = await prisma.tour.findUnique({
-      where: { id: tourId },
-      include: {
-        guide: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            yearsOfExperience: true,
-            languages: true,
-            averageRating: true,
-            totalBookings: true,
-            verified: true,
-            user: {
-              select: {
-                name: true,
-                avatar: true
-              }
-            }
-          }
-        },
-        reviews: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true
+    // Try to get tour details from database
+    let tour;
+    try {
+      tour = await prisma.tour.findUnique({
+        where: { id: tourId },
+        include: {
+          guide: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              yearsOfExperience: true,
+              languages: true,
+              averageRating: true,
+              totalBookings: true,
+              verified: true,
+              user: {
+                select: {
+                  name: true,
+                  avatar: true
+                }
               }
             }
           },
-          orderBy: { createdAt: 'desc' },
-          take: 10
+          reviews: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true
+                }
+              }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+          }
         }
-      }
-    });
+      });
+    } catch (dbError) {
+      console.warn("Database connection failed, using fallback data:", dbError);
+      // Fallback to mock data when database is not available
+      tour = {
+        id: tourId,
+        title: "Skardu Valley Adventure",
+        description: "Experience the stunning landscapes of Skardu Valley with guided tours to lakes, deserts, and mountain peaks.",
+        images: ["/tour.jpg", "/placeholder-tour.jpg"],
+        pricePerPerson: 45000,
+        currency: 'PKR',
+        duration: 4,
+        city: "Skardu",
+        country: "Pakistan",
+        type: "Adventure",
+        difficulty: "Moderate",
+        minGroupSize: 2,
+        maxGroupSize: 12,
+        languages: ["English", "Urdu"],
+        meetingPoint: "Skardu Airport",
+        inclusions: ["Professional guide", "All necessary equipment", "Transportation", "Lunch and refreshments"],
+        exclusions: ["Personal expenses", "Gratuities", "Travel insurance"],
+        requirements: ["Comfortable walking shoes", "Weather-appropriate clothing", "Valid ID"],
+        timeSlots: ["09:00", "14:00"],
+        guide: {
+          id: "guide-1",
+          firstName: "Ahmad",
+          lastName: "Khan",
+          yearsOfExperience: 5,
+          languages: ["English", "Urdu"],
+          averageRating: 4.8,
+          totalBookings: 150,
+          verified: true,
+          user: {
+            name: "Ahmad Khan",
+            avatar: null
+          }
+        },
+        reviews: []
+      };
+    }
 
     if (!tour) {
       throw new Error("Tour not found");
@@ -211,6 +253,13 @@ export default function TourDetailPage() {
   const [isFavorite, setIsFavorite] = useState(Boolean((tour as any).isFavorite));
   const [selectedDate, setSelectedDate] = useState(tour.nextAvailableDate || '');
   const [groupSize, setGroupSize] = useState(tour.groupSize.min);
+  const [selectedTime, setSelectedTime] = useState((tour as any).timeSlots?.[0] || '');
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [extras, setExtras] = useState<{ key: string; label: string; price: number; selected: boolean }[]>([
+    { key: 'lunch', label: 'Lunch', price: 15, selected: false },
+    { key: 'photo', label: 'Photo package', price: 20, selected: false },
+    { key: 'equipment', label: 'Equipment rental', price: 10, selected: false },
+  ]);
 
   const handleFavoriteToggle = async () => {
     const next = !isFavorite;
@@ -230,6 +279,14 @@ export default function TourDetailPage() {
   const handleImageClick = (index: number) => {
     setCurrentImageIndex(index);
   };
+
+  const toggleExtra = (key: string) => {
+    setExtras(prev => prev.map(x => x.key === key ? { ...x, selected: !x.selected } : x));
+  };
+
+  const extrasTotal = useMemo(() => extras.filter(e => e.selected).reduce((sum, e) => sum + e.price, 0), [extras]);
+  const baseTotal = useMemo(() => (tour.price * groupSize), [tour.price, groupSize]);
+  const grandTotal = useMemo(() => baseTotal + extrasTotal, [baseTotal, extrasTotal]);
 
   const getDifficultyColor = (difficulty: string) => {
     const colors = {
@@ -257,13 +314,24 @@ export default function TourDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Breadcrumbs */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-gray-600 flex items-center gap-2">
+          <Link to="/" className="hover:text-[#01502E]">Home</Link>
+          <span>/</span>
+          <Link to="/tours" className="hover:text-[#01502E]">Tours</Link>
+          <span>/</span>
+          <span className="text-gray-900 line-clamp-1">{tour.title}</span>
+        </div>
+      </div>
       {/* Hero Section */}
       <div className="relative h-96 lg:h-[500px] overflow-hidden">
         {/* Main Image */}
         <img
           src={tour.images[currentImageIndex] || '/placeholder-tour.jpg'}
           alt={tour.title}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover cursor-pointer"
+          onClick={() => setLightboxOpen(true)}
         />
         
         {/* Gradient Overlay */}
@@ -317,7 +385,7 @@ export default function TourDetailPage() {
                     <div className="flex items-center space-x-2">
                       <span className="text-white font-medium">{tour.guide.name}</span>
                       {tour.guide.isVerified && (
-                        <Shield className="w-4 h-4 text-blue-400" />
+                        <Shield className="w-4 h-4 text-[#01502E]" />
                       )}
                     </div>
                     <div className="flex items-center space-x-1">
@@ -548,12 +616,29 @@ export default function TourDetailPage() {
                     <select
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                     >
                       <option value="Tomorrow">Tomorrow</option>
                       <option value="Day After">Day After</option>
                       <option value="This Weekend">This Weekend</option>
                     </select>
+                  </div>
+                </div>
+
+                {/* Time Slots */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Time Slot</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {((tour as any).timeSlots || ['09:00', '14:00']).map((slot: string) => (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => setSelectedTime(slot)}
+                        className={`px-3 py-2 border rounded-lg text-sm ${selectedTime === slot ? 'bg-[#01502E] text-white border-[#01502E]' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        {slot}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -582,23 +667,57 @@ export default function TourDetailPage() {
                   </div>
                 </div>
 
+                {/* Add-ons */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Add-ons</label>
+                  <div className="space-y-2">
+                    {extras.map(ex => (
+                      <label key={ex.key} className="flex items-center justify-between border rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" checked={ex.selected} onChange={() => toggleExtra(ex.key)} />
+                          <span className="text-sm text-gray-700">{ex.label}</span>
+                        </div>
+                        <span className="text-sm text-gray-900">${ex.price}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Total Price */}
                 <div className="flex items-center justify-between mb-6 py-3 border-t border-gray-200">
                   <span className="font-medium text-gray-900">Total</span>
                   <span className="text-xl font-bold text-gray-900">
-                    ${tour.price * groupSize}
+                    ${grandTotal}
                   </span>
                 </div>
 
                 {/* Book Button */}
                 <Link 
-                  to={`/book/tour/${tour.id}?tourDate=${selectedDate}&timeSlot=${tour.timeSlots?.[0] || '09:00'}&participants=${groupSize}`}
+                  to={`/book/tour/${tour.id}?tourDate=${selectedDate}&timeSlot=${selectedTime || (tour.timeSlots?.[0] || '09:00')}&participants=${groupSize}`}
                   className="block w-full"
                 >
-                  <button className="w-full bg-[#01502E] text-white py-3 rounded-lg font-semibold hover:bg-[#013d23] transition-all duration-200 transform hover:scale-105 shadow-lg">
+                  <button
+                    disabled={!selectedDate || !selectedTime || groupSize < tour.groupSize.min}
+                    className="w-full bg-[#01502E] disabled:opacity-60 disabled:cursor-not-allowed text-white py-3 rounded-lg font-semibold hover:bg-[#013d23] transition-all duration-200 transform hover:scale-105 shadow-lg"
+                  >
                     Book Now
                   </button>
                 </Link>
+
+                {/* Wishlist Toggle */}
+                <div className="mt-3">
+                  <button
+                    onClick={handleFavoriteToggle}
+                    className={`w-full py-2 rounded-lg font-semibold border transition-all duration-200 ${
+                      isFavorite
+                        ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                    aria-label={isFavorite ? 'Remove from wishlist' : 'Add to wishlist'}
+                  >
+                    {isFavorite ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                  </button>
+                </div>
 
                 {/* Message Guide */}
                 <div className="mt-4">
@@ -646,12 +765,19 @@ export default function TourDetailPage() {
               </div>
             </div>
           </div>
-          <button onClick={() => setChatOpen(true)} className="bg-blue-600 rounded-full p-3 shadow-lg text-white hover:bg-blue-700 transition-colors">
+          <button onClick={() => setChatOpen(true)} className="bg-[#01502E] rounded-full p-3 shadow-lg text-white hover:bg-[#013d23] transition-colors">
             Contact Guide
           </button>
         </div>
 
       </div>
+      {/* Lightbox */}
+      {lightboxOpen && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+          <button onClick={() => setLightboxOpen(false)} className="absolute top-6 right-6 text-white text-lg">Close</button>
+          <img src={tour.images[currentImageIndex] || '/placeholder-tour.jpg'} alt="gallery" className="max-w-[90vw] max-h-[85vh] object-contain" />
+        </div>
+      )}
       <ChatInterface
         isOpen={chatOpen}
         onClose={() => setChatOpen(false)}

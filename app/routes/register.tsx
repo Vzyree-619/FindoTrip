@@ -5,7 +5,7 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { Form, Link, useActionData, useNavigation, useNavigate } from "@remix-run/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { register, createUserSession, getUserId } from "~/lib/auth/auth.server";
 import { sendWelcomeEmail } from "~/lib/email/email.server";
 import { 
@@ -26,6 +26,8 @@ import {
   Camera,
   Globe
 } from "lucide-react";
+import TermsContent from "~/components/legal/TermsContent";
+import PrivacyContent from "~/components/legal/PrivacyContent";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await getUserId(request);
@@ -103,6 +105,32 @@ export default function Register() {
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [modalAgree, setModalAgree] = useState(false);
+  const [reachedEnd, setReachedEnd] = useState(false);
+  const termsContentRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!showTerms) return;
+    setModalAgree(false);
+    setReachedEnd(false);
+
+    const el = termsContentRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      if (distanceFromBottom <= 8) {
+        setReachedEnd(true);
+        setModalAgree(true); // auto-check agree when scrolled to bottom
+      }
+    };
+
+    el.addEventListener('scroll', onScroll);
+    // Initial check in case content fits without scroll
+    onScroll();
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [showTerms]);
 
   // Password strength calculation
   const getPasswordStrength = (pwd: string) => {
@@ -426,7 +454,7 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Terms and Conditions */}
+            {/* Terms and Conditions (Modal-trigger) */}
             <div className="flex items-start">
               <input
                 id="terms"
@@ -439,13 +467,13 @@ export default function Register() {
               />
               <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
                 I agree to the{" "}
-                <Link to="/terms" className="text-[#01502E] hover:text-[#013d23] font-medium">
+                <button type="button" onClick={() => setShowTerms(true)} className="text-[#01502E] hover:text-[#013d23] font-medium underline">
                   Terms of Service
-                </Link>{" "}
+                </button>{" "}
                 and{" "}
-                <Link to="/privacy" className="text-[#01502E] hover:text-[#013d23] font-medium">
+                <button type="button" onClick={() => setShowTerms(true)} className="text-[#01502E] hover:text-[#013d23] font-medium underline">
                   Privacy Policy
-                </Link>
+                </button>
               </label>
             </div>
 
@@ -474,6 +502,63 @@ export default function Register() {
                 "Create Account"
               )}
             </button>
+
+            {/* Terms Modal */}
+            {showTerms && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 relative">
+                  <button
+                    type="button"
+                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+                    onClick={() => setShowTerms(false)}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                  <h3 className="text-lg font-semibold mb-2">Terms & Privacy</h3>
+                  {/* Condensed summary */}
+                  <div className="mb-3 text-sm text-gray-700">
+                    Please review our key points below. Scroll to the bottom or check the box to enable Accept.
+                    <ul className="list-disc ml-5 mt-2">
+                      <li>Bookings are contracts with providers; policies vary.</li>
+                      <li>Your data is collected to provide/improve services and is protected.</li>
+                      <li>You can request access or deletion of your data anytime.</li>
+                    </ul>
+                  </div>
+                  <div ref={termsContentRef} className="prose max-h-[50vh] overflow-y-auto space-y-8 border rounded p-3">
+                    <TermsContent />
+                    <PrivacyContent />
+                  </div>
+                  {reachedEnd && (
+                    <div className="mt-3 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-block">
+                      You’ve reviewed all sections
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-start gap-2">
+                    <input
+                      id="modalAgree"
+                      type="checkbox"
+                      className="h-4 w-4 mt-1 text-[#01502E] border-gray-300 rounded"
+                      checked={modalAgree}
+                      onChange={(e) => setModalAgree(e.target.checked)}
+                    />
+                    <label htmlFor="modalAgree" className="text-sm text-gray-700">
+                      I have read and agree to the Terms of Service and Privacy Policy
+                    </label>
+                  </div>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button type="button" className="px-4 py-2 rounded border" onClick={() => setShowTerms(false)}>Close</button>
+                    <button
+                      type="button"
+                      className={`px-4 py-2 rounded text-white ${modalAgree ? 'bg-[#01502E] hover:bg-[#013d23]' : 'bg-gray-300 cursor-not-allowed'}`}
+                      disabled={!modalAgree}
+                      onClick={() => { setAcceptedTerms(true); setShowTerms(false); }}
+                    >
+                      Accept
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </Form>
 
           {/* Divider */}

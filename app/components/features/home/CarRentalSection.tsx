@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import { cn } from '~/lib/utils';
 
-const vehicles = [
+function vehiclesDefault() {
+  return [
   {
     id: 1,
     name: 'Toyota Prado',
@@ -121,18 +122,23 @@ const vehicles = [
     available: true,
     discount: 0,
   },
-];
+  ];
+}
 
-export default function CarRentalSection() {
+export default function CarRentalSection({ vehicles = [] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [favorites, setFavorites] = useState<number[]>([]);
+
+  // Normalize incoming data to a safe array
+  const provided = Array.isArray(vehicles) ? vehicles : [];
+  const displayVehicles = provided.length ? provided : vehiclesDefault();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
   const itemsPerView = 3;
-  const maxIndex = Math.max(0, vehicles.length - itemsPerView);
+  const maxIndex = Math.max(0, (displayVehicles.length || 6) - itemsPerView);
 
   const nextSlide = () => {
     setCurrentIndex(prev => Math.min(prev + 1, maxIndex));
@@ -250,7 +256,7 @@ export default function CarRentalSection() {
           onMouseLeave={handleMouseLeave}
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {vehicles.map((vehicle) => (
+          {displayVehicles.map((vehicle) => (
             <Card key={vehicle.id} className="min-w-[300px] max-w-[320px] group hover:shadow-xl transition-all duration-300 border-0 shadow-lg">
               <CardHeader className="p-0">
                 <div className="relative">
@@ -265,11 +271,11 @@ export default function CarRentalSection() {
                   {/* Badges */}
                   <div className="absolute top-3 left-3 flex flex-col gap-2">
                     {vehicle.discount > 0 && (
-                      <Badge className="bg-red-500 text-white">
+                      <Badge className="bg-orange-500 text-white">
                         {vehicle.discount}% OFF
                       </Badge>
                     )}
-                    <Badge variant={vehicle.available ? "default" : "secondary"}>
+                    <Badge className={vehicle.available ? "bg-[#01502E] text-white" : "bg-orange-600 text-white"}>
                       {vehicle.available ? "Available" : "Booked"}
                     </Badge>
                   </div>
@@ -321,8 +327,8 @@ export default function CarRentalSection() {
                           key={i}
                           className={cn(
                             "h-4 w-4",
-                            i < Math.floor(vehicle.rating) 
-                              ? "fill-yellow-400 text-yellow-400" 
+                            i < Math.floor(vehicle.rating)
+                              ? "fill-orange-400 text-orange-400"
                               : "text-gray-300"
                           )}
                         />
@@ -388,12 +394,8 @@ export default function CarRentalSection() {
 
                   {/* Action Buttons */}
                   <div className="flex gap-2">
-                    <Button 
-                      asChild 
-                      className="flex-1 bg-[#01502E] hover:bg-[#013d23]"
-                      disabled={!vehicle.available}
-                    >
-                      <Link to={`/car_rentals?vehicle=${vehicle.id}`}>
+                    <Button asChild className="flex-1 bg-[#01502E] hover:bg-[#013d23]" disabled={!vehicle.available}>
+                      <Link to={`/vehicle/${vehicle.id}`}>
                         <Calendar className="h-4 w-4 mr-2" />
                         {vehicle.available ? "Book Now" : "Unavailable"}
                       </Link>
@@ -411,7 +413,7 @@ export default function CarRentalSection() {
         {/* View All Button */}
         <div className="text-center mt-12">
           <Button asChild size="lg" variant="outline" className="px-8">
-            <Link to="/car_rentals">
+            <Link to="/vehicles">
               View All Vehicles
               <ChevronRight className="h-4 w-4 ml-2" />
             </Link>

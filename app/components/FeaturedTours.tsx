@@ -54,34 +54,24 @@ interface FeaturedToursProps {
 // UTILITY FUNCTIONS
 // ========================================
 
-const getCategoryColor = (category: string) => {
-  const colors = {
-    Adventure: 'bg-orange-500',
-    Cultural: 'bg-purple-500',
-    Food: 'bg-red-500',
-    Nature: 'bg-green-500',
-    Historical: 'bg-amber-500',
-    Wildlife: 'bg-teal-500'
-  };
-  return colors[category as keyof typeof colors] || 'bg-gray-500';
-};
+const getCategoryColor = (_category: string) => 'bg-orange-500';
 
 const getDifficultyColor = (difficulty: string) => {
   const colors = {
-    Easy: 'text-green-600',
-    Moderate: 'text-yellow-600',
-    Hard: 'text-red-600'
+    Easy: 'text-[#01502E]',
+    Moderate: 'text-orange-600',
+    Hard: 'text-orange-700'
   };
-  return colors[difficulty as keyof typeof colors] || 'text-gray-600';
+  return colors[difficulty as keyof typeof colors] || 'text-[#01502E]';
 };
 
 const getAvailabilityColor = (availability: string) => {
   const colors = {
-    Available: 'bg-green-500',
-    Limited: 'bg-yellow-500',
-    'Fully Booked': 'bg-red-500'
+    Available: 'bg-[#01502E]',
+    Limited: 'bg-orange-500',
+    'Fully Booked': 'bg-orange-700'
   };
-  return colors[availability as keyof typeof colors] || 'bg-gray-500';
+  return colors[availability as keyof typeof colors] || 'bg-[#01502E]';
 };
 
 // ========================================
@@ -135,7 +125,7 @@ export default function FeaturedTours({
   }
 
   return (
-    <section className="py-16 bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <section className="py-16 bg-gradient-to-br from-[#01502E]/5 via-white to-orange-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -148,7 +138,7 @@ export default function FeaturedTours({
           {showViewAll && (
             <Link
               to="/tours"
-              className="inline-flex items-center mt-6 text-blue-600 hover:text-blue-800 font-medium transition-colors"
+              className="inline-flex items-center mt-6 text-[#01502E] hover:text-orange-600 font-medium transition-colors"
             >
               View all tours
               <ChevronRight className="w-4 h-4 ml-1" />
@@ -191,12 +181,12 @@ export default function FeaturedTours({
                               </span>
                             )}
                             {tour.isPopular && (
-                              <span className="bg-gradient-to-r from-pink-500 to-red-500 text-white text-sm font-bold px-3 py-1 rounded-full">
+                              <span className="bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-bold px-3 py-1 rounded-full">
                                 🔥 Popular
                               </span>
                             )}
                             {tour.isNew && (
-                              <span className="bg-gradient-to-r from-green-400 to-blue-500 text-white text-sm font-bold px-3 py-1 rounded-full">
+                              <span className="bg-gradient-to-r from-[#01502E] to-green-600 text-white text-sm font-bold px-3 py-1 rounded-full">
                                 ✨ New
                               </span>
                             )}
@@ -240,7 +230,7 @@ export default function FeaturedTours({
                               </div>
                               <span className="text-white font-medium">{tour.guide.name}</span>
                               {tour.guide.isVerified && (
-                                <span className="text-blue-400">✓</span>
+                                <span className="text-[#01502E]">✓</span>
                               )}
                             </div>
                           </div>
@@ -282,8 +272,8 @@ export default function FeaturedTours({
                                 />
                               </button>
                               <Link
-                                to={`/tours/${tour.id}`}
-                                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                                to={`/tour/${tour.id}`}
+                                className="bg-[#01502E] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#013d23] transition-all duration-200 transform hover:scale-105 shadow-lg"
                               >
                                 View Details
                               </Link>
@@ -393,7 +383,7 @@ export default function FeaturedTours({
                       </div>
                     </div>
 
-                    <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                    <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-[#01502E] transition-colors">
                       {tour.title}
                     </h3>
 
@@ -421,7 +411,7 @@ export default function FeaturedTours({
                         </span>
                         <span className="text-xs text-gray-500">per person</span>
                       </div>
-                      <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105">
+                      <button className="bg-[#01502E] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#013d23] transition-all duration-200 transform hover:scale-105">
                         Book Now
                       </button>
                     </div>

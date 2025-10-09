@@ -39,7 +39,7 @@ const NavBar = () => {
           <Link to="/accommodations/search">Stays</Link>
         </li>
         <li className="hover:text-[#01502E] cursor-pointer transition">
-          <Link to="/car_rentals">Car Rentals</Link>
+          <Link to="/vehicles">Car Rentals</Link>
         </li>
         <li className="hover:text-[#01502E] cursor-pointer transition">
           <Link to="/tours">Tours</Link>
@@ -70,7 +70,7 @@ const NavBar = () => {
             <Link to="/accommodations/search" onClick={() => setIsOpen(false)}>Stays</Link>
           </li>
           <li className="hover:text-[#01502E] cursor-pointer transition">
-            <Link to="/car_rentals" onClick={() => setIsOpen(false)}>Car Rentals</Link>
+            <Link to="/vehicles" onClick={() => setIsOpen(false)}>Car Rentals</Link>
           </li>
           <li className="hover:text-[#01502E] cursor-pointer transition">
             <Link to="/tours" onClick={() => setIsOpen(false)}>Tours</Link>

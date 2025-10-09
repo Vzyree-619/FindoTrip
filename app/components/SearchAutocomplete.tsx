@@ -287,12 +287,12 @@ export default function SearchAutocomplete({
   // Get suggestion color
   const getSuggestionColor = (suggestion: SearchSuggestion) => {
     const colors = {
-      location: 'text-blue-600',
-      property: 'text-green-600',
-      vehicle: 'text-purple-600',
-      tour: 'text-orange-600',
+      location: 'text-[#01502E]',
+      property: 'text-[#01502E]',
+      vehicle: 'text-orange-600',
+      tour: 'text-[#01502E]',
       recent: 'text-gray-600',
-      popular: 'text-red-600'
+      popular: 'text-orange-600'
     };
     return colors[suggestion.type] || 'text-gray-600';
   };
@@ -310,11 +310,11 @@ export default function SearchAutocomplete({
           onKeyDown={handleKeyDown}
           onFocus={() => setIsOpen(true)}
           placeholder={placeholder}
-          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
         />
         {isLoading && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#01502E]"></div>
           </div>
         )}
       </div>
@@ -332,9 +332,9 @@ export default function SearchAutocomplete({
                 <button
                   key={suggestion.id}
                   onClick={() => handleSuggestionSelect(suggestion)}
-                  className={`w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center space-x-3 ${
-                    index === selectedIndex ? 'bg-blue-50' : ''
-                  }`}
+          className={`w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center space-x-3 ${
+            index === selectedIndex ? 'bg-[#01502E]/10' : ''
+          }`}
                 >
                   <div className={`${getSuggestionColor(suggestion)}`}>
                     {getSuggestionIcon(suggestion)}
@@ -370,7 +370,7 @@ export default function SearchAutocomplete({
                     )}
                   </div>
                   {suggestion.isVerified && (
-                    <div className="text-blue-500">
+                    <div className="text-[#01502E]">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>

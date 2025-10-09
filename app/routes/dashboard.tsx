@@ -20,22 +20,26 @@ import {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
+  const url = new URL(request.url);
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: true }
   });
 
-  // Redirect based on role - customers stay on main dashboard
-  if (user?.role === "PROPERTY_OWNER") {
-    throw redirect("/dashboard/provider");
+  // Redirect based on role only when visiting the root dashboard path
+  // Avoid self-redirect loops on role-specific child routes (e.g., /dashboard/provider)
+  if (url.pathname === "/dashboard") {
+    if (user?.role === "PROPERTY_OWNER") {
+      throw redirect("/dashboard/provider");
+    }
+    if (user?.role === "VEHICLE_OWNER") {
+      throw redirect("/dashboard/vehicle-owner");
+    }
+    if (user?.role === "TOUR_GUIDE") {
+      throw redirect("/dashboard/guide");
+    }
+    // SUPER_ADMIN would stay here for admin dashboard
   }
-  if (user?.role === "VEHICLE_OWNER") {
-    throw redirect("/dashboard/vehicle-owner");
-  }
-  if (user?.role === "TOUR_GUIDE") {
-    throw redirect("/dashboard/guide");
-  }
-  // SUPER_ADMIN would stay here for admin dashboard
 
   // Get dashboard stats - only for customers
   const [propertyBookings, vehicleBookings, tourBookings, reviewsCount, wishlists] = await Promise.all([
@@ -112,6 +116,18 @@ export default function Dashboard() {
         <div className="text-center">
           <p className="text-gray-600">Loading dashboard...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Render provider-specific layout without customer sidebar/navigation
+  const isProviderRole = user.role === "PROPERTY_OWNER" || user.role === "VEHICLE_OWNER" || user.role === "TOUR_GUIDE";
+  if (isProviderRole) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <main className="flex-1">
+          <Outlet />
+        </main>
       </div>
     );
   }

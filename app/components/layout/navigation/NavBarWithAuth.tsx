@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, User, LogOut, Settings, Heart, Calendar, ChevronDown, MessageCircle } from "lucide-react";
+import { Menu, X, User, LogOut, Settings, Heart, Calendar, ChevronDown, MessageCircle, Plus } from "lucide-react";
 import { Link, Form, useLocation } from "@remix-run/react";
 
 interface NavBarUser {
@@ -43,11 +43,45 @@ const NavBar = ({ user }: NavBarProps) => {
   }, [showUserMenu]);
 
   // Role-aware dashboard path
-  const dashboardPath = user?.role === "PROPERTY_OWNER"
-    ? "/dashboard/provider"
-    : user?.role === "TOUR_GUIDE"
-      ? "/dashboard/guide"
-      : "/dashboard";
+  const dashboardPath =
+    user?.role === "PROPERTY_OWNER"
+      ? "/dashboard/provider"
+      : user?.role === "VEHICLE_OWNER"
+        ? "/dashboard/vehicle-owner"
+        : user?.role === "TOUR_GUIDE"
+          ? "/dashboard/guide"
+          : "/dashboard";
+  const isProvider =
+    user?.role === "PROPERTY_OWNER" ||
+    user?.role === "VEHICLE_OWNER" ||
+    user?.role === "TOUR_GUIDE";
+
+  // Provider-specific labels/paths
+  const providerManagePath =
+    user?.role === "PROPERTY_OWNER"
+      ? "/dashboard/provider"
+      : user?.role === "VEHICLE_OWNER"
+        ? "/dashboard/vehicle-owner"
+        : user?.role === "TOUR_GUIDE"
+          ? "/dashboard/guide"
+          : undefined;
+  const providerCreatePath = providerManagePath ? `${providerManagePath}#create` : undefined;
+  const providerManageLabel =
+    user?.role === "PROPERTY_OWNER"
+      ? "Manage Properties"
+      : user?.role === "VEHICLE_OWNER"
+        ? "Manage Vehicles"
+        : user?.role === "TOUR_GUIDE"
+          ? "Manage Tours"
+          : undefined;
+  const providerCreateLabel =
+    user?.role === "PROPERTY_OWNER"
+      ? "Add Property"
+      : user?.role === "VEHICLE_OWNER"
+        ? "Add Vehicle"
+        : user?.role === "TOUR_GUIDE"
+          ? "Create Tour"
+          : undefined;
 
   return (
     <>
@@ -94,9 +128,9 @@ const NavBar = ({ user }: NavBarProps) => {
         </li>
         <li>
           <Link 
-            to="/car_rentals"
+            to="/vehicles"
             className={`cursor-pointer transition-colors duration-200 ${
-              isActive('/car_rentals') 
+              isActive('/vehicles') 
                 ? 'font-semibold text-[#01502E]' 
                 : 'font-normal text-gray-700 hover:text-orange-500'
             }`}
@@ -129,21 +163,7 @@ const NavBar = ({ user }: NavBarProps) => {
           </Link>
         </li>
 
-        {user && (
-          <li>
-            <Link
-              to={dashboardPath}
-              reloadDocument
-              className={`cursor-pointer transition-colors duration-200 ${
-                isActive(dashboardPath)
-                  ? 'font-semibold text-[#01502E]'
-                  : 'font-normal text-gray-700 hover:text-orange-500'
-              }`}
-            >
-              Dashboard
-            </Link>
-          </li>
-        )}
+        {/* Removed top-level Dashboard item to avoid duplication and reduce redirect loops */}
         {user && (
           <li>
             <Link
@@ -166,10 +186,7 @@ const NavBar = ({ user }: NavBarProps) => {
             <div ref={userMenuRef}>
               <button
                 type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log("User menu clicked!");
+                onClick={() => {
                   setShowUserMenu(!showUserMenu);
                 }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition cursor-pointer"
@@ -207,14 +224,40 @@ const NavBar = ({ user }: NavBarProps) => {
 
                   <Link
                     to={dashboardPath}
-                    reloadDocument
                     className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
                     onClick={() => setShowUserMenu(false)}
-                 >
+                  >
                     <User size={16} />
                     Dashboard
                   </Link>
 
+                  {isProvider && (
+                    <div className="px-4 pt-2 pb-1 text-[11px] uppercase tracking-wide text-gray-500">Provider</div>
+                  )}
+
+                  {isProvider && providerManagePath && providerManageLabel && (
+                    <Link
+                      to={providerManagePath}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <Settings size={16} />
+                      {providerManageLabel}
+                    </Link>
+                  )}
+
+                  {isProvider && providerCreatePath && providerCreateLabel && (
+                    <Link
+                      to={providerCreatePath}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <Plus size={16} />
+                      {providerCreateLabel}
+                    </Link>
+                  )}
+
+                  <div className="px-4 pt-2 pb-1 text-[11px] uppercase tracking-wide text-gray-500">Account</div>
                   <Link
                     to="/dashboard/profile"
                     className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
@@ -224,23 +267,29 @@ const NavBar = ({ user }: NavBarProps) => {
                     My Profile
                   </Link>
 
-                  <Link
-                    to="/dashboard/bookings"
-                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <Calendar size={16} />
-                    My Bookings
-                  </Link>
+                  {!isProvider && (
+                    <Link
+                      to="/dashboard/bookings"
+                      reloadDocument
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <Calendar size={16} />
+                      My Bookings
+                    </Link>
+                  )}
 
-                  <Link
-                    to="/dashboard/favorites"
-                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <Heart size={16} />
-                    Wishlist
-                  </Link>
+                  {!isProvider && (
+                    <Link
+                      to="/dashboard/favorites"
+                      reloadDocument
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <Heart size={16} />
+                      Wishlist
+                    </Link>
+                  )}
 
                   <Link
                     to="/dashboard/profile"
@@ -325,6 +374,9 @@ const NavBar = ({ user }: NavBarProps) => {
                   <div>
                     <p className="font-semibold text-gray-900">{user.name}</p>
                     <p className="text-xs text-gray-500">{user.email}</p>
+                    <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded bg-[#01502E]/10 text-[#01502E]">
+                      {user.role.replace("_", " ")}
+                    </span>
                   </div>
                 </div>
               </li>
@@ -345,10 +397,10 @@ const NavBar = ({ user }: NavBarProps) => {
             </li>
             <li>
               <Link 
-                to="/car_rentals" 
+                to="/vehicles" 
                 onClick={() => setIsOpen(false)}
                 className={`cursor-pointer transition-colors duration-200 ${
-                  isActive('/car_rentals') 
+                  isActive('/vehicles') 
                     ? 'font-semibold text-[#01502E]' 
                     : 'font-normal text-gray-700 hover:text-orange-500'
                 }`}
@@ -388,7 +440,6 @@ const NavBar = ({ user }: NavBarProps) => {
                 <li className="pt-4 border-t border-gray-200">
                   <Link
                     to={dashboardPath}
-                    reloadDocument
                     className="flex items-center gap-3 text-gray-700 hover:text-[#01502E] transition"
                     onClick={() => setIsOpen(false)}
                   >
@@ -396,6 +447,35 @@ const NavBar = ({ user }: NavBarProps) => {
                     Dashboard
                   </Link>
                 </li>
+
+                {isProvider && providerManagePath && providerManageLabel && (
+                  <>
+                    <li className="px-1 pt-2 pb-1 text-[11px] uppercase tracking-wide text-gray-500">Provider</li>
+                    <li>
+                      <Link
+                        to={providerManagePath}
+                        className="flex items-center gap-3 text-gray-700 hover:text-[#01502E] transition"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <Settings size={18} />
+                        {providerManageLabel}
+                      </Link>
+                    </li>
+                  </>
+                )}
+
+                {isProvider && providerCreatePath && providerCreateLabel && (
+                  <li>
+                    <Link
+                      to={providerCreatePath}
+                      className="flex items-center gap-3 text-gray-700 hover:text-[#01502E] transition"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Plus size={18} />
+                      {providerCreateLabel}
+                    </Link>
+                  </li>
+                )}
                 <li className="pt-4 border-t border-gray-200">
                   <Link
                     to="/dashboard/profile"
@@ -406,26 +486,30 @@ const NavBar = ({ user }: NavBarProps) => {
                     My Profile
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    to="/dashboard/bookings"
-                    className="flex items-center gap-3 text-gray-700 hover:text-[#01502E] transition"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <Calendar size={18} />
-                    My Bookings
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/dashboard/favorites"
-                    className="flex items-center gap-3 text-gray-700 hover:text-[#01502E] transition"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <Heart size={18} />
-                    Wishlist
-                  </Link>
-                </li>
+                {!isProvider && (
+                  <li>
+                    <Link
+                      to="/dashboard/bookings"
+                      className="flex items-center gap-3 text-gray-700 hover:text-[#01502E] transition"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Calendar size={18} />
+                      My Bookings
+                    </Link>
+                  </li>
+                )}
+                {!isProvider && (
+                  <li>
+                    <Link
+                      to="/dashboard/favorites"
+                      className="flex items-center gap-3 text-gray-700 hover:text-[#01502E] transition"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Heart size={18} />
+                      Wishlist
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link
                     to="/dashboard/profile"

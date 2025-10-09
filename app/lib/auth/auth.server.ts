@@ -129,16 +129,25 @@ export async function register(
 
 
   if (role === 'TOUR_GUIDE') {
+    const [firstName, ...rest] = name.split(' ');
+    const lastName = rest.join(' ') || 'Guide';
     await prisma.tourGuide.create({
       data: {
         userId: user.id,
-        bio: '',
+        firstName: firstName || 'Guide',
+        lastName,
+        dateOfBirth: new Date('1990-01-01'),
+        nationality: 'Unknown',
+        yearsOfExperience: 0,
         languages: ['English'],
-        specialties: [],
-        experience: 0,
-        pricePerHour: 50,
-        city: '',
-        country: '',
+        specializations: [],
+        certifications: [],
+        serviceAreas: [],
+        pricePerPerson: 0,
+        workingHours: '09:00-17:00',
+        // optional fields left to onboarding
+        verified: false,
+        documentsSubmitted: [],
       },
     });
   }

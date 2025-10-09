@@ -30,6 +30,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const property = await prisma.property.findUnique({
     where: { id },
     include: {
+      owner: {
+        include: {
+          user: { select: { id: true, name: true, email: true, avatar: true } }
+        }
+      },
       reviews: {
         orderBy: { createdAt: "desc" },
         include: { user: { select: { name: true, avatar: true } } },
@@ -77,7 +82,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   });
 
   // Map property -> accommodation shape used by UI
-  const accommodation = { ...property, pricePerNight: property.basePrice } as any;
+  const accommodation = { ...property, pricePerNight: property.basePrice, currency: (property as any).currency || 'PKR' } as any;
 
   return json({ 
     accommodation, 
@@ -602,13 +607,13 @@ export default function AccommodationDetail() {
                     </div>
 
                     {/* Price and Rating */}
-                    <div className="flex justify-between items-center mt-3">
-                      <div>
-                        <span className="text-xl font-bold text-[#01502E]">
-                          ${property.basePrice}
-                        </span>
-                        <span className="text-sm text-gray-600"> /night</span>
-                      </div>
+          <div className="flex justify-between items-center mt-3">
+            <div>
+              <span className="text-xl font-bold text-[#01502E]">
+                {accommodation.currency} {property.basePrice.toLocaleString()}
+              </span>
+              <span className="text-sm text-gray-600"> /night</span>
+            </div>
                       
                       {property.reviewCount > 0 && (
                         <div className="flex items-center gap-1">
@@ -627,12 +632,14 @@ export default function AccommodationDetail() {
         )}
       </div>
       {/* Chat Interface Modal */}
-      <ChatInterface
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
-        targetUserId={accommodation.ownerId}
-        initialMessage={`Hi, I'm interested in ${accommodation.name}${checkIn && checkOut ? ` for ${checkIn} to ${checkOut}` : ''}.`}
-      />
+      {accommodation?.owner?.user?.id && (
+        <ChatInterface
+          isOpen={chatOpen}
+          onClose={() => setChatOpen(false)}
+          targetUserId={accommodation.owner.user.id}
+          initialMessage={`Hi, I'm interested in ${accommodation.name}${checkIn && checkOut ? ` for ${checkIn} to ${checkOut}` : ''}.`}
+        />
+      )}
     </div>
   );
 }

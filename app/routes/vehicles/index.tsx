@@ -3,6 +3,8 @@ import { useLoaderData, useSearchParams } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { VehicleGrid, VehicleCardSkeleton, VehicleComparison } from "~/components/VehicleCard";
 import { useState } from "react";
+import { Card } from "~/components/ui/card";
+import { Button } from "~/components/ui/button";
 import { Search, Filter, MapPin, Calendar, Users, Star, Car, Zap, Fuel } from "lucide-react";
 
 // ========================================
@@ -129,64 +131,138 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (sortBy === 'rating') orderBy = { averageRating: 'desc' };
     if (sortBy === 'featured') orderBy = [{ isFeatured: 'desc' }, { averageRating: 'desc' }];
 
-    // Get vehicles
-    const vehicles = await prisma.vehicle.findMany({
-      where,
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            averageRating: true,
-            totalReviews: true,
-            isVerified: true
+    // Try to get vehicles from database; fallback to mock data if DB unavailable
+    let vehicles, total, categories, fuelTypes, transmissions, priceStats, locations;
+    try {
+      // Get vehicles
+      vehicles = await prisma.vehicle.findMany({
+        where,
+        include: {
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              averageRating: true,
+              totalReviews: true,
+              isVerified: true
+            }
+          },
+          images: true,
+          reviews: {
+            where: { isActive: true },
+            select: { rating: true }
           }
         },
-        images: true,
-        reviews: {
-          where: { isActive: true },
-          select: { rating: true }
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit
+      });
+
+      // Get total count
+      total = await prisma.vehicle.count({ where });
+
+      // Get filter options
+      categories = await prisma.vehicle.findMany({
+        where: { isActive: true, isApproved: true },
+        select: { category: true },
+        distinct: ['category']
+      });
+
+      fuelTypes = await prisma.vehicle.findMany({
+        where: { isActive: true, isApproved: true },
+        select: { fuelType: true },
+        distinct: ['fuelType']
+      });
+
+      transmissions = await prisma.vehicle.findMany({
+        where: { isActive: true, isApproved: true },
+        select: { transmission: true },
+        distinct: ['transmission']
+      });
+
+      priceStats = await prisma.vehicle.aggregate({
+        where: { isActive: true, isApproved: true },
+        _min: { basePrice: true },
+        _max: { basePrice: true }
+      });
+
+      locations = await prisma.vehicle.findMany({
+        where: { isActive: true, isApproved: true },
+        select: { location: true },
+        distinct: ['location']
+      });
+    } catch (dbError) {
+      console.warn('Database connection failed for vehicles. Using fallback data:', dbError);
+      // Fallback mock data
+      vehicles = [
+        {
+          id: 'v1',
+          name: 'Toyota Corolla',
+          model: 'Corolla',
+          year: 2020,
+          mileage: 25000,
+          images: ['/car.jpg', '/placeholder-vehicle.jpg'],
+          basePrice: 8000,
+          originalPrice: 9500,
+          category: 'Economy',
+          transmission: 'Automatic',
+          fuelType: 'Gasoline',
+          passengerCapacity: 5,
+          luggageCapacity: 3,
+          fuelEfficiency: 14,
+          location: 'Skardu, Pakistan',
+          createdAt: new Date(),
+          totalBookings: 22,
+          isFeatured: true,
+          owner: {
+            id: 'owner-1',
+            name: 'Ali Raza',
+            avatar: null,
+            averageRating: 4.7,
+            totalReviews: 34,
+            isVerified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 4 }, { rating: 5 }]
+        },
+        {
+          id: 'v2',
+          name: 'Toyota Land Cruiser Prado',
+          model: 'Prado',
+          year: 2019,
+          mileage: 40000,
+          images: ['/prado.png', '/placeholder-vehicle.jpg'],
+          basePrice: 18000,
+          originalPrice: 20000,
+          category: 'SUV',
+          transmission: 'Automatic',
+          fuelType: 'Diesel',
+          passengerCapacity: 7,
+          luggageCapacity: 5,
+          fuelEfficiency: 9,
+          location: 'Hunza, Pakistan',
+          createdAt: new Date(),
+          totalBookings: 41,
+          isFeatured: false,
+          owner: {
+            id: 'owner-2',
+            name: 'Sara Khan',
+            avatar: null,
+            averageRating: 4.6,
+            totalReviews: 28,
+            isVerified: true
+          },
+          reviews: [{ rating: 4 }, { rating: 5 }, { rating: 4 }]
         }
-      },
-      orderBy,
-      skip: (page - 1) * limit,
-      take: limit
-    });
+      ];
 
-    // Get total count
-    const total = await prisma.vehicle.count({ where });
-
-    // Get filter options
-    const categories = await prisma.vehicle.findMany({
-      where: { isActive: true, isApproved: true },
-      select: { category: true },
-      distinct: ['category']
-    });
-
-    const fuelTypes = await prisma.vehicle.findMany({
-      where: { isActive: true, isApproved: true },
-      select: { fuelType: true },
-      distinct: ['fuelType']
-    });
-
-    const transmissions = await prisma.vehicle.findMany({
-      where: { isActive: true, isApproved: true },
-      select: { transmission: true },
-      distinct: ['transmission']
-    });
-
-    const priceStats = await prisma.vehicle.aggregate({
-      where: { isActive: true, isApproved: true },
-      _min: { basePrice: true },
-      _max: { basePrice: true }
-    });
-
-    const locations = await prisma.vehicle.findMany({
-      where: { isActive: true, isApproved: true },
-      select: { location: true },
-      distinct: ['location']
-    });
+      total = vehicles.length;
+      categories = [{ category: 'Economy' }, { category: 'SUV' }, { category: 'Luxury' }];
+      fuelTypes = [{ fuelType: 'Gasoline' }, { fuelType: 'Diesel' }, { fuelType: 'Electric' }];
+      transmissions = [{ transmission: 'Automatic' }, { transmission: 'Manual' }];
+      priceStats = { _min: { basePrice: 6000 }, _max: { basePrice: 25000 } } as any;
+      locations = [{ location: 'Skardu, Pakistan' }, { location: 'Hunza, Pakistan' }];
+    }
 
     // Format vehicles
     const formattedVehicles: Vehicle[] = vehicles.map(vehicle => {

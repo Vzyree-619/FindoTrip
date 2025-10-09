@@ -31,41 +31,79 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       throw new Error("Vehicle ID required");
     }
 
-    // Get vehicle details
-    const vehicle = await prisma.vehicle.findUnique({
-      where: { id: vehicleId },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            businessName: true,
-            verified: true,
-            averageRating: true,
-            totalBookings: true,
-            user: {
-              select: {
-                name: true,
-                avatar: true,
-                phone: true
-              }
-            }
-          }
-        },
-        reviews: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true
+    // Try to get vehicle details from database
+    let vehicle;
+    try {
+      vehicle = await prisma.vehicle.findUnique({
+        where: { id: vehicleId },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              businessName: true,
+              verified: true,
+              averageRating: true,
+              totalBookings: true,
+              user: {
+                select: {
+                  name: true,
+                  avatar: true,
+                  phone: true
+                }
               }
             }
           },
-          orderBy: { createdAt: 'desc' },
-          take: 10
+          reviews: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true
+                }
+              }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+          }
         }
-      }
-    });
+      });
+    } catch (dbError) {
+      console.warn("Database connection failed, using fallback data:", dbError);
+      // Fallback to mock data when database is not available
+      vehicle = {
+        id: vehicleId,
+        name: "Honda BRV",
+        model: "BRV",
+        year: 2022,
+        mileage: 15000,
+        images: ["/brv.png", "/car.jpg"],
+        pricePerDay: 15000,
+        category: "SUV",
+        transmission: "Automatic",
+        fuelType: "Gasoline",
+        city: "Islamabad",
+        country: "Pakistan",
+        features: ["Air Conditioning", "GPS Navigation", "Bluetooth", "USB Charging"],
+        passengers: 7,
+        luggage: 3,
+        fuelEfficiency: 12,
+        available: true,
+        owner: {
+          id: "owner-1",
+          businessName: "Khan Rentals",
+          verified: true,
+          averageRating: 4.5,
+          totalBookings: 200,
+          user: {
+            name: "Ali Khan",
+            avatar: null,
+            phone: "+92 300 1234567"
+          }
+        },
+        reviews: []
+      };
+    }
 
     if (!vehicle) {
       throw new Error("Vehicle not found");
@@ -267,7 +305,7 @@ export default function VehicleDetailPage() {
                   <span>{vehicle.transmission}</span>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                  <Star className="w-5 h-5 text-orange-400 fill-orange-400" />
                   <span>{vehicle.rating.toFixed(1)} ({vehicle.reviewCount} reviews)</span>
                 </div>
               </div>
@@ -284,11 +322,11 @@ export default function VehicleDetailPage() {
                     <div className="flex items-center space-x-2">
                       <span className="text-white font-medium">{vehicle.owner.name}</span>
                       {vehicle.owner.isVerified && (
-                        <Shield className="w-4 h-4 text-blue-400" />
+                        <Shield className="w-4 h-4 text-[#01502E]" />
                       )}
                     </div>
                     <div className="flex items-center space-x-1">
-                      <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                      <Star className="w-4 h-4 text-orange-400 fill-orange-400" />
                       <span className="text-sm text-white/80">
                         {vehicle.owner.rating.toFixed(1)} ({vehicle.owner.reviewCount} rentals)
                       </span>
@@ -642,6 +680,41 @@ export default function VehicleDetailPage() {
                     <span className="font-medium">{vehicle.year}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Rental Terms */}
+              <div className="mt-6 bg-white rounded-lg shadow-sm border p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Rental Terms</h4>
+                <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                  <li>Minimum rental: 1 day</li>
+                  <li>Mileage limit: 200 km/day; extra mileage charged</li>
+                  <li>Fuel policy: Full-to-Full</li>
+                  <li>Deposit required at pickup</li>
+                  <li>Airport pickup available</li>
+                </ul>
+              </div>
+
+              {/* Insurance Options */}
+              <div className="mt-6 bg-white rounded-lg shadow-sm border p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Insurance Options</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Basic Insurance (included)</span>
+                    <span className="text-gray-900">${(vehicle as any).insuranceFee || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Premium Insurance (optional)</span>
+                    <span className="text-gray-900">${(vehicle as any).insuranceFee || 0}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Coverage includes damage waiver; check provider policy for excess/deductible amounts.</p>
+                </div>
+              </div>
+
+              {/* Location & Pickup */}
+              <div className="mt-6 bg-white rounded-lg shadow-sm border p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Location & Pickup</h4>
+                <p className="text-sm text-gray-700 mb-2">Pickup Location: {vehicle.location}</p>
+                <div className="w-full h-56 bg-gray-100 rounded-lg border flex items-center justify-center text-gray-500">Map placeholder</div>
               </div>
             </div>
           </div>

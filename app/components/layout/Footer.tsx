@@ -31,7 +31,7 @@ export default function Footer() {
       title: "Travel Services",
       links: [
         { name: "Hotels & Stays", href: "/accommodations/search", icon: "🏨" },
-        { name: "Car Rentals", href: "/car_rentals", icon: "🚗" },
+        { name: "Car Rentals", href: "/vehicles", icon: "🚗" },
         { name: "Tour Packages", href: "/tours", icon: "🗺️" },
         { name: "Tour Guides", href: "/tours", icon: "👨‍🏫" },
         { name: "Activities", href: "/activities", icon: "🎯" },
@@ -270,20 +270,33 @@ export default function Footer() {
             {/* Download Apps */}
             <div className="text-center lg:text-right">
               <h4 className="text-lg font-semibold mb-4">Download Our App</h4>
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-end">
+                {/* Google Play Store */}
                 <a
-                  href="/download/android"
-                  className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                  href="https://play.google.com/store/apps/details?id=com.findotrip.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block hover:opacity-80 transition-opacity"
                 >
-                  <span>📱</span>
-                  <span className="text-sm">Android App</span>
+                  <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+                    alt="Get it on Google Play"
+                    className="h-12 w-auto"
+                  />
                 </a>
+                
+                {/* Apple App Store */}
                 <a
-                  href="/download/ios"
-                  className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                  href="https://apps.apple.com/app/findotrip/id123456789"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block hover:opacity-80 transition-opacity"
                 >
-                  <span>🍎</span>
-                  <span className="text-sm">iOS App</span>
+                  <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg"
+                    alt="Download on the App Store"
+                    className="h-12 w-auto"
+                  />
                 </a>
               </div>
             </div>

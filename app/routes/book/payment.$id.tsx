@@ -132,9 +132,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
     // Get payment methods (in a real app, this would come from your payment provider)
     const paymentMethods = [
-      { id: "stripe", name: "Credit/Debit Card", icon: "💳", description: "Visa, Mastercard, American Express" },
-      { id: "paypal", name: "PayPal", icon: "🅿️", description: "Pay with your PayPal account" },
-      { id: "bank_transfer", name: "Bank Transfer", icon: "🏦", description: "Direct bank transfer" },
+      { id: "stripe", name: "Stripe (Card)", icon: "💳", description: "Secure card payment" },
+      { id: "jazzcash", name: "JazzCash", icon: "📱", description: "Mobile wallet payment" },
     ];
 
     return json({
@@ -159,6 +158,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent");
   const bookingType = formData.get("bookingType") as string;
+
+  if (intent === "startPayment") {
+    const paymentMethod = formData.get("paymentMethod") as string;
+    const type = bookingType;
+    if (!paymentMethod) return json({ error: "Payment method required" }, { status: 400 });
+    if (paymentMethod === 'jazzcash') {
+      return redirect(`/payment/jazzcash/${bookingId}?type=${type}`);
+    }
+    if (paymentMethod === 'stripe') {
+      return redirect(`/payment/stripe/${bookingId}?type=${type}`);
+    }
+    return json({ error: "Unsupported payment method" }, { status: 400 });
+  }
 
   if (intent === "processPayment") {
     const paymentMethod = formData.get("paymentMethod") as string;

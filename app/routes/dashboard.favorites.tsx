@@ -23,23 +23,42 @@ import {
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
 
-  // Get user's wishlists and fetch properties by ids
+  // Get user's wishlists
   const lists = await prisma.wishlist.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
   });
 
-  const ids = Array.from(new Set(lists.flatMap((l) => l.propertyIds)));
-  const properties = ids.length
-    ? await prisma.property.findMany({ where: { id: { in: ids } } })
-    : [];
+  // Collect unique ids by type
+  const propertyIds = Array.from(new Set(lists.flatMap((l) => l.propertyIds)));
+  const vehicleIds = Array.from(new Set(lists.flatMap((l) => l.vehicleIds)));
+  const tourIds = Array.from(new Set(lists.flatMap((l) => l.tourIds)));
 
-  // Shape to prior UI structure: favorites[] with .accommodation
-  const favorites = properties.map((p) => ({
-    id: p.id,
-    accommodation: p,
-    createdAt: lists.find((l) => l.propertyIds.includes(p.id))?.createdAt ?? new Date(),
-  }));
+  // Fetch entities
+  const [properties, vehicles, tours] = await Promise.all([
+    propertyIds.length ? prisma.property.findMany({ where: { id: { in: propertyIds } } }) : Promise.resolve([]),
+    vehicleIds.length ? prisma.vehicle.findMany({ where: { id: { in: vehicleIds } } }) : Promise.resolve([]),
+    tourIds.length ? prisma.tour.findMany({ where: { id: { in: tourIds } } }) : Promise.resolve([]),
+  ]);
+
+  // Build favorites grouped by type
+  const favorites = {
+    properties: properties.map((p) => ({
+      id: p.id,
+      accommodation: p,
+      createdAt: lists.find((l) => l.propertyIds.includes(p.id))?.createdAt ?? new Date(),
+    })),
+    vehicles: vehicles.map((v) => ({
+      id: v.id,
+      vehicle: v,
+      createdAt: lists.find((l) => l.vehicleIds.includes(v.id))?.createdAt ?? new Date(),
+    })),
+    tours: tours.map((t) => ({
+      id: t.id,
+      tour: t,
+      createdAt: lists.find((l) => l.tourIds.includes(t.id))?.createdAt ?? new Date(),
+    })),
+  };
 
   return json({ favorites });
 }
@@ -48,21 +67,21 @@ export async function action({ request }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
-  const accommodationId = formData.get("accommodationId") as string;
+  const serviceType = (formData.get("serviceType") as string) || "property";
+  const serviceId = (formData.get("serviceId") as string) || "";
 
-  if (intent === "remove") {
+  if (intent === "remove" && serviceId) {
     try {
-      const lists = await prisma.wishlist.findMany({
-        where: { userId, propertyIds: { has: accommodationId } },
-      });
-      await Promise.all(
-        lists.map((l) =>
-          prisma.wishlist.update({
-            where: { id: l.id },
-            data: { propertyIds: l.propertyIds.filter((pid) => pid !== accommodationId) },
-          })
-        )
-      );
+      if (serviceType === "property") {
+        const lists = await prisma.wishlist.findMany({ where: { userId, propertyIds: { has: serviceId } } });
+        await Promise.all(lists.map((l) => prisma.wishlist.update({ where: { id: l.id }, data: { propertyIds: l.propertyIds.filter((id) => id !== serviceId) } })));
+      } else if (serviceType === "vehicle") {
+        const lists = await prisma.wishlist.findMany({ where: { userId, vehicleIds: { has: serviceId } } });
+        await Promise.all(lists.map((l) => prisma.wishlist.update({ where: { id: l.id }, data: { vehicleIds: l.vehicleIds.filter((id) => id !== serviceId) } })));
+      } else if (serviceType === "tour") {
+        const lists = await prisma.wishlist.findMany({ where: { userId, tourIds: { has: serviceId } } });
+        await Promise.all(lists.map((l) => prisma.wishlist.update({ where: { id: l.id }, data: { tourIds: l.tourIds.filter((id) => id !== serviceId) } })));
+      }
       return json({ success: true, message: "Removed from favorites" });
     } catch (error) {
       return json({ error: "Failed to remove from favorites" }, { status: 500 });
@@ -137,10 +156,10 @@ export default function Favorites() {
           </div>
         )}
 
-        {/* Favorites Grid */}
-        {favorites.length > 0 ? (
+        {/* Properties */}
+        {favorites.properties.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {favorites.map((favorite) => {
+            {favorites.properties.map((favorite) => {
               const accommodation = favorite.accommodation;
               if (!accommodation) return null;
 
@@ -156,7 +175,8 @@ export default function Favorites() {
                     <div className="absolute top-2 right-2">
                       <Form method="post" className="inline">
                         <input type="hidden" name="intent" value="remove" />
-                        <input type="hidden" name="accommodationId" value={accommodation.id} />
+                        <input type="hidden" name="serviceType" value="property" />
+                        <input type="hidden" name="serviceId" value={accommodation.id} />
                         <button
                           type="submit"
                           className="p-2 bg-white/90 hover:bg-white rounded-full shadow-md transition"
@@ -240,23 +260,126 @@ export default function Favorites() {
               );
             })}
           </div>
-        ) : (
-          /* Empty State */
+        )}
+
+        {/* Vehicles */}
+        {favorites.vehicles.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Saved Vehicles</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {favorites.vehicles.map((fav) => {
+                const v: any = fav.vehicle;
+                if (!v) return null;
+                return (
+                  <div key={fav.id} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition">
+                    <div className="relative h-48 overflow-hidden">
+                      <img src={(v.images?.[0]) || "/placeholder-vehicle.jpg"} alt={v.name || v.model} className="w-full h-full object-cover" />
+                      <div className="absolute top-2 right-2">
+                        <Form method="post" className="inline">
+                          <input type="hidden" name="intent" value="remove" />
+                          <input type="hidden" name="serviceType" value="vehicle" />
+                          <input type="hidden" name="serviceId" value={v.id} />
+                          <button type="submit" className="p-2 bg-white/90 hover:bg-white rounded-full shadow-md transition" title="Remove from favorites">
+                            <X className="h-4 w-4 text-red-600" />
+                          </button>
+                        </Form>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">{v.name || `${v.brand} ${v.model}`}</h3>
+                        {v.averageRating && (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                            <Star className="w-3 h-3 mr-1 fill-current" />
+                            {Number(v.averageRating).toFixed(1)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center text-gray-600 text-sm mb-3">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        <span className="line-clamp-1">{v.location || `${v.city || ''}${v.city ? ', ' : ''}${v.country || ''}`}</span>
+                      </div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <span className="text-xl font-bold text-[#01502E]">PKR {(v.basePrice || v.price)?.toLocaleString?.() || v.basePrice || v.price}</span>
+                          <span className="text-sm text-gray-600"> /day</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Link to={`/vehicles/${v.id}`} className="flex-1 text-center py-2 px-4 border border-[#01502E] text-[#01502E] rounded-md hover:bg-[#01502E] hover:text-white font-medium transition">View Details</Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Tours */}
+        {favorites.tours.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Saved Tours</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {favorites.tours.map((fav) => {
+                const t: any = fav.tour;
+                if (!t) return null;
+                return (
+                  <div key={fav.id} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition">
+                    <div className="relative h-48 overflow-hidden">
+                      <img src={(t.images?.[0]) || "/placeholder-tour.jpg"} alt={t.title} className="w-full h-full object-cover" />
+                      <div className="absolute top-2 right-2">
+                        <Form method="post" className="inline">
+                          <input type="hidden" name="intent" value="remove" />
+                          <input type="hidden" name="serviceType" value="tour" />
+                          <input type="hidden" name="serviceId" value={t.id} />
+                          <button type="submit" className="p-2 bg-white/90 hover:bg-white rounded-full shadow-md transition" title="Remove from favorites">
+                            <X className="h-4 w-4 text-red-600" />
+                          </button>
+                        </Form>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">{t.title}</h3>
+                        {t.averageRating && (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                            <Star className="w-3 h-3 mr-1 fill-current" />
+                            {Number(t.averageRating).toFixed(1)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center text-gray-600 text-sm mb-3">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        <span className="line-clamp-1">{t.location || `${t.city || ''}${t.city ? ', ' : ''}${t.country || ''}`}</span>
+                      </div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <span className="text-xl font-bold text-[#01502E]">PKR {(t.pricePerPerson || t.price)?.toLocaleString?.() || t.pricePerPerson || t.price}</span>
+                          <span className="text-sm text-gray-600"> /person</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Link to={`/tours/${t.id}`} className="flex-1 text-center py-2 px-4 border border-[#01502E] text-[#01502E] rounded-md hover:bg-[#01502E] hover:text-white font-medium transition">View Details</Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {favorites.properties.length === 0 && favorites.vehicles.length === 0 && favorites.tours.length === 0 && (
           <div className="text-center py-12">
             <Heart className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">
-              No favorites yet
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Start exploring and save properties you love for quick access later.
-            </p>
-            <div className="mt-6">
-              <Link
-                to="/accommodations/search"
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]"
-              >
-                Explore Properties
-              </Link>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No favorites yet</h3>
+            <p className="mt-1 text-sm text-gray-500">Start exploring and save items you love for quick access later.</p>
+            <div className="mt-6 flex gap-3 justify-center">
+              <Link to="/accommodations/search" className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">Explore Stays</Link>
+              <Link to="/vehicles" className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">Explore Vehicles</Link>
+              <Link to="/tours" className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">Explore Tours</Link>
             </div>
           </div>
         )}
@@ -264,14 +387,12 @@ export default function Favorites() {
         {/* Tips Section */}
         {favorites.length > 0 && (
           <div className="mt-12 bg-blue-50 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-blue-900 mb-2">
-              💡 Pro Tips
-            </h3>
+            <h3 className="text-lg font-medium text-blue-900 mb-2">💡 Pro Tips</h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Save properties during your search to compare them later</li>
+              <li>• Save items (stays, vehicles, tours) to compare later</li>
               <li>• Check back regularly as prices and availability change</li>
-              <li>• Use "Book Now" for quick booking with default dates</li>
-              <li>• Remove properties you're no longer interested in to keep your list organized</li>
+              <li>• Use "View Details" to customize dates and options before booking</li>
+              <li>• Remove items you're no longer interested in to keep your list organized</li>
             </ul>
           </div>
         )}

@@ -206,7 +206,7 @@ function CarRental({ formConfig, navigate }) {
     if (pickupDate) params.set('pickupDate', pickupDate.toString());
     if (dropoffDate) params.set('returnDate', dropoffDate.toString());
     
-    navigate(`/car_rentals?${params.toString()}`);
+    navigate(`/vehicles?${params.toString()}`);
   };
 
   return (
