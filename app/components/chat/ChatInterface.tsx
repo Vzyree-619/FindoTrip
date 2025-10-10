@@ -212,17 +212,17 @@ export function ChatInterface({
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-[#01502E] to-[#013d23] text-white">
           <div className="flex items-center gap-3">
-            <img src={conversation?.participants?.[0]?.avatar || "/avatar.png"} className="w-8 h-8 rounded-full" alt="avatar" />
+            <img src={conversation?.participants?.[0]?.avatar || "/avatar.png"} className="w-8 h-8 rounded-full border-2 border-white/20" alt="avatar" />
             <div>
-              <div className="font-medium">{conversation?.participants?.[0]?.name || "Chat"}</div>
-              <div className="text-xs text-gray-500">{isTyping ? "typing…" : conversation?.participants?.[0]?.online ? "online" : "offline"}</div>
+              <div className="font-semibold text-white">{conversation?.participants?.[0]?.name || "Chat"}</div>
+              <div className="text-xs text-white/70">{isTyping ? "typing…" : conversation?.participants?.[0]?.online ? "online" : "offline"}</div>
             </div>
           </div>
           {variant === 'modal' && (
-            <button className="p-2 rounded hover:bg-gray-100" onClick={onClose} aria-label="Close chat">
-              <X className="w-5 h-5" />
+            <button className="p-2 rounded-lg hover:bg-white/10 transition-colors" onClick={onClose} aria-label="Close chat">
+              <X className="w-5 h-5 text-white" />
             </button>
           )}
         </div>

@@ -281,18 +281,18 @@ export default function TourCard({ tour }: TourCardProps) {
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <span className="text-xl font-bold text-gray-900">
-                  ${tour.price}
+                  PKR {tour.price.toLocaleString()}
                 </span>
                 {tour.originalPrice && tour.originalPrice > tour.price && (
                   <span className="text-sm text-gray-500 line-through">
-                    ${tour.originalPrice}
+                    PKR {tour.originalPrice.toLocaleString()}
                   </span>
                 )}
               </div>
               <span className="text-xs text-gray-500">per person</span>
             </div>
             
-            <button className="bg-[#01502E] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#013d23] transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <button className="bg-gradient-to-r from-[#01502E] to-[#013d23] text-white px-6 py-3 rounded-lg font-semibold hover:from-[#013d23] hover:to-[#01502E] transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl border-2 border-transparent hover:border-[#01502E]">
               Book Now
             </button>
           </div>

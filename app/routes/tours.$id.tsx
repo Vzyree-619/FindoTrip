@@ -1,6 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link, useRevalidator } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
+import { requireUserId } from "~/lib/auth/auth.server";
 import { ChatInterface } from "~/components/chat";
 import { useState, useMemo } from "react";
 import { 
@@ -82,6 +83,8 @@ interface LoaderData {
 // ========================================
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
+  const userId = await requireUserId(request);
+  
   try {
     const tourId = params.id;
     
@@ -256,9 +259,9 @@ export default function TourDetailPage() {
   const [selectedTime, setSelectedTime] = useState((tour as any).timeSlots?.[0] || '');
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [extras, setExtras] = useState<{ key: string; label: string; price: number; selected: boolean }[]>([
-    { key: 'lunch', label: 'Lunch', price: 15, selected: false },
-    { key: 'photo', label: 'Photo package', price: 20, selected: false },
-    { key: 'equipment', label: 'Equipment rental', price: 10, selected: false },
+    { key: 'lunch', label: 'Lunch', price: 1500, selected: false },
+    { key: 'photo', label: 'Photo package', price: 2000, selected: false },
+    { key: 'equipment', label: 'Equipment rental', price: 1000, selected: false },
   ]);
 
   const handleFavoriteToggle = async () => {
@@ -600,7 +603,7 @@ export default function TourDetailPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="text-3xl font-bold text-gray-900">
-                      ${tour.price}
+                      PKR {tour.price.toLocaleString()}
                     </div>
                     <div className="text-sm text-gray-600">per person</div>
                   </div>
@@ -677,7 +680,7 @@ export default function TourDetailPage() {
                           <input type="checkbox" checked={ex.selected} onChange={() => toggleExtra(ex.key)} />
                           <span className="text-sm text-gray-700">{ex.label}</span>
                         </div>
-                        <span className="text-sm text-gray-900">${ex.price}</span>
+                        <span className="text-sm text-gray-900">PKR {ex.price.toLocaleString()}</span>
                       </label>
                     ))}
                   </div>
@@ -687,7 +690,7 @@ export default function TourDetailPage() {
                 <div className="flex items-center justify-between mb-6 py-3 border-t border-gray-200">
                   <span className="font-medium text-gray-900">Total</span>
                   <span className="text-xl font-bold text-gray-900">
-                    ${grandTotal}
+                    PKR {grandTotal.toLocaleString()}
                   </span>
                 </div>
 

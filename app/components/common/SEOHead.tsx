@@ -161,7 +161,7 @@ export const structuredDataTemplates = {
       "latitude": accommodation.latitude,
       "longitude": accommodation.longitude
     } : undefined,
-    "priceRange": `$${accommodation.pricePerNight}`,
+    "priceRange": `PKR ${accommodation.pricePerNight.toLocaleString()}`,
     "aggregateRating": accommodation.reviewCount > 0 ? {
       "@type": "AggregateRating",
       "ratingValue": accommodation.rating,

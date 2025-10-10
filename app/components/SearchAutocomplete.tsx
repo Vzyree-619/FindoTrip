@@ -363,7 +363,7 @@ export default function SearchAutocomplete({
                         )}
                         {suggestion.price && (
                           <span className="text-xs text-gray-500">
-                            ${suggestion.price}
+                            PKR {suggestion.price.toLocaleString()}
                           </span>
                         )}
                       </div>

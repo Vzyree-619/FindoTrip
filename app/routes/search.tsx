@@ -528,8 +528,8 @@ export default function SearchPage() {
   useEffect(() => {
     const applied: string[] = [];
     if (currentFilters.location) applied.push(`Location: ${currentFilters.location}`);
-    if (currentFilters.priceMin > 0) applied.push(`Min Price: $${currentFilters.priceMin}`);
-    if (currentFilters.priceMax < 1000) applied.push(`Max Price: $${currentFilters.priceMax}`);
+    if (currentFilters.priceMin > 0) applied.push(`Min Price: PKR ${currentFilters.priceMin.toLocaleString()}`);
+    if (currentFilters.priceMax < 1000) applied.push(`Max Price: PKR ${currentFilters.priceMax.toLocaleString()}`);
     if (currentFilters.rating > 0) applied.push(`Rating: ${currentFilters.rating}+ stars`);
     if (currentFilters.propertyType.length > 0) applied.push(`Type: ${currentFilters.propertyType.join(', ')}`);
     if (currentFilters.amenities.length > 0) applied.push(`Amenities: ${currentFilters.amenities.length} selected`);
@@ -696,8 +696,8 @@ export default function SearchPage() {
                         className="w-full"
                       />
                       <div className="flex justify-between text-sm text-gray-600">
-                        <span>${currentFilters.priceMin}</span>
-                        <span>${currentFilters.priceMax}</span>
+                        <span>PKR {currentFilters.priceMin.toLocaleString()}</span>
+                        <span>PKR {currentFilters.priceMax.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -794,8 +794,8 @@ export default function SearchPage() {
                         className="w-full"
                       />
                       <div className="flex justify-between text-sm text-gray-600">
-                        <span>${currentFilters.priceMin}</span>
-                        <span>${currentFilters.priceMax}</span>
+                        <span>PKR {currentFilters.priceMin.toLocaleString()}</span>
+                        <span>PKR {currentFilters.priceMax.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -894,8 +894,8 @@ export default function SearchPage() {
                         className="w-full"
                       />
                       <div className="flex justify-between text-sm text-gray-600">
-                        <span>${currentFilters.priceMin}</span>
-                        <span>${currentFilters.priceMax}</span>
+                        <span>PKR {currentFilters.priceMin.toLocaleString()}</span>
+                        <span>PKR {currentFilters.priceMax.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -1095,11 +1095,11 @@ export default function SearchPage() {
                         </div>
                         <div className="text-right">
                           <div className="text-2xl font-bold text-gray-900">
-                            ${result.price}
+                            PKR {result.price.toLocaleString()}
                           </div>
                           {result.originalPrice && result.originalPrice > result.price && (
                             <div className="text-sm text-gray-500 line-through">
-                              ${result.originalPrice}
+                              PKR {result.originalPrice.toLocaleString()}
                             </div>
                           )}
                           <div className="text-sm text-gray-500">

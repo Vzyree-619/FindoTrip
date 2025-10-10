@@ -86,7 +86,7 @@ export default function Pricing({ hotel }) {
                     ))}
                   </td>
                   <td className="py-2 px-4 border-b">
-                    {room.price ? `$${room.price}` : "N/A"}
+                    {room.price ? `PKR ${room.price.toLocaleString()}` : "N/A"}
                   </td>
                 </tr>
               ))}
@@ -100,7 +100,7 @@ export default function Pricing({ hotel }) {
                   </Link>
                 </td>
                 <td className="py-2 px-4 border-b inline"><MdEmojiPeople /> x 4</td>
-                <td className="py-2 px-4 border-b">${hotel.suitePrice}</td>
+                <td className="py-2 px-4 border-b">PKR {hotel.suitePrice.toLocaleString()}</td>
               </tr>
             )}
             {hotel.DeluxeDouble && (

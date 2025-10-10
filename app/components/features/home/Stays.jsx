@@ -36,8 +36,8 @@ const trendingStaysStatic = [
 ];
 
 export default function Stays({ stays = [] }) {
-  // Use database data if available, otherwise show empty state
-  const displayStays = stays.length > 0 ? stays : [];
+  // Use database data if available, limit to 4 items, otherwise show empty state
+  const displayStays = stays.length > 0 ? stays.slice(0, 4) : [];
   
   return (
     <div className="p-4 md:p-8">

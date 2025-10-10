@@ -240,11 +240,11 @@ export default function FeaturedTours({
                             <div className="flex items-center space-x-4">
                               <div className="flex items-center space-x-2">
                                 <span className="text-3xl font-bold text-white">
-                                  ${tour.price}
+                                  PKR {tour.price.toLocaleString()}
                                 </span>
                                 {tour.originalPrice && tour.originalPrice > tour.price && (
                                   <span className="text-lg text-white/70 line-through">
-                                    ${tour.originalPrice}
+                                    PKR {tour.originalPrice.toLocaleString()}
                                   </span>
                                 )}
                                 <span className="text-sm text-white/70">per person</span>
@@ -407,7 +407,7 @@ export default function FeaturedTours({
                     <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                       <div className="flex flex-col">
                         <span className="text-xl font-bold text-gray-900">
-                          ${tour.price}
+                          PKR {tour.price.toLocaleString()}
                         </span>
                         <span className="text-xs text-gray-500">per person</span>
                       </div>

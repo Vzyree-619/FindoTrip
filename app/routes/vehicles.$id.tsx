@@ -1,6 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link, useRevalidator } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
+import { requireUserId } from "~/lib/auth/auth.server";
 import { ChatInterface } from "~/components/chat";
 import { useState } from "react";
 import { 
@@ -24,6 +25,8 @@ import {
 // ========================================
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
+  const userId = await requireUserId(request);
+  
   try {
     const vehicleId = params.id;
     
@@ -575,7 +578,7 @@ export default function VehicleDetailPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="text-3xl font-bold text-gray-900">
-                      ${vehicle.price}
+                      PKR {vehicle.price.toLocaleString()}
                     </div>
                     <div className="text-sm text-gray-600">per day</div>
                   </div>

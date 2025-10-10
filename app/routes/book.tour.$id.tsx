@@ -28,9 +28,26 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
 
   const url = new URL(request.url);
-  const tourDate = url.searchParams.get("tourDate");
+  const tourDateParam = url.searchParams.get("tourDate");
   const timeSlot = url.searchParams.get("timeSlot");
   const participants = url.searchParams.get("participants");
+
+  // Parse tour date properly
+  let tourDate: Date | null = null;
+  if (tourDateParam) {
+    if (tourDateParam === "Tomorrow") {
+      tourDate = new Date();
+      tourDate.setDate(tourDate.getDate() + 1);
+    } else if (tourDateParam === "Today") {
+      tourDate = new Date();
+    } else {
+      tourDate = new Date(tourDateParam);
+      // Check if the date is valid
+      if (isNaN(tourDate.getTime())) {
+        tourDate = null;
+      }
+    }
+  }
 
   const tour = await prisma.tour.findUnique({
     where: { id: tourId },
@@ -81,14 +98,14 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   let conflictingBookings = [];
 
   if (tourDate && timeSlot) {
-    const tourDateTime = new Date(tourDate);
+    // tourDate is already a proper Date object from our parsing logic above
     
     // Check for conflicting bookings
     conflictingBookings = await prisma.tourBooking.findMany({
       where: {
         tourId: tour.id,
         status: { in: ["CONFIRMED", "PENDING"] },
-        tourDate: tourDateTime,
+        tourDate: tourDate,
         timeSlot: timeSlot,
       },
     });
@@ -98,7 +115,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       const periodStart = new Date(period.startDate);
       const periodEnd = new Date(period.endDate);
       return (
-        (periodStart <= tourDateTime && periodEnd >= tourDateTime)
+        (periodStart <= tourDate && periodEnd >= tourDate)
       );
     });
 
@@ -153,14 +170,27 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const intent = formData.get("intent");
 
   if (intent === "checkAvailability") {
-    const tourDate = formData.get("tourDate") as string;
+    const tourDateParam = formData.get("tourDate") as string;
     const timeSlot = formData.get("timeSlot") as string;
 
-    if (!tourDate || !timeSlot) {
+    if (!tourDateParam || !timeSlot) {
       return json({ error: "Tour date and time slot are required" }, { status: 400 });
     }
 
-    const tourDateTime = new Date(tourDate);
+    // Parse tour date properly
+    let tourDateTime: Date;
+    if (tourDateParam === "Tomorrow") {
+      tourDateTime = new Date();
+      tourDateTime.setDate(tourDateTime.getDate() + 1);
+    } else if (tourDateParam === "Today") {
+      tourDateTime = new Date();
+    } else {
+      tourDateTime = new Date(tourDateParam);
+      // Check if the date is valid
+      if (isNaN(tourDateTime.getTime())) {
+        return json({ error: "Invalid date format" }, { status: 400 });
+      }
+    }
 
     // Check for conflicting bookings
     const conflictingBookings = await prisma.tourBooking.findMany({
@@ -203,7 +233,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   if (intent === "createBooking") {
-    const tourDate = formData.get("tourDate") as string;
+    const tourDateParam = formData.get("tourDate") as string;
     const timeSlot = formData.get("timeSlot") as string;
     const participants = parseInt(formData.get("participants") as string);
     const adults = parseInt(formData.get("adults") as string);
@@ -220,11 +250,24 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const specialRequests = formData.get("specialRequests") as string;
     const language = formData.get("language") as string;
 
-    if (!tourDate || !timeSlot || !participants || !leadTravelerName || !leadTravelerEmail || !leadTravelerPhone) {
+    if (!tourDateParam || !timeSlot || !participants || !leadTravelerName || !leadTravelerEmail || !leadTravelerPhone) {
       return json({ error: "All required fields must be filled" }, { status: 400 });
     }
 
-    const tourDateTime = new Date(tourDate);
+    // Parse tour date properly
+    let tourDateTime: Date;
+    if (tourDateParam === "Tomorrow") {
+      tourDateTime = new Date();
+      tourDateTime.setDate(tourDateTime.getDate() + 1);
+    } else if (tourDateParam === "Today") {
+      tourDateTime = new Date();
+    } else {
+      tourDateTime = new Date(tourDateParam);
+      // Check if the date is valid
+      if (isNaN(tourDateTime.getTime())) {
+        return json({ error: "Invalid date format" }, { status: 400 });
+      }
+    }
 
     // Get tour details for pricing
     const tour = await prisma.tour.findUnique({

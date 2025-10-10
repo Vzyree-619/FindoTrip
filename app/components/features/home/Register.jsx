@@ -23,10 +23,9 @@ export default function Register() {
               and earn good with our <span className="font-semibold">less</span><br />
               commission policy.
             </p>
-            <button className="bg-orange-500 text-white text-sm font-medium px-4 py-2 rounded hover:bg-orange-600 transition">
-            <Link to="/add"> Register Now</Link>
-             
-            </button>
+            <Link to="/register/property-owner" className="bg-orange-500 text-white text-sm font-medium px-4 py-2 rounded hover:bg-orange-600 transition inline-block">
+              Register Now
+            </Link>
           </div>
         </div>
       </div>

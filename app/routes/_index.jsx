@@ -9,7 +9,6 @@ import CarRentalSection from "~/components/features/home/CarRentalSection";
 import Register from "~/components/features/home/Register";
 import TourPackages from "~/components/features/home/TourPackages";
 import FAQSection from "~/components/features/home/FAQSection";
-import SubscriptionForm from "~/components/features/home/SubscriptionForm";
 import AddPage from "~/components/features/home/AddPage";
 import Stays from "~/components/features/home/Stays";
 export default function Index() {
@@ -27,7 +26,6 @@ export default function Index() {
         {!isProvider && <Register />}
         {!isProvider && <CarRentalSection vehicles={data?.vehicles} />}
         <FAQSection />
-        <SubscriptionForm />
         <Footer />
       </div>
     </>

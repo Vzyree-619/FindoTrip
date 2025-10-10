@@ -3,7 +3,7 @@ import { useLoaderData, Link, useNavigate, useRevalidator } from "@remix-run/rea
 import { ChatInterface } from "~/components/chat";
 import { useState } from "react";
 import { prisma } from "~/lib/db/db.server";
-import { getUser } from "~/lib/auth/auth.server";
+import { getUser, requireUserId } from "~/lib/auth/auth.server";
 import {
   MapPin,
   Users,
@@ -16,9 +16,11 @@ import {
   ChevronRight,
   X,
   Check,
+  MessageCircle,
 } from "lucide-react";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
+  const userId = await requireUserId(request);
   const { id } = params;
   
   if (!id) {
@@ -253,9 +255,10 @@ export default function AccommodationDetail() {
             </button>
             <button
               onClick={() => setChatOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 border rounded-lg bg-[#01502E] text-white hover:bg-[#013d23]"
+              className="flex items-center gap-2 px-6 py-3 border-2 border-[#01502E] rounded-lg bg-[#01502E] text-white hover:bg-[#013d23] hover:border-[#013d23] transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
             >
-              Message Host
+              <MessageCircle className="w-5 h-5" />
+              Contact Host
             </button>
           </div>
         </div>

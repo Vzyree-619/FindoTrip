@@ -143,10 +143,10 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         available: true
       },
       { 
-        id: "paypal", 
-        name: "PayPal", 
-        icon: "🅿️", 
-        description: "Continue with PayPal", 
+        id: "jazzcash", 
+        name: "JazzCash", 
+        icon: "📱", 
+        description: "Pay with JazzCash mobile wallet", 
         available: true
       },
       { 
@@ -257,8 +257,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Check for Stripe integration
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     
-    if (paymentMethod === 'paypal') {
-      return json({ message: 'Redirecting to PayPal...' });
+    if (paymentMethod === 'jazzcash') {
+      return json({ message: 'Redirecting to JazzCash...' });
     }
     
     if (paymentMethod === 'stripe') {
@@ -430,7 +430,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         switch (pm) {
           case "stripe":
             return "CREDIT_CARD" as PaymentMethod;
-          case "paypal":
+          case "jazzcash":
             return "MOBILE_WALLET" as PaymentMethod;
           case "bank_transfer":
             return "BANK_TRANSFER" as PaymentMethod;
@@ -897,7 +897,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
             subject: `Booking Confirmed - ${bookingType.toUpperCase()} | FindoTrip`,
             html: `<p>Hi ${user.name},</p>
                    <p>Your ${bookingType} booking <strong>#${booking.bookingNumber}</strong> has been confirmed.</p>
-                   <p>Total Paid: ${booking.currency} ${booking.totalPrice.toFixed(2)}</p>
+                   <p>Total Paid: PKR ${booking.totalPrice.toFixed(2)}</p>
                    <p><a href="${process.env.APP_URL || ""}/book/confirmation/${bookingId}?type=${bookingType}">View details</a></p>`,
           });
         }
@@ -1282,23 +1282,23 @@ export default function PaymentPage() {
                     </div>
                   )}
 
-                  {selectedPaymentMethod === "paypal" && (
+                  {selectedPaymentMethod === "jazzcash" && (
                     <div className="space-y-4">
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                         <div className="flex items-center space-x-3">
-                          <span className="text-2xl">🅿️</span>
+                          <span className="text-2xl">📱</span>
                           <div>
-                            <h4 className="font-semibold text-blue-900">PayPal Checkout</h4>
-                            <p className="text-sm text-blue-700">You will be redirected to PayPal to complete your payment securely.</p>
+                            <h4 className="font-semibold text-green-900">JazzCash Payment</h4>
+                            <p className="text-sm text-green-700">You will be redirected to JazzCash to complete your payment securely.</p>
                           </div>
                         </div>
                       </div>
                       <Form method="post">
                         <input type="hidden" name="intent" value="startPayment" />
                         <input type="hidden" name="bookingType" value={bookingType} />
-                        <input type="hidden" name="paymentMethod" value="paypal" />
-                        <Button type="submit" className="w-full bg-[#0070ba] hover:bg-[#005ea6] text-white">
-                          Continue with PayPal
+                        <input type="hidden" name="paymentMethod" value="jazzcash" />
+                        <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white">
+                          Continue with JazzCash
                         </Button>
                       </Form>
                     </div>

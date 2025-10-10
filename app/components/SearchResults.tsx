@@ -364,11 +364,11 @@ function SearchResultCard({
                   <div className="flex flex-col items-end space-y-2">
                     <div className="text-right">
                       <div className="text-2xl font-bold text-gray-900">
-                        ${result.price}
+                        PKR {result.price.toLocaleString()}
                       </div>
                       {result.originalPrice && result.originalPrice > result.price && (
                         <div className="text-sm text-gray-500 line-through">
-                          ${result.originalPrice}
+                          PKR {result.originalPrice.toLocaleString()}
                         </div>
                       )}
                       <div className="text-sm text-gray-500">
@@ -552,11 +552,11 @@ function SearchResultCard({
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <span className="text-xl font-bold text-gray-900">
-                  ${result.price}
+                  PKR {result.price.toLocaleString()}
                 </span>
                 {result.originalPrice && result.originalPrice > result.price && (
                   <span className="text-sm text-gray-500 line-through">
-                    ${result.originalPrice}
+                    PKR {result.originalPrice.toLocaleString()}
                   </span>
                 )}
               </div>

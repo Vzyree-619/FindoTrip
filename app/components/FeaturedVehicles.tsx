@@ -274,11 +274,11 @@ export default function FeaturedVehicles({
                             <div className="flex items-center space-x-4">
                               <div className="flex items-center space-x-2">
                                 <span className="text-3xl font-bold text-white">
-                                  ${vehicle.price}
+                                  PKR {vehicle.price.toLocaleString()}
                                 </span>
                                 {vehicle.originalPrice && vehicle.originalPrice > vehicle.price && (
                                   <span className="text-lg text-white/70 line-through">
-                                    ${vehicle.originalPrice}
+                                    PKR {vehicle.originalPrice.toLocaleString()}
                                   </span>
                                 )}
                                 <span className="text-sm text-white/70">per day</span>
@@ -439,7 +439,7 @@ export default function FeaturedVehicles({
                     <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                       <div className="flex flex-col">
                         <span className="text-xl font-bold text-gray-900">
-                          ${vehicle.price}
+                          PKR {vehicle.price.toLocaleString()}
                         </span>
                         <span className="text-xs text-gray-500">per day</span>
                       </div>

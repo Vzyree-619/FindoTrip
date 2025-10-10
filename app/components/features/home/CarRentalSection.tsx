@@ -157,7 +157,7 @@ export default function CarRentalSection({ vehicles = [] }) {
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
-  const itemsPerView = 3;
+  const itemsPerView = 4;
   const maxIndex = Math.max(0, (displayVehicles.length || 6) - itemsPerView);
 
   const nextSlide = () => {

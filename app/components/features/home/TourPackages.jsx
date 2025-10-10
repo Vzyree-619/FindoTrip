@@ -24,31 +24,6 @@ const tourData = [
       heading: "Concordia – K2 Base Camp",
     },
     {
-      title: "Where Mountains Meet the Sky",
-      img: "https://btvadventures.com/wp-content/uploads/2025/02/Skardu-valley-1.jpg",
-      heading: "Skardu City",
-    },
-    {
-      title: "Nature's Serenity and Peace",
-      img: "https://media.licdn.com/dms/image/v2/D4D10AQFfp8JgwxapVA/image-shrink_1280/image-shrink_1280/0/1714322533209?e=2147483647&v=beta&t=KYZ1csjmClYaWLcZA_ZqmnctbYOJbMsLEL-NYUl8T6Y",
-      heading: "Satpara Lake",
-    },
-    {
-      title: "Discover the Hidden Jewel of Baltistan",
-      img: "https://i0.wp.com/gbit.pk/wp-content/uploads/2021/03/Road-to-Khaplu-Valley.jpg?fit=1200%2C720&ssl=1",
-      heading: "Khaplu Valley",
-    },
-    {
-      title: "Experience Baltistan's Cultural Legacy",
-      img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSi2MB-Xi9ddL6GMDUifDB0wiKPMK1sk0K7wA&s",
-      heading: "Khaplu Fort",
-    },
-    {
-      title: "An Emerald Lake in the Mountains",
-      img: "https://i.ytimg.com/vi/DVDoJo98OZw/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCqdD_yMosGTuhtEUHBr0UASqh8xA",
-      heading: "Sheosar Lake",
-    },
-    {
       title: "A Place of Legends and Beauty",
       img: "https://www.pakistantravelblog.com/wp-content/uploads/2020/06/photographer_of_worlds_101339325_596411301289404_4082144345295678995_n.jpg",
       heading: "Deosai National Park",

@@ -114,7 +114,7 @@ export default function BookStay() {
                 {accommodation.city}, {accommodation.country}
               </p>
               <p className="text-blue-600 font-semibold mt-2">
-                ${accommodation.pricePerNight} / night
+                PKR {accommodation.pricePerNight.toLocaleString()} / night
               </p>
             </div>
           </div>

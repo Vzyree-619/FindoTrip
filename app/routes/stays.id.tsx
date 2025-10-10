@@ -226,7 +226,7 @@ export default function AccommodationDetail() {
               <div className="mb-6">
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-bold text-gray-900">
-                    ${accommodation.pricePerNight}
+                    PKR {accommodation.pricePerNight.toLocaleString()}
                   </span>
                   <span className="text-gray-600">per night</span>
                 </div>
