@@ -169,6 +169,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       booking,
       bookingType,
       paymentMethods,
+      stripeConfigured,
     });
   } catch (error) {
     console.error("Error loading booking:", error);
@@ -913,7 +914,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function PaymentPage() {
-  const { booking, bookingType, paymentMethods } = useLoaderData<typeof loader>();
+  const { booking, bookingType, paymentMethods, stripeConfigured } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
 
@@ -1213,7 +1214,7 @@ export default function PaymentPage() {
                   {/* Card Details */}
                   {selectedPaymentMethod === "stripe" && (
                     <div className="space-y-4">
-                      {!process.env.STRIPE_SECRET_KEY && (
+                      {!stripeConfigured && (
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                           <div className="flex items-start space-x-2">
                             <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
