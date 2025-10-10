@@ -3,7 +3,7 @@ import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remi
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { v2 as cloudinary } from "cloudinary";
-import { Plus, CheckCircle2, Car, MapPin, Star, Clock, AlertCircle, Info, Camera } from "lucide-react";
+import { Plus, CheckCircle2, Car, MapPin, Star, Clock, AlertCircle, Info, Camera, MessageCircle } from "lucide-react";
 import SupportButton from "~/components/support/SupportButton";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -266,11 +266,16 @@ export default function VehicleOwnerDashboard() {
               </Form>
             </div>
           </div>
-          {isVerified && (
-            <a href="#create" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
-              <Plus className="w-4 h-4" /> Add Vehicle
-            </a>
-          )}
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard/messages" className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+              <MessageCircle className="w-4 h-4" /> Messages
+            </Link>
+            {isVerified && (
+              <a href="#create" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
+                <Plus className="w-4 h-4" /> Add Vehicle
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Approval Status Banner */}

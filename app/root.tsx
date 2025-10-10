@@ -17,6 +17,7 @@ import { SkipToContent, ScreenReaderAnnouncement } from "~/hooks/useAccessibilit
 import { useNetwork } from "~/hooks/useNetwork";
 import { getUser } from "~/lib/auth/auth.server";
 import { generateMeta, structuredDataTemplates, StructuredData } from "~/components/common/SEOHead";
+import { FloatingChatButton } from "~/components/chat/FloatingChatButton";
 import "~/styles/shared.css";
 import "~/tailwind.css";
 
@@ -111,6 +112,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         )} */}
         <OnlineIndicator show={showOnlineIndicator} />
+        
+        {/* Floating Chat Button - only show for authenticated users */}
+        {data?.user && (
+          <FloatingChatButton currentUserId={data.user.id} />
+        )}
         
         {/* Scripts and restoration */}
         <ScrollRestoration />

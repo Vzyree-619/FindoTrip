@@ -5,7 +5,7 @@ import { clsx } from "./utils";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
 import AttachmentPreview from "./AttachmentPreview";
-import { useNotificationsStream } from "~/hooks/useNotificationsStream";
+// import { useNotificationsStream } from "~/hooks/useNotificationsStream";
 
 export type ChatInterfaceProps = {
   isOpen: boolean;
@@ -44,37 +44,8 @@ export function ChatInterface({
   const lastTypingSentRef = useRef<number>(0);
   const stopTypingTimerRef = useRef<number | null>(null);
 
-  // SSE for chat events (optional)
-  useNotificationsStream(
-    (notif) => {
-      // noop for notification events
-    },
-    (msg) => {
-      // Expecting events of type { type: 'chat_message', conversationId, message }
-      if (msg?.type === "chat_message" && msg.conversationId === conversation?.id && msg.message) {
-        setMessages((prev) => {
-          const idx = prev.findIndex((m) => m.id === msg.message.id);
-          if (idx >= 0) {
-            const copy = [...prev];
-            // If I'm the sender, upgrade status to delivered
-            if (msg.message.senderId === currentUserId) {
-              copy[idx] = { ...copy[idx], status: "delivered" } as any;
-            }
-            return copy;
-          }
-          return [...prev, msg.message];
-        });
-        scrollToBottomSmooth();
-      }
-      if (msg?.type === "typing" && msg.conversationId === conversation?.id) {
-        setIsTyping(Boolean(msg.typing));
-      }
-      if (msg?.type === "read_receipt" && msg.conversationId === conversation?.id) {
-        // Mark all my sent messages as read
-        setMessages((prev) => prev.map((m) => (m.senderId === currentUserId ? { ...m, status: "read" } : m)));
-      }
-    }
-  );
+  // Real-time chat events would be handled here in a production app
+  // For now, we'll use a simple implementation without SSE
 
   const load = async () => {
     // Default fetch via API if not provided

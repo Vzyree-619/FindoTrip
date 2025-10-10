@@ -17,7 +17,6 @@ import { Loader2, CreditCard, Shield, CheckCircle, Calendar, MapPin, Users, Car,
 import { createAndDispatchNotification } from "~/lib/notifications.server";
 import type { PaymentMethod } from "@prisma/client";
 import { publishToUser } from "~/lib/realtime.server";
-import { prisma as db } from "~/lib/db/db.server";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -188,6 +187,65 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent");
   const bookingType = formData.get("bookingType") as string;
+
+  // Fetch booking object for later use
+  let booking;
+  if (bookingType === "property") {
+    booking = await prisma.propertyBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        property: {
+          include: {
+            owner: {
+              include: {
+                user: {
+                  select: { id: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  } else if (bookingType === "vehicle") {
+    booking = await prisma.vehicleBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        vehicle: {
+          include: {
+            owner: {
+              include: {
+                user: {
+                  select: { id: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  } else if (bookingType === "tour") {
+    booking = await prisma.tourBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        tour: {
+          include: {
+            guide: {
+              include: {
+                user: {
+                  select: { id: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  if (!booking) {
+    return json({ error: "Booking not found" }, { status: 404 });
+  }
 
   if (intent === "startPayment") {
     const paymentMethod = formData.get("paymentMethod") as string;
@@ -488,9 +546,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
             bookingType,
           }
         });
-        const admins = await db.user.findMany({ where: { role: 'SUPER_ADMIN' }, select: { id: true, role: true } });
+        const admins = await prisma.user.findMany({ where: { role: 'SUPER_ADMIN' }, select: { id: true, role: true } });
         if (admins.length) {
-          await db.notification.createMany({
+          await prisma.notification.createMany({
             data: admins.map(a => ({
               userId: a.id,
               userRole: a.role,
@@ -517,9 +575,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
             bookingType,
           }
         });
-        const admins = await db.user.findMany({ where: { role: 'SUPER_ADMIN' }, select: { id: true, role: true } });
+        const admins = await prisma.user.findMany({ where: { role: 'SUPER_ADMIN' }, select: { id: true, role: true } });
         if (admins.length) {
-          await db.notification.createMany({
+          await prisma.notification.createMany({
             data: admins.map(a => ({
               userId: a.id,
               userRole: a.role,
@@ -663,21 +721,23 @@ export async function action({ request, params }: ActionFunctionArgs) {
       let providerId: string | undefined;
       let providerUserIdX: string | undefined;
       let serviceId: string | undefined;
-      if (bookingType === "property" && "property" in booking) {
+      
+      // Add defensive checks for booking object structure
+      if (bookingType === "property" && booking && "property" in booking && booking.property) {
         providerId = booking.property.ownerId;
         providerUserIdX = booking.property.owner?.user?.id;
         serviceId = booking.propertyId;
-      } else if (bookingType === "vehicle" && "vehicle" in booking) {
+      } else if (bookingType === "vehicle" && booking && "vehicle" in booking && booking.vehicle) {
         providerId = booking.vehicle.ownerId;
         providerUserIdX = booking.vehicle.owner?.user?.id;
         serviceId = booking.vehicleId;
-      } else if (bookingType === "tour" && "tour" in booking) {
+      } else if (bookingType === "tour" && booking && "tour" in booking && booking.tour) {
         providerId = booking.tour.guideId;
         providerUserIdX = booking.tour.guide?.user?.id;
         serviceId = booking.tourId;
       }
 
-      if (providerId && serviceId) {
+      if (providerId && serviceId && booking && booking.totalPrice && booking.currency) {
         const existingCommission = await prisma.commission.findFirst({
           where: { bookingId, bookingType },
         });
@@ -856,6 +916,30 @@ export default function PaymentPage() {
   const { booking, bookingType, paymentMethods } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+
+  // Add defensive check for booking
+  if (!booking) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Booking Not Found</h1>
+          <p className="text-gray-600">The booking you're looking for doesn't exist or has been removed.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Add defensive checks for booking properties
+  if (!booking.totalPrice || !booking.currency) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Invalid Booking Data</h1>
+          <p className="text-gray-600">The booking data is incomplete. Please try again.</p>
+        </div>
+      </div>
+    );
+  }
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("stripe");
   const [cardDetails, setCardDetails] = useState({

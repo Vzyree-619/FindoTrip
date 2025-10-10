@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "@remix-run/react";
 import { Heart, Star, Users, Clock, MapPin, Globe, Calendar, Zap, Shield } from "lucide-react";
 

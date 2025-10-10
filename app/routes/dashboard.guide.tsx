@@ -2,7 +2,7 @@ import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from
 import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
-import { Plus, CheckCircle2, MapPin, Users, Star, Clock, AlertCircle, Info } from "lucide-react";
+import { Plus, CheckCircle2, MapPin, Users, Star, Clock, AlertCircle, Info, MessageCircle } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -159,11 +159,16 @@ export default function TourGuideDashboard() {
             <h1 className="text-2xl font-bold text-gray-900">Tour Guide Dashboard</h1>
             <p className="text-gray-600">Welcome, {guide ? `${guide.firstName} ${guide.lastName}` : user.name}</p>
           </div>
-          {isVerified && (
-            <a href="#create" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
-              <Plus className="w-4 h-4" /> Create Tour
-            </a>
-          )}
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard/messages" className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+              <MessageCircle className="w-4 h-4" /> Messages
+            </Link>
+            {isVerified && (
+              <a href="#create" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
+                <Plus className="w-4 h-4" /> Create Tour
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Approval Status Banner */}

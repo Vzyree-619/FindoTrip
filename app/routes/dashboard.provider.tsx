@@ -3,8 +3,9 @@ import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remi
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { v2 as cloudinary } from "cloudinary";
-import { Plus, CheckCircle2, Home, MapPin, Star, Clock, AlertCircle, Info, Camera } from "lucide-react";
+import { Plus, CheckCircle2, Home, MapPin, Star, Clock, AlertCircle, Info, Camera, MessageCircle } from "lucide-react";
 import SupportButton from "~/components/support/SupportButton";
+import ChatButton from "~/components/chat/ChatButton";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -240,9 +241,14 @@ export default function ProviderDashboard() {
               </Form>
             </div>
           </div>
-          <a href="#create" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
-            <Plus className="w-4 h-4" /> New Property
-          </a>
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard/messages" className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+              <MessageCircle className="w-4 h-4" /> Messages
+            </Link>
+            <a href="#create" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
+              <Plus className="w-4 h-4" /> New Property
+            </a>
+          </div>
         </div>
 
         {/* Approval Status Banner */}

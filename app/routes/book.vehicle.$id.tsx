@@ -77,6 +77,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const overlapping = vehicle.unavailableDates.some((p: any) => new Date(p.startDate) <= end && new Date(p.endDate) >= start);
     if (overlapping) return json({ error: "Vehicle is not available for selected dates" }, { status: 400 });
 
+    // Get user information for renter details
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true, phone: true }
+    });
+    
     // Generate unique booking number
     const bookingNumber = `VB-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     
@@ -101,6 +107,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
         extraFees: 0,
         totalPrice: vehicle.basePrice + (driverSelected ? 2000 : 0) + (insuranceSelected ? 1000 : 0) + 5000,
         status: "PENDING",
+        renterName: user?.name || "Unknown",
+        renterEmail: user?.email || "unknown@example.com",
+        renterPhone: user?.phone || "000-000-0000",
+        licenseNumber: "TEMP-LICENSE-123", // This should be collected from user profile or form
+        licenseExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
       },
       select: { id: true },
     });

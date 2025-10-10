@@ -184,7 +184,7 @@ class FeatureTester {
 
     // Test search pages
     const searchPages = [
-      'app/routes/accommodations.search.tsx',
+      'app/routes/accommodations.tsx',
       'app/routes/search.tsx'
     ];
 
@@ -204,13 +204,13 @@ class FeatureTester {
   testBookingSystem() {
     console.log('📅 Testing Booking System...');
 
-    // Test booking routes
+    // Test booking routes (flat route structure)
     const bookingRoutes = [
-      'app/routes/book/property.$id.tsx',
-      'app/routes/book/vehicle.$id.tsx',
-      'app/routes/book/tour.$id.tsx',
-      'app/routes/book/payment.$id.tsx',
-      'app/routes/book/confirmation.$id.tsx'
+      'app/routes/book.property.$id.tsx',
+      'app/routes/book.vehicle.$id.tsx',
+      'app/routes/book.tour.$id.tsx',
+      'app/routes/book.payment.$id.tsx',
+      'app/routes/book.confirmation.$id.tsx'
     ];
 
     bookingRoutes.forEach(route => {
@@ -444,7 +444,9 @@ class FeatureTester {
       'model Property',
       'model Vehicle',
       'model Tour',
-      'model Booking',
+      'model PropertyBooking',
+      'model VehicleBooking',
+      'model TourBooking',
       'model Payment',
       'model Review',
       'model Conversation',

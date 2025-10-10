@@ -16,6 +16,7 @@ import {
   Home,
   Bell,
   CreditCard,
+  MessageCircle,
 } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -138,6 +139,7 @@ export default function Dashboard() {
   const navigation = [
     { name: "Overview", href: "/dashboard", icon: Home, exact: true },
     { name: "My Bookings", href: "/dashboard/bookings", icon: Calendar },
+    { name: "Messages", href: "/dashboard/messages", icon: MessageCircle },
     { name: "Favorites", href: "/dashboard/favorites", icon: Heart },
     { name: "Reviews", href: "/dashboard/reviews", icon: Star },
     { name: "Profile", href: "/dashboard/profile", icon: Settings },

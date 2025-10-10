@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Star, MapPin, Users, Luggage, Fuel, Settings, Shield, CheckCircle, Navigation, Zap, Car, Heart, Share2, Eye } from "lucide-react";
 
