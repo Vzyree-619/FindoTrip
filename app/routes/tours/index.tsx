@@ -77,6 +77,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const minPrice = parseInt(searchParams.get("minPrice") || "0");
     const maxPrice = parseInt(searchParams.get("maxPrice") || "1000");
     const location = searchParams.get("location") || "";
+    const daysParam = searchParams.get("days");
+    const activityTypeParam = searchParams.get("activityType") || "";
+    const groupSizeParam = searchParams.get("groupSize") || "";
     const sortBy = searchParams.get("sortBy") || "featured";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "12");
@@ -95,8 +98,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ];
     }
 
-    if (category) {
-      where.category = category;
+    // Map activityType to known categories if provided
+    const mappedCategory = activityTypeParam
+      ? (activityTypeParam === 'Culture' ? 'Cultural' : activityTypeParam)
+      : category;
+
+    if (mappedCategory) {
+      where.category = mappedCategory;
     }
 
     if (difficulty) {
@@ -111,6 +119,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     if (location) {
       where.location = { contains: location, mode: 'insensitive' };
+    }
+
+    // Server-side filters for duration (days) and group size if provided
+    if (daysParam) {
+      const minDays = parseInt(daysParam);
+      if (!isNaN(minDays) && minDays > 0) {
+        (where as any).duration = { gte: minDays };
+      }
+    }
+    if (groupSizeParam) {
+      const match = groupSizeParam.match(/(\d+)/);
+      const wanted = match ? parseInt(match[1]) : (groupSizeParam.toLowerCase().includes('individual') ? 1 : undefined);
+      if (wanted && !isNaN(wanted)) {
+        (where as any).maxGroupSize = { gte: wanted };
+      }
     }
 
     // Build orderBy clause
@@ -149,7 +172,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         take: limit
       });
 
-      // Get total count
+      // Get total count (pre in-memory filtering)
       total = await prisma.tour.count({ where });
 
       // Get filter options
@@ -293,9 +316,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
       };
     });
 
+    // In-memory filtering for duration and group size if provided
+    const minDays = daysParam ? parseInt(daysParam) : undefined;
+    let filteredTours = formattedTours;
+    if (!isNaN(minDays as any) && minDays) {
+      filteredTours = filteredTours.filter((t) => {
+        const d = typeof t.duration === 'string' ? parseInt((t.duration as unknown as string).replace(/\D/g, '')) : (t.duration as any);
+        return !isNaN(d) && d >= (minDays as number);
+      });
+    }
+    if (groupSizeParam) {
+      // If user picked a group label with numbers, pick the lower bound
+      const match = groupSizeParam.match(/(\d+)/);
+      const wanted = match ? parseInt(match[1]) : (groupSizeParam.toLowerCase().includes('individual') ? 1 : undefined);
+      if (wanted) {
+        filteredTours = filteredTours.filter((t) => t.groupSize?.max ? t.groupSize.max >= wanted : true);
+      }
+    }
+
     const loaderData: LoaderData = {
-      tours: formattedTours,
-      total,
+      tours: filteredTours,
+      total: filteredTours.length,
       filters: {
         categories: categories.map(c => c.category),
         difficulties: difficulties.map(d => d.difficulty),

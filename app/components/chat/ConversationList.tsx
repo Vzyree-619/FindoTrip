@@ -75,7 +75,7 @@ export function ConversationList({
                       <div className="text-sm text-gray-500 truncate">{conv.lastMessage?.content || "No messages yet"}</div>
                     </div>
                     {conv.unreadCount ? (
-                      <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-600 text-white">
+                      <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-[#01502E] text-white">
                         {conv.unreadCount}
                       </span>
                     ) : p?.online ? (

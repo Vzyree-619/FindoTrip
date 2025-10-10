@@ -36,7 +36,7 @@ const NavBar = () => {
       {/* Desktop Menu */}
       <ul className="hidden md:flex space-x-6 font-semibold items-center">
         <li className="hover:text-[#01502E] cursor-pointer transition">
-          <Link to="/accommodations/search">Stays</Link>
+          <Link to="/accommodations">Stays</Link>
         </li>
         <li className="hover:text-[#01502E] cursor-pointer transition">
           <Link to="/vehicles">Car Rentals</Link>
@@ -67,7 +67,7 @@ const NavBar = () => {
       >
         <ul className="space-y-4 font-semibold">
           <li className="hover:text-[#01502E] cursor-pointer transition">
-            <Link to="/accommodations/search" onClick={() => setIsOpen(false)}>Stays</Link>
+            <Link to="/accommodations" onClick={() => setIsOpen(false)}>Stays</Link>
           </li>
           <li className="hover:text-[#01502E] cursor-pointer transition">
             <Link to="/vehicles" onClick={() => setIsOpen(false)}>Car Rentals</Link>

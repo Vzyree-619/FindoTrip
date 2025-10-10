@@ -8,7 +8,7 @@ import {
   Check,
   X,
   Clock,
-  DollarSign,
+  // DollarSign,
   Mail,
   Phone,
   MapPin,
@@ -119,7 +119,7 @@ export default function BookingManagement() {
       case "CANCELLED":
         return "bg-red-100 text-red-800";
       case "COMPLETED":
-        return "bg-blue-100 text-blue-800";
+        return "bg-[#01502E]/10 text-[#01502E]";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -259,7 +259,7 @@ export default function BookingManagement() {
                           {booking.numberOfGuests} guest{booking.numberOfGuests > 1 ? 's' : ''}
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
-                          <DollarSign className="h-4 w-4 mr-2 text-gray-400" />
+                            <span className="h-4 w-4 mr-2 text-gray-400">PKR</span>
                           PKR {booking.totalPrice.toLocaleString()}
                         </div>
                       </div>
@@ -285,12 +285,12 @@ export default function BookingManagement() {
 
                       {/* Special Requests */}
                       {booking.specialRequests && (
-                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="mt-4 p-3 bg-[#01502E]/10 border border-[#01502E]/20 rounded-lg">
                           <div className="flex items-start">
-                            <AlertCircle className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                            <AlertCircle className="h-4 w-4 text-[#01502E] mr-2 mt-0.5 flex-shrink-0" />
                             <div>
-                              <p className="text-sm font-medium text-blue-900">Special Request:</p>
-                              <p className="text-sm text-blue-700 mt-1">{booking.specialRequests}</p>
+                              <p className="text-sm font-medium text-[#013d23]">Special Request:</p>
+                              <p className="text-sm text-[#01502E] mt-1">{booking.specialRequests}</p>
                             </div>
                           </div>
                         </div>
@@ -355,4 +355,3 @@ export default function BookingManagement() {
     </div>
   );
 }
-

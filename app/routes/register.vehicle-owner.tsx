@@ -30,7 +30,7 @@ import { generateMeta } from "~/components/common/SEOHead";
 
 export const meta = () => generateMeta({
   title: "Fleet Setup - Vehicle Owner | FindoTrip",
-  description: "Set up your vehicle rental business and start earning with FindoTrip"
+  description: "Set up your chauffeured vehicle service and start earning with FindoTrip"
 });
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -239,7 +239,7 @@ export default function VehicleOwnerOnboarding() {
             Set Up Your Fleet Business
           </h1>
           <p className="text-lg text-gray-600 mb-4">
-            Welcome, {user.name}! Let's get your vehicle rental business verified and ready to earn.
+            Welcome, {user.name}! Let's get your chauffeured vehicle service verified and ready to earn.
           </p>
           <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
             {Array.from({ length: totalSteps }, (_, i) => (
@@ -291,7 +291,7 @@ export default function VehicleOwnerOnboarding() {
                     <Car className="h-6 w-6 mr-2 text-purple-500" />
                     Business Information
                   </h3>
-                  <p className="text-gray-600 mt-1">Tell us about your vehicle rental business</p>
+                  <p className="text-gray-600 mt-1">Tell us about your chauffeur service (drivers, fleet, and service areas)</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6">

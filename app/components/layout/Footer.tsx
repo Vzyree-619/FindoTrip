@@ -37,7 +37,7 @@ export default function Footer() {
     {
       title: "Travel Services",
       links: [
-        { name: "Hotels & Stays", href: "/accommodations/search", icon: "🏨" },
+        { name: "Hotels & Stays", href: "/accommodations", icon: "🏨" },
         { name: "Car Rentals", href: "/vehicles", icon: "🚗" },
         { name: "Tour Packages", href: "/tours", icon: "🗺️" },
         { name: "Tour Guides", href: "/tours", icon: "👨‍🏫" },

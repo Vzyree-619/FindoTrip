@@ -11,7 +11,7 @@ import {
   XCircle,
   Clock,
   Users,
-  DollarSign,
+  // DollarSign,
   MapPin
 } from "lucide-react";
 import { useState } from "react";
@@ -240,7 +240,7 @@ export default function TourManagement() {
                   {/* Tour Info */}
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="flex items-center text-sm text-gray-600">
-                      <DollarSign className="h-4 w-4 mr-2 text-gray-400" />
+                      <span className="text-xs mr-2 text-gray-400">PKR</span>
                       PKR {tour.pricePerPerson}/person
                     </div>
                     <div className="flex items-center text-sm text-gray-600">
@@ -317,4 +317,3 @@ export default function TourManagement() {
     </div>
   );
 }
-

@@ -194,10 +194,10 @@ export default function VehicleOwnerOnboarding() {
             <Car className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Set Up Your Vehicle Business
+            Set Up Your Chauffeured Vehicle Service
           </h1>
           <p className="text-lg text-gray-600 mb-4">
-            Welcome, {user.name}! Let's get your vehicle rental business verified and ready to earn.
+            Welcome, {user.name}! Let's get your chauffeur service verified and ready to earn.
           </p>
           <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
             {Array.from({ length: totalSteps }, (_, i) => (
@@ -223,7 +223,7 @@ export default function VehicleOwnerOnboarding() {
                     <Car className="h-6 w-6 mr-2 text-purple-500" />
                     Business Information
                   </h3>
-                  <p className="text-gray-600 mt-1">Tell us about your vehicle rental business</p>
+                  <p className="text-gray-600 mt-1">Tell us about your chauffeur service (drivers, fleet, and service areas)</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6">

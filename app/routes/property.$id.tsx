@@ -1,3 +1,3 @@
-export { loader } from "./accommodations.$id";
-export { default } from "./accommodations.$id";
+export { loader } from "./accommodations_.$id";
+export { default } from "./accommodations_.$id";
 

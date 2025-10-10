@@ -37,7 +37,12 @@ export default function Index() {
 export async function loader({ request }) {
   try {
     const user = await getUser(request);
-    if (user) {
+    // Only redirect if user is explicitly trying to access dashboard
+    // Allow users to see landing page data even when logged in
+    const url = new URL(request.url);
+    const isDashboardRequest = url.pathname.includes('/dashboard');
+    
+    if (user && isDashboardRequest) {
       const redirectRoutes = {
         CUSTOMER: "/dashboard",
         PROPERTY_OWNER: "/dashboard/provider",
@@ -45,8 +50,6 @@ export async function loader({ request }) {
         TOUR_GUIDE: "/dashboard/guide",
         SUPER_ADMIN: "/dashboard/admin",
       };
-      // Return user in data if you want conditional render while redirecting (SSR edge cases)
-      // Mostly this path redirect short-circuits.
       throw new Response(null, { status: 302, headers: { Location: redirectRoutes[user.role] || "/dashboard" } });
     }
     const [stays, vehicles, tours] = await Promise.all([
@@ -74,19 +77,42 @@ export async function loader({ request }) {
     const shapedVehicles = vehicles.map(v => ({
       id: v.id,
       name: v.name || v.model,
-      type: v.category || "",
-      seats: v.seats || 4,
-      fuel: v.fuelType || "",
-      transmission: v.transmission || "Automatic",
+      model: v.model,
+      year: v.year || new Date().getFullYear(),
+      images: v.images || ['/placeholder-vehicle.jpg'],
       price: v.basePrice || 0,
-      currency: v.currency || "PKR",
+      originalPrice: undefined,
+      category: v.category || 'Economy',
+      transmission: v.transmission || 'Automatic',
+      fuelType: v.fuelType || 'Gasoline',
+      isElectric: v.fuelType === 'Electric',
+      owner: {
+        id: '',
+        name: '',
+        avatar: '',
+        rating: v.rating || 0,
+        reviewCount: v.reviewCount || 0,
+        isVerified: true,
+      },
       rating: v.rating || 0,
-      reviews: v.reviewCount || 0,
-      image: (v.images?.[0]) || "/placeholder-vehicle.jpg",
-      location: v.location || "",
-      available: v.available ?? true,
-      discount: 0,
+      reviewCount: v.reviewCount || 0,
+      specs: {
+        passengers: v.seats || 4,
+        luggage: 3,
+        fuelEfficiency: 0,
+        transmission: v.transmission || 'Automatic',
+      },
       features: Array.isArray(v.features) ? v.features : [],
+      location: v.location || '',
+      availability: v.available ? 'Available' : 'Fully Booked',
+      isSpecialOffer: false,
+      hasDelivery: false,
+      deliveryRadius: undefined,
+      insuranceOptions: true,
+      instantBooking: true,
+      isFavorite: false,
+      onToggleFavorite: undefined,
+      onCompare: undefined,
     }));
 
     // Shape stays for home grid
@@ -94,7 +120,7 @@ export async function loader({ request }) {
       id: s.id,
       name: s.name,
       location: `${s.city}, ${s.country}`,
-      price: `Starting from ${s.currency || 'PKR'} ${s.basePrice.toLocaleString()}`,
+      price: `Starting from PKR ${s.basePrice.toLocaleString()}`,
       rating: s.rating || 0,
       reviews: s.reviewCount ? `${s.reviewCount} reviews` : "",
       image: (s.images?.[0]) || "/placeholder-hotel.jpg",

@@ -576,7 +576,7 @@ export default function SearchPage() {
                   placeholder="Where are you going?"
                   value={currentFilters.location}
                   onChange={(e) => handleFilterChange("location", e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
             </div>
@@ -589,7 +589,7 @@ export default function SearchPage() {
                   type="date"
                   value={currentFilters.checkIn}
                   onChange={(e) => handleFilterChange("checkIn", e.target.value)}
-                  className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
               <div className="relative">
@@ -598,7 +598,7 @@ export default function SearchPage() {
                   type="date"
                   value={currentFilters.checkOut}
                   onChange={(e) => handleFilterChange("checkOut", e.target.value)}
-                  className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
             </div>
@@ -612,7 +612,7 @@ export default function SearchPage() {
                   activeTab === 'vehicles' ? 'passengers' : 'guests', 
                   parseInt(e.target.value)
                 )}
-                className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
               >
                 {[...Array(10)].map((_, i) => (
                   <option key={i + 1} value={i + 1}>
@@ -625,7 +625,7 @@ export default function SearchPage() {
             {/* Search Button */}
             <button
               onClick={() => setIsLoading(true)}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              className="bg-[#01502E] text-white px-6 py-3 rounded-lg hover:bg-[#013d23] transition-colors flex items-center space-x-2"
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -647,7 +647,7 @@ export default function SearchPage() {
                 <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
                 <button
                   onClick={clearAllFilters}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  className="text-[#01502E] hover:text-[#013d23] text-sm font-medium"
                 >
                   Clear all
                 </button>
@@ -660,7 +660,7 @@ export default function SearchPage() {
                     {appliedFilters.map((filter, index) => (
                       <span
                         key={index}
-                        className="bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full flex items-center space-x-2"
+                        className="bg-[#01502E]/10 text-[#01502E] text-sm px-3 py-1 rounded-full flex items-center space-x-2"
                       >
                         <span>{filter}</span>
                         <button
@@ -668,7 +668,7 @@ export default function SearchPage() {
                             // Remove specific filter logic would go here
                             console.log('Remove filter:', filter);
                           }}
-                          className="hover:text-blue-600"
+                          className="hover:text-[#01502E]"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -719,7 +719,7 @@ export default function SearchPage() {
                                 : currentFilters.propertyType.filter(t => t !== type);
                               handleFilterChange("propertyType", newTypes);
                             }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                           />
                           <span className="ml-2 text-sm text-gray-700">{type}</span>
                         </label>
@@ -767,7 +767,7 @@ export default function SearchPage() {
                                 : currentFilters.amenities.filter(a => a !== amenity);
                               handleFilterChange("amenities", newAmenities);
                             }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                           />
                           <span className="ml-2 text-sm text-gray-700">{amenity}</span>
                         </label>
@@ -817,7 +817,7 @@ export default function SearchPage() {
                                 : currentFilters.vehicleType.filter(t => t !== type);
                               handleFilterChange("vehicleType", newTypes);
                             }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                           />
                           <span className="ml-2 text-sm text-gray-700">{type}</span>
                         </label>
@@ -842,7 +842,7 @@ export default function SearchPage() {
                                 : currentFilters.transmission.filter(t => t !== transmission);
                               handleFilterChange("transmission", newTransmissions);
                             }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                           />
                           <span className="ml-2 text-sm text-gray-700">{transmission}</span>
                         </label>

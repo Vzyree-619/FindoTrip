@@ -18,6 +18,7 @@ export type ChatInterfaceProps = {
   onSendMessage?: (args: { conversationId?: string; targetUserId?: string; text: string; files?: File[] }) => Promise<Message | void>;
   onLoadMore?: (args: { conversationId: string; before?: string }) => Promise<Message[]>;
   className?: string;
+  variant?: 'modal' | 'inline';
 };
 
 export function ChatInterface({
@@ -31,6 +32,7 @@ export function ChatInterface({
   onSendMessage,
   onLoadMore,
   className,
+  variant = 'modal',
 }: ChatInterfaceProps) {
   const [loading, setLoading] = useState(false);
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -143,7 +145,7 @@ export function ChatInterface({
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || variant === 'inline') {
       load();
       // mark messages as read on open
       const cid = conversation?.id || conversationId;
@@ -161,7 +163,7 @@ export function ChatInterface({
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, conversationId, targetUserId]);
+  }, [isOpen, variant, conversationId, targetUserId]);
 
   const onSend = async (text: string, files?: File[]) => {
     const defaultSend = async ({ conversationId, text, files }: { conversationId?: string; text: string; files?: File[] }) => {
@@ -218,19 +220,26 @@ export function ChatInterface({
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }
 
-  if (!isOpen) return null;
+  if (variant === 'modal' && !isOpen) return null;
 
   return (
     <div
       className={clsx(
-        "fixed inset-0 z-[60] flex items-end sm:items-center justify-center",
-        "bg-black/30",
+        variant === 'modal'
+          ? "fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/30"
+          : "w-full h-full",
         className
       )}
       role="dialog"
-      aria-modal="true"
+      aria-modal={variant === 'modal' ? "true" : undefined}
     >
-      <div className="w-full sm:w-[720px] h-[80vh] sm:h-[600px] bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out]">
+      <div
+        className={clsx(
+          variant === 'modal'
+            ? "w-full sm:w-[720px] h-[80vh] sm:h-[600px] bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out]"
+            : "h-[75vh] md:h-[80vh] bg-white dark:bg-gray-900 border rounded-lg shadow-sm flex flex-col overflow-hidden"
+        )}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="flex items-center gap-3">
@@ -240,9 +249,11 @@ export function ChatInterface({
               <div className="text-xs text-gray-500">{isTyping ? "typing…" : conversation?.participants?.[0]?.online ? "online" : "offline"}</div>
             </div>
           </div>
-          <button className="p-2 rounded hover:bg-gray-100" onClick={onClose} aria-label="Close chat">
-            <X className="w-5 h-5" />
-          </button>
+          {variant === 'modal' && (
+            <button className="p-2 rounded hover:bg-gray-100" onClick={onClose} aria-label="Close chat">
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Messages */}

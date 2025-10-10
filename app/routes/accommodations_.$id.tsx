@@ -188,7 +188,7 @@ export default function AccommodationDetail() {
             Home
           </Link>
           <span>/</span>
-          <Link to="/accommodations/search" className="hover:text-[#01502E]">
+          <Link to="/accommodations" className="hover:text-[#01502E]">
             Search
           </Link>
           <span>/</span>
@@ -253,7 +253,7 @@ export default function AccommodationDetail() {
             </button>
             <button
               onClick={() => setChatOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 border rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              className="flex items-center gap-2 px-4 py-2 border rounded-lg bg-[#01502E] text-white hover:bg-[#013d23]"
             >
               Message Host
             </button>
@@ -384,7 +384,7 @@ export default function AccommodationDetail() {
               <div className="mb-4">
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-[#01502E]">
-                    ${accommodation.basePrice}
+                    {accommodation.currency} {accommodation.basePrice.toLocaleString()}
                   </span>
                   <span className="text-gray-600">/ night</span>
                 </div>
@@ -436,13 +436,13 @@ export default function AccommodationDetail() {
                 <div className="mb-4 p-4 bg-gray-50 rounded-lg">
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-700">
-                      ${accommodation.pricePerNight} × {nights} nights
+                      {accommodation.currency} {accommodation.pricePerNight.toLocaleString()} × {nights} nights
                     </span>
-                    <span className="font-semibold">${totalPrice}</span>
+                    <span className="font-semibold">{accommodation.currency} {totalPrice.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold pt-2 border-t">
                     <span>Total</span>
-                    <span className="text-[#01502E]">${totalPrice}</span>
+                    <span className="text-[#01502E]">{accommodation.currency} {totalPrice.toLocaleString()}</span>
                   </div>
                 </div>
               )}

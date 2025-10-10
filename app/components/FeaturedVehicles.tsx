@@ -301,7 +301,7 @@ export default function FeaturedVehicles({
                               </button>
                               <Link
                                 to={`/vehicles/${vehicle.id}`}
-                                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                                className="bg-gradient-to-r from-[#01502E] to-[#047857] text-white px-6 py-3 rounded-lg font-semibold hover:from-[#013d23] hover:to-[#046149] transition-all duration-200 transform hover:scale-105 shadow-lg"
                               >
                                 View Details
                               </Link>
@@ -415,7 +415,7 @@ export default function FeaturedVehicles({
                       </div>
                     </div>
 
-                    <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                    <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-[#01502E] transition-colors">
                       {vehicle.name} {vehicle.model}
                     </h3>
 
@@ -443,7 +443,7 @@ export default function FeaturedVehicles({
                         </span>
                         <span className="text-xs text-gray-500">per day</span>
                       </div>
-                      <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105">
+                      <button className="bg-gradient-to-r from-[#01502E] to-[#047857] text-white px-4 py-2 rounded-lg font-semibold hover:from-[#013d23] hover:to-[#046149] transition-all duration-200 transform hover:scale-105">
                         Book Now
                       </button>
                     </div>
@@ -457,3 +457,4 @@ export default function FeaturedVehicles({
     </section>
   );
 }
+import React from 'react';

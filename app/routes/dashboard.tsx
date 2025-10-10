@@ -287,7 +287,7 @@ export function DashboardIndex() {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Link
-            to="/accommodations/search"
+            to="/accommodations"
             className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition"
           >
             <div className="p-5">
@@ -393,7 +393,7 @@ export function DashboardIndex() {
               </p>
               <div className="mt-6">
                 <Link
-                  to="/accommodations/search"
+                  to="/accommodations"
                   className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]"
                 >
                   Book Your First Stay

@@ -4,7 +4,7 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "@remix-run/node";
-import { Form, Link, useActionData, useNavigation, useNavigate } from "@remix-run/react";
+import { Form, Link, useActionData, useNavigation, useNavigate, useLoaderData } from "@remix-run/react";
 import { useEffect, useRef, useState } from "react";
 import { register, createUserSession, getUserId } from "~/lib/auth/auth.server";
 import { sendWelcomeEmail } from "~/lib/email/email.server";
@@ -32,7 +32,12 @@ import PrivacyContent from "~/components/legal/PrivacyContent";
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await getUserId(request);
   if (userId) return redirect("/");
-  return json({});
+  
+  const url = new URL(request.url);
+  const redirectTo = url.searchParams.get("redirectTo");
+  const fromBooking = redirectTo?.includes("/accommodations/") || redirectTo?.includes("/vehicles/") || redirectTo?.includes("/tours/");
+  
+  return json({ redirectTo, fromBooking });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -47,6 +52,7 @@ export async function action({ request }: ActionFunctionArgs) {
     | "PROPERTY_OWNER"
     | "VEHICLE_OWNER"
     | "TOUR_GUIDE";
+  const redirectTo = formData.get("redirectTo") as string;
 
   if (
     typeof email !== "string" ||
@@ -86,9 +92,9 @@ export async function action({ request }: ActionFunctionArgs) {
       console.error('Failed to send welcome email:', error);
     }
 
-    // Redirect to role-specific onboarding
+    // Redirect to role-specific onboarding or back to booking
     const onboardingRoutes = {
-      CUSTOMER: "/dashboard",
+      CUSTOMER: redirectTo || "/dashboard",
       PROPERTY_OWNER: "/onboarding/property-owner",
       VEHICLE_OWNER: "/onboarding/vehicle-owner",
       TOUR_GUIDE: "/onboarding/tour-guide"
@@ -103,11 +109,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function Register() {
   const actionData = useActionData<typeof action>();
+  const { redirectTo, fromBooking } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const navigate = useNavigate();
   const isSubmitting = navigation.state === "submitting";
-  const [step, setStep] = useState<'role' | 'details'>('role');
-  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [step, setStep] = useState<'role' | 'details'>(fromBooking ? 'details' : 'role');
+  const [selectedRole, setSelectedRole] = useState<string>(fromBooking ? 'CUSTOMER' : '');
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -332,6 +339,7 @@ export default function Register() {
           <Form method="post" className="space-y-5">
             {/* Hidden role field */}
             <input type="hidden" name="role" value={selectedRole} />
+            {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
             
             {/* Full Name */}
             <div>

@@ -37,7 +37,7 @@ function TourDuration() {
           </div>
           <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-52 p-1 space-y-1" align="start">
+        <DropdownMenuContent className="w-52 p-1 space-y-1 bg-white" align="start">
           {workspaces.map((workspace) => (
             <DropdownMenuItem
               key={workspace.id}
@@ -72,6 +72,8 @@ function TourDuration() {
               Add Custom Days
             </button>
           </div>
+          {/* Hidden input to submit selected days */}
+          <input type="hidden" name="days" value={selectedWorkspace?.id ? String(selectedWorkspace.Days).replace(/\D/g,'') : customDays} />
         </DropdownMenuContent>
       </DropdownMenu>
   );
@@ -93,7 +95,11 @@ function Guests() {
         <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent className="w-64 p-3 space-y-3" align="start">
+      <DropdownMenuContent className="w-64 p-3 space-y-3 bg-white" align="start">
+        {/* Hidden inputs to submit values */}
+        <input type="hidden" name="adults" value={adults} />
+        <input type="hidden" name="childs" value={childs} />
+        <input type="hidden" name="rooms" value={room} />
         {/* Adults */}
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Adults</span>
@@ -169,7 +175,7 @@ function ActivityTypes() {
 
           <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-52 p-1 space-y-1" align="start">
+        <DropdownMenuContent className="w-52 p-1 space-y-1 bg-white" align="start">
           {activityTypes.map((activity) => (
             <DropdownMenuItem
               key={activity.id}
@@ -183,6 +189,7 @@ function ActivityTypes() {
               )}
             </DropdownMenuItem>
           ))}
+          <input type="hidden" name="activityType" value={selectedActivity?.type || ''} />
         </DropdownMenuContent>
       </DropdownMenu>
   );
@@ -209,7 +216,7 @@ function GroupSize() {
           </div>
           <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-52 p-1 space-y-1" align="start">
+        <DropdownMenuContent className="w-52 p-1 space-y-1 bg-white" align="start">
           {groupSize.map((group) => (
             <DropdownMenuItem
               key={group.id}
@@ -221,6 +228,7 @@ function GroupSize() {
               {selectedGroup?.id === group.id && <Check className="ml-auto" />}
             </DropdownMenuItem>
           ))}
+          <input type="hidden" name="groupSize" value={selectedGroup?.size || ''} />
         </DropdownMenuContent>
       </DropdownMenu>
  

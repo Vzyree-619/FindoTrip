@@ -77,16 +77,29 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const overlapping = vehicle.unavailableDates.some((p: any) => new Date(p.startDate) <= end && new Date(p.endDate) >= start);
     if (overlapping) return json({ error: "Vehicle is not available for selected dates" }, { status: 400 });
 
+    // Generate unique booking number
+    const bookingNumber = `VB-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    
     // Create booking and redirect to payment
     const booking = await prisma.vehicleBooking.create({
       data: {
+        bookingNumber,
         userId,
         vehicleId,
         startDate: start,
         endDate: end,
+        pickupTime: "10:00",
+        returnTime: "10:00",
         pickupLocation,
-        insuranceSelected,
+        returnLocation: pickupLocation,
         driverRequired: driverSelected,
+        driverIncluded: driverSelected,
+        basePrice: vehicle.basePrice,
+        driverFee: driverSelected ? 2000 : 0,
+        insuranceFee: insuranceSelected ? 1000 : 0,
+        securityDeposit: 5000,
+        extraFees: 0,
+        totalPrice: vehicle.basePrice + (driverSelected ? 2000 : 0) + (insuranceSelected ? 1000 : 0) + 5000,
         status: "PENDING",
       },
       select: { id: true },
@@ -158,13 +171,14 @@ export default function VehicleBookingPage() {
               <CardTitle>Price Breakdown</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="flex justify-between"><span>Daily Rate</span><span>{pricing.dailyRate}</span></div>
+              <div className="flex justify-between"><span>Daily Rate</span><span>PKR {pricing.dailyRate.toLocaleString()}</span></div>
               <div className="flex justify-between"><span>Days</span><span>{days}</span></div>
-              <div className="flex justify-between"><span>Insurance</span><span>{pricing.insurance}</span></div>
-              <div className="flex justify-between"><span>Driver</span><span>{pricing.driver}</span></div>
-              <div className="flex justify-between"><span>Service Fee</span><span>{pricing.service}</span></div>
-              <div className="flex justify-between"><span>Taxes</span><span>{pricing.taxes}</span></div>
-              <div className="flex justify-between font-bold border-t pt-2"><span>Total</span><span>{total}</span></div>
+              <div className="flex justify-between"><span>Insurance</span><span>PKR {pricing.insurance.toLocaleString()}</span></div>
+              <div className="flex justify-between"><span>Driver</span><span>PKR {pricing.driver.toLocaleString()}</span></div>
+              <div className="flex justify-between"><span>Service Fee</span><span>PKR {pricing.service.toLocaleString()}</span></div>
+              <div className="text-xs text-gray-500">Note: Pricing excludes fuel, tolls, and parking fees.</div>
+              <div className="flex justify-between"><span>Taxes</span><span>PKR {pricing.taxes.toLocaleString()}</span></div>
+              <div className="flex justify-between font-bold border-t pt-2"><span>Total</span><span>PKR {total.toLocaleString()}</span></div>
               <div className="mt-2 text-sm {isAvailable ? 'text-[#01502E]' : 'text-orange-700'}">{isAvailable ? 'Available' : 'Selected dates overlap with blocked periods'}</div>
             </CardContent>
           </Card>
@@ -173,4 +187,3 @@ export default function VehicleBookingPage() {
     </div>
   );
 }
-

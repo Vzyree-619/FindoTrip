@@ -42,7 +42,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
               id: true,
               businessName: true,
               verified: true,
-              averageRating: true,
               totalBookings: true,
               user: {
                 select: {
@@ -156,6 +155,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           'Emergency Kit'
         ],
         included: [
+          'Professional driver',
           'Comprehensive Insurance',
           'Roadside Assistance',
           '24/7 Support',
@@ -164,14 +164,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         notIncluded: [
           'Fuel costs',
           'Tolls and parking',
-          'Additional driver fee',
+          'Refreshments & tips',
           'GPS rental (if not included)'
         ],
         requirements: [
-          'Valid driving license',
-          'Minimum age 21',
-          'Credit card for security deposit',
-          'International driving permit (for tourists)'
+          'Accurate pickup location and time',
+          'Valid contact number',
+          'Prepayment or deposit method',
+          'Adherence to local transport regulations'
         ],
         availability: 'Available',
         nextAvailableDate: 'Tomorrow',
@@ -219,7 +219,7 @@ export default function VehicleDetailPage() {
 
   const getVehicleTypeColor = (type: string) => {
     const colors = {
-      CAR: 'bg-blue-500',
+      CAR: 'bg-[#01502E]',
       SUV: 'bg-green-500',
       VAN: 'bg-purple-500',
       BUS: 'bg-orange-500',
@@ -255,6 +255,11 @@ export default function VehicleDetailPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <div className="px-6 pt-4">
+        <div className="inline-flex items-center gap-2 bg-[#01502E]/10 text-[#01502E] text-xs font-medium px-3 py-1 rounded-full">
+          <span>Includes professional driver</span>
+        </div>
+      </div>
       {/* Hero Section */}
       <div className="relative h-96 lg:h-[500px] overflow-hidden">
         {/* Main Image */}
@@ -405,7 +410,7 @@ export default function VehicleDetailPage() {
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Questions?</h3>
               <p className="text-gray-700 mb-3">Contact the owner to ask about availability or details.</p>
-              <button onClick={() => setChatOpen(true)} className="px-4 py-2 bg-blue-600 text-white rounded-md">Contact Owner</button>
+              <button onClick={() => setChatOpen(true)} className="px-4 py-2 bg-[#01502E] text-white rounded-md hover:bg-[#013d23]">Contact Owner</button>
             </div>
 
             {/* Safety Features */}
@@ -414,7 +419,7 @@ export default function VehicleDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 {vehicle.safetyFeatures.map((feature, index) => (
                   <div key={index} className="flex items-center space-x-2">
-                    <Shield className="w-5 h-5 text-blue-500" />
+                    <Shield className="w-5 h-5 text-[#01502E]" />
                     <span className="text-gray-700">{feature}</span>
                   </div>
                 ))}
@@ -473,7 +478,7 @@ export default function VehicleDetailPage() {
                   <div className="flex items-center space-x-2 mb-2">
                     <h4 className="text-lg font-semibold text-gray-900">{vehicle.owner.name}</h4>
                     {vehicle.owner.isVerified && (
-                      <Shield className="w-5 h-5 text-blue-500" />
+                      <Shield className="w-5 h-5 text-[#01502E]" />
                     )}
                   </div>
                   <div className="flex items-center space-x-4 mb-2">
@@ -620,9 +625,7 @@ export default function VehicleDetailPage() {
                 {/* Total Price */}
                 <div className="flex items-center justify-between mb-6 py-3 border-t border-gray-200">
                   <span className="font-medium text-gray-900">Total ({calculateDays()} days)</span>
-                  <span className="text-xl font-bold text-gray-900">
-                    ${totalPrice.toFixed(2)}
-                  </span>
+                  <span className="text-xl font-bold text-gray-900">PKR {Math.round(totalPrice).toLocaleString()}</span>
                 </div>
 
                 {/* Book Button */}
@@ -697,14 +700,14 @@ export default function VehicleDetailPage() {
               {/* Insurance Options */}
               <div className="mt-6 bg-white rounded-lg shadow-sm border p-4">
                 <h4 className="font-semibold text-gray-900 mb-3">Insurance Options</h4>
-                <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-700">Basic Insurance (included)</span>
-                    <span className="text-gray-900">${(vehicle as any).insuranceFee || 0}</span>
+                    <span className="text-gray-900">PKR {(vehicle as any).insuranceFee?.toLocaleString?.() || '0'}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-700">Premium Insurance (optional)</span>
-                    <span className="text-gray-900">${(vehicle as any).insuranceFee || 0}</span>
+                    <span className="text-gray-900">PKR {(vehicle as any).insuranceFee?.toLocaleString?.() || '0'}</span>
                   </div>
                   <p className="text-xs text-gray-500">Coverage includes damage waiver; check provider policy for excess/deductible amounts.</p>
                 </div>

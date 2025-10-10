@@ -23,7 +23,7 @@ export function MessageBubble({
   onReply?: (m: Message) => void;
 }) {
   const statusIcon = message.status === "read" ? (
-    <CheckCheck className="w-4 h-4 text-blue-500" />
+    <CheckCheck className="w-4 h-4 text-[#01502E]" />
   ) : message.status === "delivered" ? (
     <CheckCheck className="w-4 h-4 text-gray-400" />
   ) : message.status === "sent" ? (

@@ -13,7 +13,7 @@ import { Badge } from "~/components/ui/badge";
 import { Separator } from "~/components/ui/separator";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Loader2, CreditCard, Shield, CheckCircle, Calendar, MapPin, Users, Car, Star } from "lucide-react";
+import { Loader2, CreditCard, Shield, CheckCircle, Calendar, MapPin, Users, Car, Star, AlertCircle } from "lucide-react";
 import { createAndDispatchNotification } from "~/lib/notifications.server";
 import type { PaymentMethod } from "@prisma/client";
 import { publishToUser } from "~/lib/realtime.server";
@@ -132,11 +132,38 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     }
 
     // Get payment methods (in a real app, this would come from your payment provider)
+    // Check if Stripe is configured
+    const stripeConfigured = !!process.env.STRIPE_SECRET_KEY;
+    
     const paymentMethods = [
-      { id: "stripe", name: "Credit/Debit Card", icon: "💳", description: "Pay with card (Stripe)" },
-      { id: "paypal", name: "PayPal", icon: "🅿️", description: "Checkout with PayPal" },
-      { id: "pay_at_pickup", name: "Pay at Pickup/Check-in", icon: "🏁", description: "Pay later at service" },
-      { id: "bank_transfer", name: "Bank Transfer", icon: "🏦", description: "Manual transfer with proof" },
+      { 
+        id: "stripe", 
+        name: "Credit/Debit Card", 
+        icon: "💳", 
+        description: stripeConfigured ? "Secure payment with Stripe" : "Card payment (Gateway not configured)",
+        available: true
+      },
+      { 
+        id: "paypal", 
+        name: "PayPal", 
+        icon: "🅿️", 
+        description: "Continue with PayPal", 
+        available: true
+      },
+      { 
+        id: "pay_at_pickup", 
+        name: "Pay at Pickup/Check-in", 
+        icon: "🏁", 
+        description: "You'll pay at pickup/check-in. Booking confirmed after provider approval.", 
+        available: true
+      },
+      { 
+        id: "bank_transfer", 
+        name: "Bank Transfer", 
+        icon: "🏦", 
+        description: "Manual transfer with proof of payment", 
+        available: true
+      },
     ];
 
     return json({
@@ -167,18 +194,86 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const bankProofUrl = formData.get("bankProofUrl") as string | null;
     const type = bookingType;
     if (!paymentMethod) return json({ error: "Payment method required" }, { status: 400 });
+    
+    // Check for Stripe integration
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    
     if (paymentMethod === 'paypal') {
       return json({ message: 'Redirecting to PayPal...' });
     }
+    
     if (paymentMethod === 'stripe') {
-      return redirect(`/payment/stripe/${bookingId}?type=${type}`);
+      if (stripeSecretKey) {
+        // Initialize Stripe and create payment intent
+        try {
+          // Dynamic import for Stripe (optional dependency)
+          const stripeModule = await import('stripe' as any).catch(() => null);
+          if (!stripeModule) {
+            return json({ 
+              message: 'Payment gateway not configured',
+              warning: 'Stripe package not installed. Please contact admin to set up payment processing.'
+            });
+          }
+          const stripe = new stripeModule.default(stripeSecretKey);
+          
+          // Get booking amount
+          let bookingAmount = 0;
+          if (bookingType === "property") {
+            const propertyBooking = await prisma.propertyBooking.findUnique({
+              where: { id: bookingId },
+              select: { totalPrice: true }
+            });
+            bookingAmount = propertyBooking?.totalPrice || 0;
+          } else if (bookingType === "vehicle") {
+            const vehicleBooking = await prisma.vehicleBooking.findUnique({
+              where: { id: bookingId },
+              select: { totalPrice: true }
+            });
+            bookingAmount = vehicleBooking?.totalPrice || 0;
+          } else if (bookingType === "tour") {
+            const tourBooking = await prisma.tourBooking.findUnique({
+              where: { id: bookingId },
+              select: { totalPrice: true }
+            });
+            bookingAmount = tourBooking?.totalPrice || 0;
+          }
+          
+          // Create payment intent
+          const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(bookingAmount * 100), // Convert to cents
+            currency: 'pkr',
+            metadata: {
+              bookingId,
+              bookingType: type
+            }
+          });
+          
+          return json({ 
+            message: 'Stripe payment intent created',
+            clientSecret: paymentIntent.client_secret,
+            paymentIntentId: paymentIntent.id
+          });
+        } catch (error) {
+          console.error('Stripe error:', error);
+          return json({ error: 'Payment gateway error' }, { status: 500 });
+        }
+      } else {
+        // No Stripe key - show message and create pending booking
+        return json({ 
+          message: 'Payment gateway not configured',
+          warning: 'Please contact admin to set up payment processing'
+        });
+      }
     }
+    
     if (paymentMethod === 'pay_at_pickup') {
       return json({ message: 'Pay at pickup selected' });
     }
+    
     if (paymentMethod === 'bank_transfer') {
       return json({ message: 'Bank transfer selected' });
     }
+    
     return json({ error: "Unsupported payment method" }, { status: 400 });
   }
 
@@ -192,10 +287,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const billingCity = formData.get("billingCity") as string;
     const billingCountry = formData.get("billingCountry") as string;
     const billingPostalCode = formData.get("billingPostalCode") as string;
+    const bankProofUrl = formData.get("bankProofUrl") as string | null;
 
     if (!paymentMethod) {
       return json({ error: "Payment method is required" }, { status: 400 });
     }
+
+    // Check for Stripe integration
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    const stripePublishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
 
     // Get booking details
     let booking;
@@ -291,8 +391,29 @@ export async function action({ request, params }: ActionFunctionArgs) {
       if (paymentMethod === 'stripe') {
         if (process.env.STRIPE_SECRET) {
           try {
-            const stripeMod = await import('stripe');
-            const stripe = new stripeMod.default(process.env.STRIPE_SECRET as string, { apiVersion: '2023-10-16' });
+            const stripeModule = await import('stripe' as any).catch(() => null);
+            if (!stripeModule) {
+              // Stripe not installed, create pending payment
+              await prisma.payment.create({
+                data: {
+                  amount: booking.totalPrice,
+                  currency: booking.currency,
+                  method: "CREDIT_CARD",
+                  transactionId: `DEV-${Date.now()}`,
+                  status: "PENDING",
+                  paymentGateway: 'stripe',
+                  gatewayResponse: { message: 'Stripe package not installed' },
+                  userId,
+                  bookingId,
+                  bookingType,
+                }
+              });
+              return json({ 
+                message: 'Payment gateway not configured',
+                warning: 'Stripe package not installed. Please contact admin to set up payment processing.'
+              });
+            }
+            const stripe = new stripeModule.default(process.env.STRIPE_SECRET as string, { apiVersion: '2023-10-16' });
             const amountMinor = Math.round((booking.totalPrice || 0) * 100);
             const currency = (booking.currency || 'PKR').toLowerCase();
             const intent = await stripe.paymentIntents.create({
@@ -753,7 +874,7 @@ export default function PaymentPage() {
     bankName: "HBL Skardu",
     accountName: "FindoTrip Pvt Ltd",
     accountNumber: "1234 5678 9012",
-    iban: "PK00HABB000000000123456789",
+    iban: "PK36HBLB0000001234567890",
   });
   const [bankProofUrl, setBankProofUrl] = useState("");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
@@ -969,17 +1090,17 @@ export default function PaymentPage() {
 
                   {/* Payment Method Selection */}
                   <div>
-                    <Label>Payment Method</Label>
-                    <div className="space-y-3 mt-2">
+                    <Label className="text-lg font-semibold">Choose Payment Method</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
                       {paymentMethods.map((method) => (
                         <div
                           key={method.id}
-                          className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                          className={`border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${
                             selectedPaymentMethod === method.id
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-gray-200 hover:border-gray-300"
-                          }`}
-                          onClick={() => setSelectedPaymentMethod(method.id)}
+                              ? "border-[#01502E] bg-[#01502E]/5 shadow-md"
+                              : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                          } ${!method.available ? "opacity-50 cursor-not-allowed" : ""}`}
+                          onClick={() => method.available && setSelectedPaymentMethod(method.id)}
                         >
                           <div className="flex items-center space-x-3">
                             <input
@@ -988,12 +1109,16 @@ export default function PaymentPage() {
                               value={method.id}
                               checked={selectedPaymentMethod === method.id}
                               onChange={() => setSelectedPaymentMethod(method.id)}
-                              className="h-4 w-4 text-blue-600"
+                              disabled={!method.available}
+                              className="h-4 w-4 text-[#01502E]"
                             />
-                            <span className="text-xl">{method.icon}</span>
-                            <div>
-                              <div className="font-medium">{method.name}</div>
-                              <div className="text-sm text-gray-600">{method.description}</div>
+                            <span className="text-2xl">{method.icon}</span>
+                            <div className="flex-1">
+                              <div className="font-semibold text-gray-900">{method.name}</div>
+                              <div className="text-sm text-gray-600 mt-1">{method.description}</div>
+                              {!method.available && (
+                                <div className="text-xs text-red-500 mt-1">Currently unavailable</div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1004,6 +1129,16 @@ export default function PaymentPage() {
                   {/* Card Details */}
                   {selectedPaymentMethod === "stripe" && (
                     <div className="space-y-4">
+                      {!process.env.STRIPE_SECRET_KEY && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                          <div className="flex items-start space-x-2">
+                            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                            <div className="text-sm text-yellow-800">
+                              <strong>Payment Gateway Not Configured:</strong> Stripe integration is not set up. Your booking will be created with pending payment status. Please contact admin to set up payment processing.
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div>
                         <Label htmlFor="cardNumber">Card Number</Label>
                         <Input
@@ -1064,57 +1199,125 @@ export default function PaymentPage() {
 
                   {selectedPaymentMethod === "paypal" && (
                     <div className="space-y-4">
-                      <Alert>
-                        <AlertDescription>
-                          You will be redirected to PayPal to complete your payment.
-                        </AlertDescription>
-                      </Alert>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-2xl">🅿️</span>
+                          <div>
+                            <h4 className="font-semibold text-blue-900">PayPal Checkout</h4>
+                            <p className="text-sm text-blue-700">You will be redirected to PayPal to complete your payment securely.</p>
+                          </div>
+                        </div>
+                      </div>
                       <Form method="post">
                         <input type="hidden" name="intent" value="startPayment" />
                         <input type="hidden" name="bookingType" value={bookingType} />
                         <input type="hidden" name="paymentMethod" value="paypal" />
-                        <Button type="submit" className="w-full">Continue with PayPal</Button>
+                        <Button type="submit" className="w-full bg-[#0070ba] hover:bg-[#005ea6] text-white">
+                          Continue with PayPal
+                        </Button>
                       </Form>
                     </div>
                   )}
 
                   {selectedPaymentMethod === "pay_at_pickup" && (
                     <div className="space-y-4">
-                      <Alert>
-                        <AlertDescription>
-                          You'll pay at pickup/check-in. Booking confirmed after provider approval.
-                        </AlertDescription>
-                      </Alert>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-2xl">🏁</span>
+                          <div>
+                            <h4 className="font-semibold text-green-900">Pay at Pickup/Check-in</h4>
+                            <p className="text-sm text-green-700">You'll pay at pickup/check-in. Booking confirmed after provider approval.</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <div className="flex items-start space-x-2">
+                          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                          <div className="text-sm text-yellow-800">
+                            <strong>Important:</strong> Your booking will be confirmed only after the provider approves your payment method. You'll receive a notification once approved.
+                          </div>
+                        </div>
+                      </div>
                       <Form method="post">
                         <input type="hidden" name="intent" value="processPayment" />
                         <input type="hidden" name="bookingType" value={bookingType} />
                         <input type="hidden" name="paymentMethod" value="pay_at_pickup" />
-                        <Button type="submit" className="w-full">Confirm Pay at Pickup</Button>
+                        <Button type="submit" className="w-full bg-[#01502E] hover:bg-[#013a23] text-white">
+                          Confirm Pay at Pickup
+                        </Button>
                       </Form>
                     </div>
                   )}
 
                   {selectedPaymentMethod === "bank_transfer" && (
                     <div className="space-y-4">
-                      <div className="rounded border p-4">
-                        <h4 className="font-semibold mb-2">Bank Details</h4>
-                        <div className="text-sm text-gray-700 space-y-1">
-                          <div>Bank: {bankDetails.bankName}</div>
-                          <div>Account Name: {bankDetails.accountName}</div>
-                          <div>Account Number: {bankDetails.accountNumber}</div>
-                          <div>IBAN: {bankDetails.iban}</div>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <span className="text-2xl">🏦</span>
+                          <div>
+                            <h4 className="font-semibold text-blue-900">Bank Transfer Details</h4>
+                            <p className="text-sm text-blue-700">Transfer the exact amount to our bank account and upload proof.</p>
+                          </div>
+                        </div>
+                        <div className="bg-white border border-blue-200 rounded-lg p-4">
+                          <h5 className="font-semibold text-gray-900 mb-3">Transfer to:</h5>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Bank:</span>
+                              <span className="font-medium">{bankDetails.bankName}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Account Name:</span>
+                              <span className="font-medium">{bankDetails.accountName}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Account Number:</span>
+                              <span className="font-medium font-mono">{bankDetails.accountNumber}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">IBAN:</span>
+                              <span className="font-medium font-mono">{bankDetails.iban}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Amount:</span>
+                              <span className="font-bold text-[#01502E]">{booking.currency} {booking.totalPrice.toFixed(2)}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Upload Proof of Payment (URL)</Label>
-                        <Input value={bankProofUrl} onChange={(e) => setBankProofUrl(e.target.value)} placeholder="https://.../receipt.jpg" />
+                      
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium">Upload Proof of Payment</Label>
+                        <div className="space-y-2">
+                          <Input 
+                            value={bankProofUrl} 
+                            onChange={(e) => setBankProofUrl(e.target.value)} 
+                            placeholder="https://.../receipt.jpg or upload image URL"
+                            className="w-full"
+                          />
+                          <p className="text-xs text-gray-500">
+                            Upload a screenshot or photo of your bank transfer receipt. You can use any image hosting service like Imgur, Google Drive, etc.
+                          </p>
+                        </div>
                       </div>
+                      
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <div className="flex items-start space-x-2">
+                          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                          <div className="text-sm text-yellow-800">
+                            <strong>Note:</strong> Your booking will be confirmed only after we verify your bank transfer. This usually takes 1-2 business days.
+                          </div>
+                        </div>
+                      </div>
+                      
                       <Form method="post">
                         <input type="hidden" name="intent" value="processPayment" />
                         <input type="hidden" name="bookingType" value={bookingType} />
                         <input type="hidden" name="paymentMethod" value="bank_transfer" />
                         <input type="hidden" name="bankProofUrl" value={bankProofUrl} />
-                        <Button type="submit" className="w-full">Submit Bank Transfer</Button>
+                        <Button type="submit" className="w-full bg-[#01502E] hover:bg-[#013a23] text-white">
+                          Submit Bank Transfer
+                        </Button>
                       </Form>
                     </div>
                   )}
@@ -1200,7 +1403,7 @@ export default function PaymentPage() {
                   </div>
 
                   {/* Error Messages */}
-                  {actionData?.error && (
+                  {actionData && 'error' in actionData && (
                     <Alert variant="destructive">
                       <AlertDescription>{actionData.error}</AlertDescription>
                     </Alert>

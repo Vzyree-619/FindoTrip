@@ -325,7 +325,7 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
             {visibleFeatures.map((feature, index) => (
               <span
                 key={index}
-                className="bg-blue-50 text-blue-700 text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap"
+                className="bg-[#01502E]/10 text-[#01502E] text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap"
               >
                 {feature}
               </span>
@@ -375,19 +375,19 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <span className="text-2xl font-bold text-gray-900">
-                  ${calculatePrice()}
+                  PKR {calculatePrice().toLocaleString()}
                 </span>
                 <span className="text-sm text-gray-500">
-                  {selectedDates ? 'total' : 'per day'}
+                  {selectedDates ? 'total (with driver)' : 'per day (with driver)'}
                 </span>
               </div>
               {vehicle.originalPrice && vehicle.originalPrice > vehicle.price && (
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500 line-through">
-                    ${vehicle.originalPrice}
+                    PKR {vehicle.originalPrice.toLocaleString()}
                   </span>
                   <span className="text-xs text-green-600 font-medium">
-                    Save ${vehicle.originalPrice - vehicle.price}
+                    Save PKR {(vehicle.originalPrice - vehicle.price).toLocaleString()}
                   </span>
                 </div>
               )}
@@ -549,3 +549,4 @@ export function VehicleComparison({ vehicles, onRemove, onClear }: VehicleCompar
     </div>
   );
 }
+import React from 'react';

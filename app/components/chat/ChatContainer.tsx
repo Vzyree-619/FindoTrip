@@ -5,13 +5,15 @@ import type { Conversation, Message } from "./types";
 
 type ChatContainerProps = {
   className?: string;
+  currentUserId?: string;
 };
 
-export default function ChatContainer({ className }: ChatContainerProps) {
+export default function ChatContainer({ className, currentUserId: currentUserIdProp }: ChatContainerProps) {
   const [loading, setLoading] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
 
   async function loadConversations() {
     setLoading(true);
@@ -19,6 +21,7 @@ export default function ChatContainer({ className }: ChatContainerProps) {
       const res = await fetch(`/api/chat/conversations?limit=50`);
       const json = await res.json();
       const items = (json?.data?.conversations || []) as any[];
+      setCurrentUserId(currentUserIdProp || json?.data?.currentUserId || json?.data?.userId);
       const mapped: Conversation[] = items.map((c: any) => ({
         id: c.id,
         participants: c.participants?.map((p: any) => ({ id: p.id, name: p.name, avatar: p.avatar, role: p.role })) || [],
@@ -38,6 +41,10 @@ export default function ChatContainer({ className }: ChatContainerProps) {
         updatedAt: c.lastMessageAt,
       }));
       setConversations(mapped);
+      if (mapped.length && !selectedId) {
+        setSelectedId(mapped[0].id);
+        setOpen(true);
+      }
     } catch (e) {
       console.error("Failed to load conversations", e);
     } finally {
@@ -53,8 +60,8 @@ export default function ChatContainer({ className }: ChatContainerProps) {
 
   return (
     <div className={className}>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="sm:col-span-1 border rounded-md overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-1 border rounded-md overflow-hidden">
           <ConversationList
             conversations={conversations}
             loading={loading}
@@ -65,11 +72,13 @@ export default function ChatContainer({ className }: ChatContainerProps) {
             onSearch={() => {}}
           />
         </div>
-        <div className="sm:col-span-2">
+        <div className="md:col-span-2">
           <ChatInterface
             isOpen={open}
             onClose={() => setOpen(false)}
             conversationId={selectedId ?? undefined}
+            currentUserId={currentUserId}
+            variant="inline"
             onSendMessage={async ({ conversationId, text }) => {
               const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
                 method: "POST",

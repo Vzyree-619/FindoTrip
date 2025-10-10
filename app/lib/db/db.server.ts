@@ -21,11 +21,9 @@ if (process.env.NODE_ENV === "production") {
 
 export { prisma };
 
-// ==========================================
-// UPDATED UTILITIES FOR NEW PRISMA MODELS
-// ==========================================
+// Helper functions for common queries
 
-export async function getProperties(filters?: {
+export async function getAccommodations(filters?: {
   city?: string;
   country?: string;
   type?: string;
@@ -35,7 +33,7 @@ export async function getProperties(filters?: {
   checkOut?: Date;
   guests?: number;
 }) {
-  const where: any = { available: true, approvalStatus: "APPROVED", owner: { verified: true } };
+  const where: any = { available: true };
 
   if (filters?.city)
     where.city = { contains: filters.city, mode: "insensitive" };
@@ -43,19 +41,18 @@ export async function getProperties(filters?: {
     where.country = { contains: filters.country, mode: "insensitive" };
   if (filters?.type) where.type = filters.type;
   if (filters?.minPrice)
-    where.basePrice = { ...where.basePrice, gte: filters.minPrice };
+    where.pricePerNight = { ...where.pricePerNight, gte: filters.minPrice };
   if (filters?.maxPrice)
-    where.basePrice = { ...where.basePrice, lte: filters.maxPrice };
+    where.pricePerNight = { ...where.pricePerNight, lte: filters.maxPrice };
   if (filters?.guests) where.maxGuests = { gte: filters.guests };
 
-  const properties = await prisma.property.findMany({
+  const accommodations = await prisma.accommodation.findMany({
     where,
     include: {
       owner: {
         select: {
-          businessName: true,
-          businessPhone: true,
-          verified: true,
+          name: true,
+          avatar: true,
         },
       },
       _count: {
@@ -64,19 +61,18 @@ export async function getProperties(filters?: {
         },
       },
     },
-    orderBy: [
-      { rating: "desc" },
-      { reviewCount: "desc" },
-    ],
+    orderBy: {
+      rating: "desc",
+    },
   });
 
-  // Filter out properties with conflicting bookings
+  // Filter out accommodations with conflicting bookings
   if (filters?.checkIn && filters?.checkOut) {
     const available = await Promise.all(
-      properties.map(async (property) => {
-        const conflictingBookings = await prisma.propertyBooking.findFirst({
+      accommodations.map(async (acc) => {
+        const conflictingBookings = await prisma.booking.findFirst({
           where: {
-            propertyId: property.id,
+            accommodationId: acc.id,
             status: { in: ["CONFIRMED", "PENDING"] },
             OR: [
               {
@@ -86,16 +82,16 @@ export async function getProperties(filters?: {
             ],
           },
         });
-        return conflictingBookings ? null : property;
+        return conflictingBookings ? null : acc;
       })
     );
     return available.filter(Boolean);
   }
 
-  return properties;
+  return accommodations;
 }
 
-export async function getVehicles(filters?: {
+export async function getCars(filters?: {
   city?: string;
   country?: string;
   type?: string;
@@ -105,7 +101,7 @@ export async function getVehicles(filters?: {
   checkOut?: Date;
   seats?: number;
 }) {
-  const where: any = { available: true, approvalStatus: "APPROVED" };
+  const where: any = { available: true };
 
   if (filters?.city)
     where.city = { contains: filters.city, mode: "insensitive" };
@@ -114,19 +110,18 @@ export async function getVehicles(filters?: {
   if (filters?.type)
     where.type = { contains: filters.type, mode: "insensitive" };
   if (filters?.minPrice)
-    where.basePrice = { ...where.basePrice, gte: filters.minPrice };
+    where.pricePerDay = { ...where.pricePerDay, gte: filters.minPrice };
   if (filters?.maxPrice)
-    where.basePrice = { ...where.basePrice, lte: filters.maxPrice };
+    where.pricePerDay = { ...where.pricePerDay, lte: filters.maxPrice };
   if (filters?.seats) where.seats = { gte: filters.seats };
 
-  const vehicles = await prisma.vehicle.findMany({
+  const cars = await prisma.car.findMany({
     where,
     include: {
-      owner: {
+      provider: {
         select: {
-          businessName: true,
-          businessPhone: true,
-          verified: true,
+          name: true,
+          phone: true,
         },
       },
       _count: {
@@ -135,67 +130,62 @@ export async function getVehicles(filters?: {
         },
       },
     },
-    orderBy: [
-      { rating: "desc" },
-      { reviewCount: "desc" },
-    ],
+    orderBy: {
+      rating: "desc",
+    },
   });
 
-  // Filter out vehicles with conflicting bookings
+  // Filter out cars with conflicting bookings
   if (filters?.checkIn && filters?.checkOut) {
     const available = await Promise.all(
-      vehicles.map(async (vehicle) => {
-        const conflictingBookings = await prisma.vehicleBooking.findFirst({
+      cars.map(async (car) => {
+        const conflictingBookings = await prisma.booking.findFirst({
           where: {
-            vehicleId: vehicle.id,
+            carId: car.id,
             status: { in: ["CONFIRMED", "PENDING"] },
             OR: [
               {
-                startDate: { lte: filters.checkOut },
-                endDate: { gte: filters.checkIn },
+                checkIn: { lte: filters.checkOut },
+                checkOut: { gte: filters.checkIn },
               },
             ],
           },
         });
-        return conflictingBookings ? null : vehicle;
+        return conflictingBookings ? null : car;
       })
     );
     return available.filter(Boolean);
   }
 
-  return vehicles;
+  return cars;
 }
 
-export async function getTours(filters?: {
+export async function getTourGuides(filters?: {
   city?: string;
   country?: string;
   language?: string;
-  type?: string;
+  specialty?: string;
   maxPrice?: number;
-  checkIn?: Date;
-  participants?: number;
 }) {
-  const where: any = { available: true, approvalStatus: "APPROVED" };
+  const where: any = { available: true };
 
   if (filters?.city)
     where.city = { contains: filters.city, mode: "insensitive" };
   if (filters?.country)
     where.country = { contains: filters.country, mode: "insensitive" };
-  if (filters?.type) where.type = filters.type;
   if (filters?.language) where.languages = { has: filters.language };
-  if (filters?.maxPrice) where.pricePerPerson = { lte: filters.maxPrice };
-  if (filters?.participants) where.maxGroupSize = { gte: filters.participants };
+  if (filters?.specialty) where.specialties = { has: filters.specialty };
+  if (filters?.maxPrice) where.pricePerHour = { lte: filters.maxPrice };
 
-  const tours = await prisma.tour.findMany({
+  return prisma.tourGuide.findMany({
     where,
     include: {
-      guide: {
+      user: {
         select: {
-          firstName: true,
-          lastName: true,
-          languages: true,
-          yearsOfExperience: true,
-          verified: true,
+          name: true,
+          email: true,
+          phone: true,
+          avatar: true,
         },
       },
       _count: {
@@ -204,275 +194,187 @@ export async function getTours(filters?: {
         },
       },
     },
-    orderBy: [
-      { rating: "desc" },
-      { reviewCount: "desc" },
-    ],
+    orderBy: {
+      rating: "desc",
+    },
   });
-
-  return tours;
 }
 
 export async function createBooking(data: {
   userId: string;
-  checkIn?: Date;
-  checkOut?: Date;
-  guests?: number;
+  checkIn: Date;
+  checkOut: Date;
+  guests: number;
   totalPrice: number;
-  propertyId?: string;
-  vehicleId?: string;
-  tourId?: string;
+  accommodationId?: string;
+  carId?: string;
+  tourGuideId?: string;
   specialRequests?: string;
 }) {
-  // Generate unique booking number
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substr(2, 9).toUpperCase();
-  const bookingNumber = `BK${timestamp}${random}`;
+  const bookingNumber = `BK${Date.now()}${Math.random()
+    .toString(36)
+    .substr(2, 9)
+    .toUpperCase()}`;
 
-  let booking;
+  return prisma.booking.create({
+    data: {
+      ...data,
+      bookingNumber,
+      status: "PENDING",
+    },
+    include: {
+      accommodation: true,
+      car: true,
+      tourGuide: {
+        include: {
+          user: true,
+        },
+      },
+    },
+  });
+}
 
-  if (data.propertyId) {
-    booking = await prisma.propertyBooking.create({
-      data: {
-        bookingNumber,
-        checkIn: data.checkIn!,
-        checkOut: data.checkOut!,
-        guests: data.guests!,
-        adults: data.guests!,
-        children: 0,
-        infants: 0,
-        basePrice: data.totalPrice,
-        totalPrice: data.totalPrice,
-        status: "PENDING",
-        userId: data.userId,
-        propertyId: data.propertyId,
-        guestName: "",
-        guestEmail: "",
-        guestPhone: "",
-        specialRequests: data.specialRequests,
+export async function getUserBookings(userId: string) {
+  return prisma.booking.findMany({
+    where: { userId },
+    include: {
+      accommodation: true,
+      car: true,
+      tourGuide: {
+        include: {
+          user: true,
+        },
       },
-    });
-  } else if (data.vehicleId) {
-    booking = await prisma.vehicleBooking.create({
-      data: {
-        bookingNumber,
-        startDate: data.checkIn!,
-        endDate: data.checkOut!,
-        pickupTime: "09:00",
-        returnTime: "18:00",
-        pickupLocation: "TBD",
-        returnLocation: "TBD",
-        driverRequired: false,
-        driverIncluded: false,
-        basePrice: data.totalPrice,
-        driverFee: 0,
-        insuranceFee: 0,
-        securityDeposit: 0,
-        extraFees: 0,
-        totalPrice: data.totalPrice,
-        status: "PENDING",
-        paymentStatus: "PENDING",
-        userId: data.userId,
-        vehicleId: data.vehicleId,
-        renterName: "",
-        renterEmail: "",
-        renterPhone: "",
-        licenseNumber: "",
-        licenseExpiry: new Date(),
-        specialRequests: data.specialRequests,
-        additionalEquipment: [],
+      payment: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
+
+export async function getProviderStats(providerId: string) {
+  const cars = await prisma.car.findMany({
+    where: { providerId },
+    include: {
+      bookings: {
+        where: {
+          status: { in: ["CONFIRMED", "COMPLETED"] },
+        },
       },
+    },
+  });
+
+  const totalBookings = cars.reduce((sum, car) => sum + car.bookings.length, 0);
+  const totalRevenue = cars.reduce(
+    (sum, car) =>
+      sum +
+      car.bookings.reduce(
+        (bookingSum, booking) => bookingSum + booking.totalPrice,
+        0
+      ),
+    0
+  );
+
+  return {
+    totalCars: cars.length,
+    totalBookings,
+    totalRevenue,
+    activeCars: cars.filter((car) => car.available).length,
+    cars,
+  };
+}
+
+export async function getGuideStats(guideId: string) {
+  const guide = await prisma.tourGuide.findUnique({
+    where: { id: guideId },
+    include: {
+      bookings: {
+        where: {
+          status: { in: ["CONFIRMED", "COMPLETED"] },
+        },
+      },
+      reviews: true,
+    },
+  });
+
+  if (!guide) return null;
+
+  const totalRevenue = guide.bookings.reduce(
+    (sum, booking) => sum + booking.totalPrice,
+    0
+  );
+
+  return {
+    totalTours: guide.toursCompleted,
+    upcomingTours: guide.bookings.filter(
+      (b) => b.status === "CONFIRMED" && b.checkIn > new Date()
+    ).length,
+    totalRevenue,
+    rating: guide.rating,
+    reviewCount: guide.reviewCount,
+    bookings: guide.bookings,
+  };
+}
+
+export async function createReview(data: {
+  userId: string;
+  bookingId: string;
+  rating: number;
+  comment: string;
+  accommodationId?: string;
+  carId?: string;
+  tourGuideId?: string;
+}) {
+  const review = await prisma.review.create({
+    data,
+  });
+
+  // Update average rating
+  if (data.accommodationId) {
+    const avgRating = await prisma.review.aggregate({
+      where: { accommodationId: data.accommodationId },
+      _avg: { rating: true },
+      _count: true,
     });
-  } else if (data.tourId) {
-    const tour = await prisma.tour.findUnique({ where: { id: data.tourId }, select: { guideId: true, meetingPoint: true, timeSlots: true } });
-    const defaultSlot = tour?.timeSlots?.[0] || "09:00";
-    booking = await prisma.tourBooking.create({
+    await prisma.accommodation.update({
+      where: { id: data.accommodationId },
       data: {
-        bookingNumber,
-        tourDate: data.checkIn!,
-        timeSlot: defaultSlot,
-        participants: data.guests!,
-        adults: data.guests!,
-        children: 0,
-        pricePerPerson: data.totalPrice / data.guests!,
-        childDiscount: 0,
-        groupDiscount: 0,
-        extraFees: 0,
-        totalPrice: data.totalPrice,
-        status: "PENDING",
-        paymentStatus: "PENDING",
-        userId: data.userId,
-        tourId: data.tourId,
-        guideId: tour?.guideId || data.userId, // fallback
-        leadTravelerName: "",
-        leadTravelerEmail: "",
-        leadTravelerPhone: "",
-        participantNames: [],
-        participantAges: [],
-        dietaryRequirements: [],
-        accessibilityNeeds: [],
-        meetingPoint: tour?.meetingPoint || "TBD",
-        meetingTime: defaultSlot,
-        specialRequests: data.specialRequests,
+        rating: avgRating._avg.rating || 0,
+        reviewCount: avgRating._count,
       },
     });
   }
 
-  return booking;
-}
+  if (data.carId) {
+    const avgRating = await prisma.review.aggregate({
+      where: { carId: data.carId },
+      _avg: { rating: true },
+      _count: true,
+    });
+    await prisma.car.update({
+      where: { id: data.carId },
+      data: {
+        rating: avgRating._avg.rating || 0,
+        reviewCount: avgRating._count,
+      },
+    });
+  }
 
-export async function getUserBookings(userId: string) {
-  const propertyBookings = await prisma.propertyBooking.findMany({
-    where: { userId },
-    include: {
-      property: {
-        select: {
-          name: true,
-          city: true,
-          country: true,
-          images: true,
-        },
+  if (data.tourGuideId) {
+    const avgRating = await prisma.review.aggregate({
+      where: { tourGuideId: data.tourGuideId },
+      _avg: { rating: true },
+      _count: true,
+    });
+    await prisma.tourGuide.update({
+      where: { id: data.tourGuideId },
+      data: {
+        rating: avgRating._avg.rating || 0,
+        reviewCount: avgRating._count,
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+    });
+  }
 
-  const vehicleBookings = await prisma.vehicleBooking.findMany({
-    where: { userId },
-    include: {
-      vehicle: {
-        select: {
-          name: true,
-          city: true,
-          country: true,
-          images: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const tourBookings = await prisma.tourBooking.findMany({
-    where: { userId },
-    include: {
-      tour: {
-        select: {
-          title: true,
-          city: true,
-          country: true,
-          images: true,
-        },
-      },
-      guide: {
-        select: {
-          firstName: true,
-          lastName: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return {
-    propertyBookings,
-    vehicleBookings,
-    tourBookings,
-  };
-}
-
-export async function getPropertyById(id: string) {
-  return prisma.property.findUnique({
-    where: { id },
-    include: {
-      owner: {
-        select: {
-          businessName: true,
-          businessPhone: true,
-          businessEmail: true,
-        },
-      },
-      reviews: {
-        take: 5,
-        orderBy: { createdAt: "desc" },
-        include: {
-          user: {
-            select: {
-              name: true,
-              avatar: true,
-            },
-          },
-        },
-      },
-      _count: {
-        select: {
-          reviews: true,
-        },
-      },
-    },
-  });
-}
-
-export async function getVehicleById(id: string) {
-  return prisma.vehicle.findUnique({
-    where: { id },
-    include: {
-      owner: {
-        select: {
-          businessName: true,
-          businessPhone: true,
-          businessEmail: true,
-        },
-      },
-      reviews: {
-        take: 5,
-        orderBy: { createdAt: "desc" },
-        include: {
-          user: {
-            select: {
-              name: true,
-              avatar: true,
-            },
-          },
-        },
-      },
-      _count: {
-        select: {
-          reviews: true,
-        },
-      },
-    },
-  });
-}
-
-export async function getTourById(id: string) {
-  return prisma.tour.findUnique({
-    where: { id },
-    include: {
-      guide: {
-        select: {
-          firstName: true,
-          lastName: true,
-          languages: true,
-          yearsOfExperience: true,
-        },
-      },
-      reviews: {
-        take: 5,
-        orderBy: { createdAt: "desc" },
-        include: {
-          user: {
-            select: {
-              name: true,
-              avatar: true,
-            },
-          },
-        },
-      },
-      _count: {
-        select: {
-          reviews: true,
-        },
-      },
-    },
-  });
+  return review;
 }

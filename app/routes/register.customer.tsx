@@ -15,7 +15,7 @@ import {
   Heart, 
   Globe, 
   Users, 
-  DollarSign,
+  // DollarSign,
   Loader2,
   Check,
   ArrowRight,
@@ -175,7 +175,7 @@ export default function CustomerOnboarding() {
                     id="firstName"
                     name="firstName"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                     placeholder="John"
                   />
                 </div>
@@ -188,7 +188,7 @@ export default function CustomerOnboarding() {
                     id="lastName"
                     name="lastName"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                     placeholder="Doe"
                   />
                 </div>
@@ -200,7 +200,7 @@ export default function CustomerOnboarding() {
                     type="date"
                     id="dateOfBirth"
                     name="dateOfBirth"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -210,7 +210,7 @@ export default function CustomerOnboarding() {
                   <select
                     id="gender"
                     name="gender"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                   >
                     <option value="">Select Gender</option>
                     <option value="male">Male</option>
@@ -234,7 +234,7 @@ export default function CustomerOnboarding() {
                     type="text"
                     id="nationality"
                     name="nationality"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                     placeholder="e.g., Pakistani"
                   />
                 </div>
@@ -259,7 +259,7 @@ export default function CustomerOnboarding() {
                   type="text"
                   id="country"
                   name="country"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                   placeholder="e.g., Pakistan"
                 />
               </div>
@@ -276,7 +276,7 @@ export default function CustomerOnboarding() {
                   <select
                     id="travelStyle"
                     name="travelStyle"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                   >
                     <option value="">Select Style</option>
                     <option value="budget">Budget Traveler</option>
@@ -320,11 +320,11 @@ export default function CustomerOnboarding() {
                       onClick={() => toggleInterest(interest.id)}
                       className={`p-4 rounded-xl border-2 transition-all ${
                         isSelected
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 hover:border-blue-300'
+                          ? 'border-[#01502E] bg-[#01502E]/10 text-[#01502E]'
+                          : 'border-gray-200 hover:border-[#01502E]'
                       }`}
                     >
-                      <Icon className={`h-6 w-6 mx-auto mb-2 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
+                      <Icon className={`h-6 w-6 mx-auto mb-2 ${isSelected ? 'text-[#01502E]' : 'text-gray-400'}`} />
                       <p className="text-sm font-medium">{interest.label}</p>
                       {isSelected && (
                         <input type="hidden" name="interests" value={interest.id} />
@@ -348,8 +348,8 @@ export default function CustomerOnboarding() {
                       onClick={() => toggleDietary(dietary)}
                       className={`p-3 rounded-lg border-2 transition-all text-sm ${
                         isSelected
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 hover:border-blue-300'
+                          ? 'border-[#01502E] bg-[#01502E]/10 text-[#01502E]'
+                          : 'border-gray-200 hover:border-[#01502E]'
                       }`}
                     >
                       {dietary}

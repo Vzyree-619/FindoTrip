@@ -3,7 +3,7 @@ import { useLoaderData, Link } from "@remix-run/react";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { 
   Calendar, 
-  DollarSign, 
+  // DollarSign, 
   Star, 
   Users, 
   TrendingUp, 
@@ -122,7 +122,7 @@ export default function TourGuideDashboard() {
                 </p>
               </div>
               <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-green-600" />
+                <span className="text-green-600 font-bold">PKR</span>
               </div>
             </div>
           </div>

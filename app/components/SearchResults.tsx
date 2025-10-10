@@ -563,7 +563,7 @@ function SearchResultCard({
               <span className="text-xs text-gray-500">{getPriceLabel()}</span>
             </div>
             
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+            <button className="bg-[#01502E] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#013d23] transition-colors">
               View Details
             </button>
           </div>
@@ -572,3 +572,4 @@ function SearchResultCard({
     </div>
   );
 }
+import React from 'react';

@@ -68,7 +68,7 @@ export default function SupportButton({ userId, userRole }: SupportButtonProps) 
           )}
           <Button
             onClick={handleOpenChat}
-            className="w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 bg-blue-600 hover:bg-blue-700"
+            className="w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 bg-[#01502E] hover:bg-[#013d23]"
             size="lg"
           >
             <MessageCircle className="h-6 w-6" />

@@ -88,7 +88,7 @@ export default function SearchForm({ className }: SearchFormProps) {
       if (accommodationForm.rooms) params.set('rooms', accommodationForm.rooms.toString());
 
       // Navigate to accommodations search page
-      navigate(`/accommodations/search?${params.toString()}`);
+      navigate(`/accommodations?${params.toString()}`);
     } catch (error) {
       console.error('Search error:', error);
     } finally {

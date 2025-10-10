@@ -377,7 +377,7 @@ export default function Favorites() {
             <h3 className="mt-2 text-sm font-medium text-gray-900">No favorites yet</h3>
             <p className="mt-1 text-sm text-gray-500">Start exploring and save items you love for quick access later.</p>
             <div className="mt-6 flex gap-3 justify-center">
-              <Link to="/accommodations/search" className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">Explore Stays</Link>
+              <Link to="/accommodations" className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">Explore Stays</Link>
               <Link to="/vehicles" className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">Explore Vehicles</Link>
               <Link to="/tours" className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">Explore Tours</Link>
             </div>

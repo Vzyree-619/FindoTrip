@@ -33,7 +33,7 @@ export default function NotFound() {
       icon: Search,
       title: "Search Accommodations",
       description: "Find your perfect stay",
-      to: "/accommodations/search",
+      to: "/accommodations",
       color: "bg-green-500 hover:bg-green-600"
     },
     {

@@ -117,9 +117,9 @@ const NavBar = ({ user }: NavBarProps) => {
         {!isProvider && (
         <li>
           <Link 
-            to="/accommodations/search"
+            to="/accommodations"
             className={`cursor-pointer transition-colors duration-200 ${
-              isActive('/accommodations/search') 
+              isActive('/accommodations') 
                 ? 'font-semibold text-[#01502E]' 
                 : 'font-normal text-gray-700 hover:text-orange-500'
             }`}
@@ -393,10 +393,10 @@ const NavBar = ({ user }: NavBarProps) => {
             {!isProvider && (
             <li>
               <Link 
-                to="/accommodations/search" 
+                to="/accommodations" 
                 onClick={() => setIsOpen(false)}
                 className={`cursor-pointer transition-colors duration-200 ${
-                  isActive('/accommodations/search') 
+                  isActive('/accommodations') 
                     ? 'font-semibold text-[#01502E]' 
                     : 'font-normal text-gray-700 hover:text-orange-500'
                 }`}

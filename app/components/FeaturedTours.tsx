@@ -425,3 +425,4 @@ export default function FeaturedTours({
     </section>
   );
 }
+import React from 'react';

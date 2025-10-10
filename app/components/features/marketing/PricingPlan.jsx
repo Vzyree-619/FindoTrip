@@ -17,7 +17,7 @@ function PricingPlan({ title, price, perks, icon }) {
         </ol>
         <div className='actions'>
           <a href="/not-implemented">Learn More</a>
-        </div>
+        </div>  
       </div>
     </article>
   );

@@ -92,7 +92,7 @@ export default function InputForm() {
         </div>
       )}
       <div className="absolute inset-0 mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%] lg:6xl sm:2xl">
-        <form method="POST" action="/your-search-endpoint" className="w-full">
+        <form method="POST" action="#" className="w-full" onSubmit={(e) => e.preventDefault()}>
           <div className="flex w-full lg:w-fit mx-auto border border-orange-500 rounded-t-lg bg-white">
             {activeButton.map((item, index) => (
               <button
@@ -128,6 +128,7 @@ export default function InputForm() {
 
 // Hotel Component
 function Hotel({ formConfig, navigate }) {
+  const [errors, setErrors] = useState({ destination: '', checkIn: '', checkOut: '' });
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -142,9 +143,19 @@ function Hotel({ formConfig, navigate }) {
     if (destination) params.set('city', destination.toString());
     if (checkIn) params.set('checkIn', checkIn.toString());
     if (checkOut) params.set('checkOut', checkOut.toString());
+    // Add nights if both dates present
+    if (checkIn && checkOut) {
+      try {
+        const ci = new Date(checkIn.toString());
+        const co = new Date(checkOut.toString());
+        const nights = Math.max(0, Math.round((co.getTime() - ci.getTime()) / (1000 * 60 * 60 * 24)));
+        params.set('nights', nights.toString());
+      } catch {}
+    }
     if (totalGuests > 0) params.set('guests', totalGuests.toString());
     
-    navigate(`/accommodations/search?${params.toString()}`);
+    setErrors({ destination: '', checkIn: '', checkOut: '' });
+    navigate(`/accommodations?${params.toString()}`);
   };
 
   return (
@@ -158,11 +169,29 @@ function Hotel({ formConfig, navigate }) {
               placeholder={field.placeholder}
               className="px-3 py-2.5 h-14 outline-none border-r border-orange-500"
             />
+            {errors.destination && (
+              <div className="text-red-600 text-xs px-3 py-1">{errors.destination}</div>
+            )}
           </div>
         ))}
         <button
           type="submit"
-          onClick={handleSubmit}
+          onClick={(e) => {
+            const form = e.currentTarget.closest('form');
+            const checkIn = form?.querySelector('input[name="checkIn"]').value;
+            const checkOut = form?.querySelector('input[name="checkOut"]').value;
+            const destination = form?.querySelector('input[name="destination"]').value;
+            const newErrors = { destination: '', checkIn: '', checkOut: '' };
+            if (!destination) newErrors.destination = 'Please enter a destination.';
+            if (!checkIn) newErrors.checkIn = 'Please select a check-in date.';
+            if (!checkOut) newErrors.checkOut = 'Please select a check-out date.';
+            if (newErrors.destination || newErrors.checkIn || newErrors.checkOut) {
+              e.preventDefault();
+              setErrors(newErrors);
+              return;
+            }
+            handleSubmit(e);
+          }}
           className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search
@@ -177,12 +206,28 @@ function Hotel({ formConfig, navigate }) {
             <div className="flex w-32 h-14 lg:h-auto md:w-full justify-start text-left">
               <DatePicker field={field} />
             </div>
+            {field.name === 'checkIn' && errors.checkIn && (
+              <div className="text-red-600 text-xs px-3 py-1">{errors.checkIn}</div>
+            )}
+            {field.name === 'checkOut' && errors.checkOut && (
+              <div className="text-red-600 text-xs px-3 py-1">{errors.checkOut}</div>
+            )}
           </div>
         ))}
         <Guests />
         <button
           type="submit"
-          onClick={handleSubmit}
+          onClick={(e) => {
+            const form = e.currentTarget.closest('form');
+            const checkIn = form?.querySelector('input[name="checkIn"]').value;
+            const checkOut = form?.querySelector('input[name="checkOut"]').value;
+            if (!checkIn || !checkOut) {
+              e.preventDefault();
+              alert('Please select both check-in and check-out dates.');
+              return;
+            }
+            handleSubmit(e);
+          }}
           className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search
@@ -194,6 +239,7 @@ function Hotel({ formConfig, navigate }) {
 
 // CarRental Component
 function CarRental({ formConfig, navigate }) {
+  const [errors, setErrors] = useState({ pickupLocation: '', pickupDate: '', dropoffDate: '' });
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -205,7 +251,17 @@ function CarRental({ formConfig, navigate }) {
     if (pickupLocation) params.set('location', pickupLocation.toString());
     if (pickupDate) params.set('pickupDate', pickupDate.toString());
     if (dropoffDate) params.set('returnDate', dropoffDate.toString());
+    // Days for rentals
+    if (pickupDate && dropoffDate) {
+      try {
+        const pu = new Date(pickupDate.toString());
+        const ro = new Date(dropoffDate.toString());
+        const days = Math.max(1, Math.round((ro.getTime() - pu.getTime()) / (1000 * 60 * 60 * 24)));
+        params.set('days', days.toString());
+      } catch {}
+    }
     
+    setErrors({ pickupLocation: '', pickupDate: '', dropoffDate: '' });
     navigate(`/vehicles?${params.toString()}`);
   };
 
@@ -220,11 +276,29 @@ function CarRental({ formConfig, navigate }) {
               placeholder={field.placeholder}
               className="px-3 py-2.5 h-14 outline-none border-r border-orange-500"
             />
+            {errors.pickupLocation && (
+              <div className="text-red-600 text-xs px-3 py-1">{errors.pickupLocation}</div>
+            )}
           </div>
         ))}
         <button
           type="submit"
-          onClick={handleSubmit}
+          onClick={(e) => {
+            const form = e.currentTarget.closest('form');
+            const pickupDate = form?.querySelector('input[name="pickupDate"]').value;
+            const dropoffDate = form?.querySelector('input[name="dropoffDate"]').value;
+            const pickupLocation = form?.querySelector('input[name="pickupLocation"]').value;
+            const newErrors = { pickupLocation: '', pickupDate: '', dropoffDate: '' };
+            if (!pickupLocation) newErrors.pickupLocation = 'Please enter a pick-up location.';
+            if (!pickupDate) newErrors.pickupDate = 'Please select a pick-up date.';
+            if (!dropoffDate) newErrors.dropoffDate = 'Please select a drop-off date.';
+            if (newErrors.pickupLocation || newErrors.pickupDate || newErrors.dropoffDate) {
+              e.preventDefault();
+              setErrors(newErrors);
+              return;
+            }
+            handleSubmit(e);
+          }}
           className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search
@@ -247,7 +321,17 @@ function CarRental({ formConfig, navigate }) {
 
         <button
           type="submit"
-          onClick={handleSubmit}
+          onClick={(e) => {
+            const form = e.currentTarget.closest('form');
+            const pickupDate = form?.querySelector('input[name="pickupDate"]').value;
+            const dropoffDate = form?.querySelector('input[name="dropoffDate"]').value;
+            if (!pickupDate || !dropoffDate) {
+              e.preventDefault();
+              alert('Please select both pick-up and drop-off dates.');
+              return;
+            }
+            handleSubmit(e);
+          }}
           className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search
@@ -259,6 +343,7 @@ function CarRental({ formConfig, navigate }) {
 
 // Tours Component
 function Tours({ formConfig, navigate }) {
+  const [errors, setErrors] = useState({ location: '', tourDate: '' });
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -269,6 +354,7 @@ function Tours({ formConfig, navigate }) {
     if (location) params.set('destination', location.toString());
     if (tourDate) params.set('date', tourDate.toString());
     
+    setErrors({ location: '', tourDate: '' });
     navigate(`/tours?${params.toString()}`);
   };
 
@@ -283,11 +369,27 @@ function Tours({ formConfig, navigate }) {
               placeholder={field.placeholder}
               className="px-3 py-2.5 h-14 outline-none border-r border-orange-500"
             />
+            {errors.location && (
+              <div className="text-red-600 text-xs px-3 py-1">{errors.location}</div>
+            )}
           </div>
         ))}
         <button
           type="submit"
-          onClick={handleSubmit}
+          onClick={(e) => {
+            const form = e.currentTarget.closest('form');
+            const tourDate = form?.querySelector('input[name="tourDate"]').value;
+            const location = form?.querySelector('input[name="location"]').value;
+            const newErrors = { location: '', tourDate: '' };
+            if (!location) newErrors.location = 'Please enter a location.';
+            if (!tourDate) newErrors.tourDate = 'Please select a tour start date.';
+            if (newErrors.location || newErrors.tourDate) {
+              e.preventDefault();
+              setErrors(newErrors);
+              return;
+            }
+            handleSubmit(e);
+          }}
           className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search
@@ -302,13 +404,28 @@ function Tours({ formConfig, navigate }) {
             <div className="flex w-32 h-14 lg:h-auto md:w-full justify-start text-left">
               <DatePicker field={field} />
             </div>
+            {field.name === 'pickupDate' && errors.pickupDate && (
+              <div className="text-red-600 text-xs px-3 py-1">{errors.pickupDate}</div>
+            )}
+            {field.name === 'dropoffDate' && errors.dropoffDate && (
+              <div className="text-red-600 text-xs px-3 py-1">{errors.dropoffDate}</div>
+            )}
           </div>
         ))}
         <TourDuration />
         <Guests />
         <button
           type="submit"
-          onClick={handleSubmit}
+          onClick={(e) => {
+            const form = e.currentTarget.closest('form');
+            const tourDate = form?.querySelector('input[name="tourDate"]').value;
+            if (!tourDate) {
+              e.preventDefault();
+              alert('Please select a tour start date.');
+              return;
+            }
+            handleSubmit(e);
+          }}
           className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search
@@ -320,6 +437,7 @@ function Tours({ formConfig, navigate }) {
 
 // Activities Component
 function Activities({ formConfig, navigate }) {
+  const [errors, setErrors] = useState({ activity: '', activityDate: '' });
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -330,6 +448,7 @@ function Activities({ formConfig, navigate }) {
     if (activity) params.set('location', activity.toString());
     if (activityDate) params.set('date', activityDate.toString());
     
+    setErrors({ activity: '', activityDate: '' });
     navigate(`/activities?${params.toString()}`);
   };
 
@@ -344,11 +463,27 @@ function Activities({ formConfig, navigate }) {
               placeholder={field.placeholder}
               className="px-3 py-2.5 h-14 outline-none border-r border-orange-500"
             />
+            {errors.activity && (
+              <div className="text-red-600 text-xs px-3 py-1">{errors.activity}</div>
+            )}
           </div>
         ))}
         <button
           type="submit"
-          onClick={handleSubmit}
+          onClick={(e) => {
+            const form = e.currentTarget.closest('form');
+            const activityDate = form?.querySelector('input[name="activityDate"]').value;
+            const activity = form?.querySelector('input[name="activity"]').value;
+            const newErrors = { activity: '', activityDate: '' };
+            if (!activity) newErrors.activity = 'Please enter an activity.';
+            if (!activityDate) newErrors.activityDate = 'Please select an activity date.';
+            if (newErrors.activity || newErrors.activityDate) {
+              e.preventDefault();
+              setErrors(newErrors);
+              return;
+            }
+            handleSubmit(e);
+          }}
           className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search
@@ -363,13 +498,25 @@ function Activities({ formConfig, navigate }) {
             <div className="flex w-32 h-14 lg:h-auto md:w-full justify-start text-left">
               <DatePicker field={field} />
             </div>
+            {field.name === 'activityDate' && errors.activityDate && (
+              <div className="text-red-600 text-xs px-3 py-1">{errors.activityDate}</div>
+            )}
           </div>
         ))}
         <ActivityTypes />
         <GroupSize />
         <button
           type="submit"
-          onClick={handleSubmit}
+          onClick={(e) => {
+            const form = e.currentTarget.closest('form');
+            const activityDate = form?.querySelector('input[name="activityDate"]').value;
+            if (!activityDate) {
+              e.preventDefault();
+              alert('Please select an activity date.');
+              return;
+            }
+            handleSubmit(e);
+          }}
           className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
           Search

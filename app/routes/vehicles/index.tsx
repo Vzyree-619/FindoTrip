@@ -85,6 +85,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const minPrice = minPriceParam ? parseInt(minPriceParam) : undefined;
     const maxPrice = maxPriceParam ? parseInt(maxPriceParam) : undefined;
     const location = searchParams.get("location") || "";
+    // Booking duration in days (optional)
+    const daysParam = searchParams.get("days");
+    const pickupDate = searchParams.get("pickupDate");
+    const returnDate = searchParams.get("returnDate");
+    let days = daysParam ? parseInt(daysParam) : undefined;
     const sortBy = searchParams.get("sortBy") || "featured";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "12");
@@ -126,6 +131,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
       where.location = { contains: location, mode: 'insensitive' };
     }
 
+    // Server-side date validation and days computation (if dates provided)
+    if (pickupDate && returnDate) {
+      const pu = new Date(pickupDate);
+      const ro = new Date(returnDate);
+      if (isNaN(pu.getTime()) || isNaN(ro.getTime()) || ro <= pu) {
+        throw new Response('Invalid date range for vehicle booking', { status: 400 });
+      }
+      const computed = Math.max(1, Math.round((ro.getTime() - pu.getTime()) / (1000 * 60 * 60 * 24)));
+      if (!days) days = computed;
+    }
+
     // Build orderBy clause
     let orderBy: any = { createdAt: 'desc' };
     if (sortBy === 'price_low') orderBy = { basePrice: 'asc' };
@@ -144,9 +160,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           owner: {
             select: {
               id: true,
-              name: true,
-              averageRating: true,
-              totalReviews: true,
+              businessName: true,
               verified: true
             }
           },
@@ -194,10 +208,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       });
     } catch (dbError) {
       console.warn('Database connection failed for vehicles. Using fallback data:', dbError);
-      // Fallback mock data
+      // Fallback mock data - use proper MongoDB ObjectID format
       vehicles = [
         {
-          id: 'v1',
+          id: '68e923fa690cf38b0d128aba',
           name: 'Toyota Corolla',
           model: 'Corolla',
           year: 2020,
@@ -216,17 +230,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
           totalBookings: 22,
           isFeatured: true,
           owner: {
-            id: 'owner-1',
-            name: 'Ali Raza',
-            avatar: null,
-            averageRating: 4.7,
-            totalReviews: 34,
-            isVerified: true
+            id: '68e923fa690cf38b0d128aba',
+            businessName: 'Ali Raza',
+            verified: true
           },
           reviews: [{ rating: 5 }, { rating: 4 }, { rating: 5 }]
         },
         {
-          id: 'v2',
+          id: '68e923fb690cf38b0d128abb',
           name: 'Toyota Land Cruiser Prado',
           model: 'Prado',
           year: 2019,
@@ -245,12 +256,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
           totalBookings: 41,
           isFeatured: false,
           owner: {
-            id: 'owner-2',
-            name: 'Sara Khan',
-            avatar: null,
-            averageRating: 4.6,
-            totalReviews: 28,
-            isVerified: true
+            id: '68e923fb690cf38b0d128abb',
+            businessName: 'Sara Khan',
+            verified: true
           },
           reviews: [{ rating: 4 }, { rating: 5 }, { rating: 4 }]
         }
@@ -288,6 +296,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
             'Air Conditioning', 'USB Charging'
           ];
 
+      const pricePerDay = (vehicle as any).basePrice;
+      const totalPrice = days ? pricePerDay * Math.max(1, days) : pricePerDay;
       return {
         id: (vehicle as any).id,
         name: (vehicle as any).name,
@@ -295,7 +305,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         year: (vehicle as any).year,
         mileage: (vehicle as any).mileage,
         images: (vehicle as any).images || ['/placeholder-vehicle.jpg'],
-        price: (vehicle as any).basePrice,
+        price: totalPrice,
         originalPrice: (vehicle as any).originalPrice,
         category: (vehicle as any).category as 'Economy' | 'SUV' | 'Luxury' | 'Van' | 'Sports' | 'Electric',
         transmission: (vehicle as any).transmission as 'Automatic' | 'Manual',
@@ -303,10 +313,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
         isElectric: (vehicle as any).fuelType === 'Electric',
         owner: {
           id: (vehicle as any).owner.id,
-          name: (vehicle as any).owner.name,
+          name: (vehicle as any).owner.businessName,
           avatar: null,
-          rating: (vehicle as any).owner.averageRating || 0,
-          reviewCount: (vehicle as any).owner.totalReviews || 0,
+          rating: 0,
+          reviewCount: 0,
           isVerified: (vehicle as any).owner.verified || false
         },
         rating: averageRating,
@@ -407,14 +417,14 @@ export default function VehiclesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+      <div className="bg-gradient-to-r from-[#01502E] to-[#047857] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <h1 className="text-4xl font-bold mb-4">
               Find Your Perfect Vehicle
             </h1>
             <p className="text-xl opacity-90 max-w-3xl mx-auto">
-              Choose from our premium selection of vehicles for your next adventure
+              Professional driver service: book chauffeured vehicles for safe, comfortable travel across Pakistan.
             </p>
           </div>
         </div>
@@ -433,7 +443,7 @@ export default function VehiclesPage() {
                   placeholder="Search vehicles, models, or locations..."
                   value={searchParams.get("search") || ""}
                   onChange={(e) => handleFilterChange("search", e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
             </div>
@@ -446,7 +456,7 @@ export default function VehiclesPage() {
               <Filter className="w-5 h-5" />
               <span>Filters</span>
               {activeFilters.length > 0 && (
-                <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-1">
+                <span className="bg-[#01502E] text-white text-xs rounded-full px-2 py-1">
                   {activeFilters.length}
                 </span>
               )}
@@ -465,7 +475,7 @@ export default function VehiclesPage() {
                   <select
                     value={searchParams.get("category") || ""}
                     onChange={(e) => handleFilterChange("category", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                   >
                     <option value="">All Categories</option>
                     {filters.categories.map(category => (
@@ -482,7 +492,7 @@ export default function VehiclesPage() {
                   <select
                     value={searchParams.get("fuelType") || ""}
                     onChange={(e) => handleFilterChange("fuelType", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                   >
                     <option value="">All Fuel Types</option>
                     {filters.fuelTypes.map(fuelType => (
@@ -499,7 +509,7 @@ export default function VehiclesPage() {
                   <select
                     value={searchParams.get("transmission") || ""}
                     onChange={(e) => handleFilterChange("transmission", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                   >
                     <option value="">All Transmissions</option>
                     {filters.transmissions.map(transmission => (
@@ -519,14 +529,14 @@ export default function VehiclesPage() {
                       placeholder="Min"
                       value={searchParams.get("minPrice") || ""}
                       onChange={(e) => handleFilterChange("minPrice", e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                     />
                     <input
                       type="number"
                       placeholder="Max"
                       value={searchParams.get("maxPrice") || ""}
                       onChange={(e) => handleFilterChange("maxPrice", e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -554,7 +564,7 @@ export default function VehiclesPage() {
                 <div className="mt-4 flex justify-end">
                   <button
                     onClick={clearFilters}
-                    className="text-blue-600 hover:text-blue-800 font-medium"
+                    className="text-[#01502E] hover:text-[#013d23] font-medium"
                   >
                     Clear all filters
                   </button>
@@ -583,7 +593,7 @@ export default function VehiclesPage() {
             <select
               value={searchParams.get("sortBy") || "featured"}
               onChange={(e) => handleFilterChange("sortBy", e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
             >
               <option value="featured">Featured</option>
               <option value="rating">Highest Rated</option>
@@ -625,7 +635,7 @@ export default function VehiclesPage() {
             </p>
             <button
               onClick={clearFilters}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="bg-[#01502E] text-white px-6 py-2 rounded-lg hover:bg-[#013d23] transition-colors"
             >
               Clear Filters
             </button>

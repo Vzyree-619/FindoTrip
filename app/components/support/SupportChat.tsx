@@ -116,7 +116,7 @@ export default function SupportChat({ ticket, isOpen, onClose, onTicketCreated }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "NEW": return "bg-blue-100 text-blue-800";
+      case "NEW": return "bg-[#01502E]/10 text-[#01502E]";
       case "IN_PROGRESS": return "bg-yellow-100 text-yellow-800";
       case "WAITING": return "bg-orange-100 text-orange-800";
       case "RESOLVED": return "bg-green-100 text-green-800";
@@ -129,7 +129,7 @@ export default function SupportChat({ ticket, isOpen, onClose, onTicketCreated }
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "LOW": return "bg-gray-100 text-gray-800";
-      case "NORMAL": return "bg-blue-100 text-blue-800";
+      case "NORMAL": return "bg-[#01502E]/10 text-[#01502E]";
       case "HIGH": return "bg-orange-100 text-orange-800";
       case "URGENT": return "bg-red-100 text-red-800";
       default: return "bg-gray-100 text-gray-800";
@@ -141,7 +141,7 @@ export default function SupportChat({ ticket, isOpen, onClose, onTicketCreated }
       return <Bot className="h-4 w-4 text-gray-500" />;
     }
     return senderRole === "SUPER_ADMIN" ? 
-      <Bot className="h-4 w-4 text-blue-500" /> : 
+      <Bot className="h-4 w-4 text-[#01502E]" /> : 
       <User className="h-4 w-4 text-gray-500" />;
   };
 
@@ -259,7 +259,7 @@ export default function SupportChat({ ticket, isOpen, onClose, onTicketCreated }
                     <div
                       className={`max-w-[80%] p-3 rounded-lg ${
                         message.sender.role === "SUPER_ADMIN"
-                          ? "bg-blue-50 border border-blue-200"
+                          ? "bg-[#01502E]/10 border border-[#01502E]/20"
                           : "bg-gray-100"
                       }`}
                     >
@@ -283,7 +283,7 @@ export default function SupportChat({ ticket, isOpen, onClose, onTicketCreated }
                               href={attachment}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-xs text-blue-600 hover:underline"
+                              className="text-xs text-[#01502E] hover:underline"
                             >
                               📎 {attachment.split("/").pop()}
                             </a>

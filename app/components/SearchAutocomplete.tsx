@@ -440,3 +440,4 @@ export default function SearchAutocomplete({
     </div>
   );
 }
+import React from 'react';
