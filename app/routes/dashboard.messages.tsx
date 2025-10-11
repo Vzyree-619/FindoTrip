@@ -18,49 +18,61 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw new Response("User not found", { status: 404 });
   }
 
-  // Get conversations for this user
+  // Get conversations where user is a participant
   const conversations = await prisma.conversation.findMany({
     where: {
-      participants: { has: userId }
+      participants: { has: userId },
+      isActive: true
     },
     include: {
-      participants: {
-        select: { id: true, name: true, role: true, avatar: true }
-      },
-      lastMessage: {
+      messages: {
         include: {
-          sender: { select: { id: true, name: true } }
-        }
+          sender: { select: { id: true, name: true, role: true, avatar: true } }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 1
       }
     },
-    orderBy: { updatedAt: "desc" }
+    orderBy: { lastMessageAt: "desc" },
+    take: 50
   });
 
-  // Get unread message counts
-  const unreadCounts = await prisma.message.groupBy({
-    by: ['conversationId'],
-    where: {
-      conversationId: { in: conversations.map(c => c.id) },
-      senderId: { not: userId },
-      readBy: { not: { has: userId } }
-    },
-    _count: { id: true }
-  });
+  // Process conversations and get participant details
+  const processedConversations = await Promise.all(
+    conversations.map(async (conv) => {
+      // Get other participants (excluding current user)
+      const otherParticipantIds = conv.participants.filter(id => id !== userId);
+      
+      // Fetch participant details
+      const participants = await prisma.user.findMany({
+        where: { id: { in: otherParticipantIds } },
+        select: { id: true, name: true, role: true, avatar: true }
+      });
 
-  const unreadMap = unreadCounts.reduce((acc, item) => {
-    acc[item.conversationId] = item._count.id;
-    return acc;
-  }, {} as Record<string, number>);
+      // Get unread count for this user
+      const unreadCount = conv.unreadCount && typeof conv.unreadCount === 'object' 
+        ? (conv.unreadCount as any)[userId] || 0 
+        : 0;
+
+      return {
+        id: conv.id,
+        participants,
+        lastMessage: conv.messages[0] ? {
+          id: conv.messages[0].id,
+          content: conv.messages[0].content,
+          senderId: conv.messages[0].senderId,
+          senderName: conv.messages[0].sender.name,
+          createdAt: conv.messages[0].createdAt
+        } : undefined,
+        updatedAt: conv.lastMessageAt,
+        unreadCount
+      };
+    })
+  );
 
   return json({
     user,
-    conversations: conversations.map(conv => ({
-      id: conv.id,
-      participants: conv.participants.filter(p => p.id !== userId),
-      lastMessage: conv.lastMessage,
-      updatedAt: conv.updatedAt,
-      unreadCount: unreadMap[conv.id] || 0
-    }))
+    conversations: processedConversations
   });
 }
 

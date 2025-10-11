@@ -1021,11 +1021,21 @@ export default function PaymentPage() {
   const serviceDetails = getServiceDetails();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header Section */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+            <CreditCard className="h-4 w-4" />
+            <span>Payment</span>
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900">Complete Your Payment</h1>
+          <p className="text-slate-600 mt-2">Secure payment processing for your booking</p>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Booking Summary */}
-          <div>
+          <div className="xl:col-span-1">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -1161,7 +1171,7 @@ export default function PaymentPage() {
           </div>
 
           {/* Payment Form */}
-          <div>
+          <div className="xl:col-span-2">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -1238,7 +1248,7 @@ export default function PaymentPage() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="expiryDate">Expiry Date</Label>
                           <Input
@@ -1250,6 +1260,7 @@ export default function PaymentPage() {
                             onChange={(e) => setCardDetails(prev => ({ ...prev, expiryDate: formatExpiryDate(e.target.value) }))}
                             maxLength={5}
                             required
+                            className="h-11"
                           />
                         </div>
                         <div>
@@ -1263,6 +1274,7 @@ export default function PaymentPage() {
                             onChange={(e) => setCardDetails(prev => ({ ...prev, cvv: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
                             maxLength={4}
                             required
+                            className="h-11"
                           />
                         </div>
                       </div>
@@ -1346,26 +1358,26 @@ export default function PaymentPage() {
                         </div>
                         <div className="bg-white border border-blue-200 rounded-lg p-4">
                           <h5 className="font-semibold text-gray-900 mb-3">Transfer to:</h5>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
+                          <div className="space-y-3 text-sm">
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                               <span className="text-gray-600">Bank:</span>
                               <span className="font-medium">{bankDetails.bankName}</span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                               <span className="text-gray-600">Account Name:</span>
-                              <span className="font-medium">{bankDetails.accountName}</span>
+                              <span className="font-medium break-all">{bankDetails.accountName}</span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                               <span className="text-gray-600">Account Number:</span>
-                              <span className="font-medium font-mono">{bankDetails.accountNumber}</span>
+                              <span className="font-medium font-mono break-all">{bankDetails.accountNumber}</span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                               <span className="text-gray-600">IBAN:</span>
-                              <span className="font-medium font-mono">{bankDetails.iban}</span>
+                              <span className="font-medium font-mono break-all text-xs">{bankDetails.iban}</span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Amount:</span>
-                              <span className="font-bold text-[#01502E]">{booking.currency} {booking.totalPrice.toFixed(2)}</span>
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-1 pt-2 border-t">
+                              <span className="text-gray-600 font-semibold">Amount:</span>
+                              <span className="font-bold text-[#01502E] text-lg">{booking.currency} {booking.totalPrice.toFixed(2)}</span>
                             </div>
                           </div>
                         </div>
@@ -1422,7 +1434,7 @@ export default function PaymentPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="billingCity">City</Label>
                         <Input
@@ -1432,6 +1444,7 @@ export default function PaymentPage() {
                           value={billingDetails.city}
                           onChange={(e) => setBillingDetails(prev => ({ ...prev, city: e.target.value }))}
                           required
+                          className="h-11"
                         />
                       </div>
                       <div>
@@ -1443,6 +1456,7 @@ export default function PaymentPage() {
                           value={billingDetails.postalCode}
                           onChange={(e) => setBillingDetails(prev => ({ ...prev, postalCode: e.target.value }))}
                           required
+                          className="h-11"
                         />
                       </div>
                     </div>
@@ -1495,25 +1509,27 @@ export default function PaymentPage() {
                   )}
 
                   {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    name="intent"
-                    value="processPayment"
-                    className="w-full"
-                    disabled={isSubmitting || !agreeToTerms}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Processing Payment...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        Pay {booking.currency} {booking.totalPrice.toFixed(2)}
-                      </>
-                    )}
-                  </Button>
+                  <div className="pt-4">
+                    <Button
+                      type="submit"
+                      name="intent"
+                      value="processPayment"
+                      className="w-full h-12 text-lg font-semibold bg-[#01502E] hover:bg-[#013d23] disabled:opacity-50"
+                      disabled={isSubmitting || !agreeToTerms}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                          Processing Payment...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="h-5 w-5 mr-2" />
+                          Pay {booking.currency} {booking.totalPrice.toFixed(2)}
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </Form>
               </CardContent>
             </Card>

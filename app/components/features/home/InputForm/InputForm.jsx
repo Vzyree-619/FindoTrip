@@ -150,12 +150,20 @@ function Hotel({ formConfig, navigate }) {
         const co = new Date(checkOut.toString());
         const nights = Math.max(0, Math.round((co.getTime() - ci.getTime()) / (1000 * 60 * 60 * 24)));
         params.set('nights', nights.toString());
-      } catch {}
+      } catch (error) {
+        console.warn('Error calculating nights:', error);
+      }
     }
     if (totalGuests > 0) params.set('guests', totalGuests.toString());
     
     setErrors({ destination: '', checkIn: '', checkOut: '' });
-    navigate(`/accommodations?${params.toString()}`);
+    try {
+      navigate(`/accommodations?${params.toString()}`);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      // Fallback to basic navigation
+      window.location.href = `/accommodations?${params.toString()}`;
+    }
   };
 
   return (
@@ -258,11 +266,19 @@ function CarRental({ formConfig, navigate }) {
         const ro = new Date(dropoffDate.toString());
         const days = Math.max(1, Math.round((ro.getTime() - pu.getTime()) / (1000 * 60 * 60 * 24)));
         params.set('days', days.toString());
-      } catch {}
+      } catch (error) {
+        console.warn('Error calculating rental days:', error);
+      }
     }
     
     setErrors({ pickupLocation: '', pickupDate: '', dropoffDate: '' });
-    navigate(`/vehicles?${params.toString()}`);
+    try {
+      navigate(`/vehicles?${params.toString()}`);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      // Fallback to basic navigation
+      window.location.href = `/vehicles?${params.toString()}`;
+    }
   };
 
   return (
@@ -351,11 +367,17 @@ function Tours({ formConfig, navigate }) {
     const tourDate = formData.get('tourDate');
     
     const params = new URLSearchParams();
-    if (location) params.set('destination', location.toString());
+    if (location) params.set('search', location.toString());
     if (tourDate) params.set('date', tourDate.toString());
     
     setErrors({ location: '', tourDate: '' });
-    navigate(`/tours?${params.toString()}`);
+    try {
+      navigate(`/tours?${params.toString()}`);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      // Fallback to basic navigation
+      window.location.href = `/tours?${params.toString()}`;
+    }
   };
 
   return (
@@ -445,11 +467,17 @@ function Activities({ formConfig, navigate }) {
     const activityDate = formData.get('activityDate');
     
     const params = new URLSearchParams();
-    if (activity) params.set('location', activity.toString());
+    if (activity) params.set('search', activity.toString());
     if (activityDate) params.set('date', activityDate.toString());
     
     setErrors({ activity: '', activityDate: '' });
-    navigate(`/activities?${params.toString()}`);
+    try {
+      navigate(`/tours?${params.toString()}`);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      // Fallback to basic navigation
+      window.location.href = `/tours?${params.toString()}`;
+    }
   };
 
   return (

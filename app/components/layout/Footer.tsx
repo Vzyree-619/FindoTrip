@@ -116,7 +116,7 @@ export default function Footer() {
   const contactInfo = [
     { icon: Phone, text: "+92 300 123 4567", href: "tel:+923001234567" },
     { icon: Mail, text: "info@findotrip.com", href: "mailto:info@findotrip.com" },
-    { icon: MapPin, text: "Karachi, Pakistan", href: "/contact" },
+    { icon: MapPin, text: "Skardu, Pakistan", href: "/contact" },
     { icon: Clock, text: "24/7 Support", href: "/support" },
   ];
 

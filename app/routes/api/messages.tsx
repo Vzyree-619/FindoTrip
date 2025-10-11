@@ -1,6 +1,6 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
 import { requireUserId } from "~/lib/auth/auth.server";
-import { listConversations, listMessages, sendMessage, markMessagesRead } from "~/lib/messaging.server";
+import { prisma } from "~/lib/db/db.server";
 
 // GET: conversations or messages
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -10,14 +10,63 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const peerId = url.searchParams.get("peerId");
   const take = parseInt(url.searchParams.get("take") || "50", 10);
 
-  if (mode === "messages") {
-    if (!peerId) return json({ error: "peerId required" }, { status: 400 });
-    const items = await listMessages(userId, peerId, take);
-    return json({ items });
-  }
+  try {
+    if (mode === "messages") {
+      if (!peerId) return json({ error: "peerId required" }, { status: 400 });
+      
+      // Find conversation with this peer
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          participants: { has: userId },
+          participants: { has: peerId },
+          isActive: true
+        },
+        include: {
+          messages: {
+            include: {
+              sender: { select: { id: true, name: true, role: true, avatar: true } }
+            },
+            orderBy: { createdAt: "asc" },
+            take: Math.min(take, 200)
+          }
+        }
+      });
+      
+      const items = conversation?.messages || [];
+      return json({ items });
+    }
 
-  const items = await listConversations(userId, Math.min(Math.max(take, 1), 50));
-  return json({ items });
+    // Get conversations
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        participants: { has: userId },
+        isActive: true
+      },
+      include: {
+        messages: {
+          include: {
+            sender: { select: { id: true, name: true, role: true, avatar: true } }
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1
+        }
+      },
+      orderBy: { lastMessageAt: "desc" },
+      take: Math.min(Math.max(take, 1), 50)
+    });
+
+    const items = conversations.map(conv => ({
+      id: conv.id,
+      participants: conv.participants,
+      lastMessage: conv.messages[0],
+      updatedAt: conv.lastMessageAt
+    }));
+
+    return json({ items });
+  } catch (error) {
+    console.error("Error in messages API:", error);
+    return json({ items: [] });
+  }
 }
 
 // POST: send or mark read
@@ -26,28 +75,95 @@ export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
   const intent = form.get("intent");
 
-  if (intent === "send") {
-    const receiverId = form.get("receiverId") as string;
-    const content = (form.get("content") as string) || "";
-    const bookingId = form.get("bookingId") as string | null;
-    const bookingType = form.get("bookingType") as any;
-    const attachmentsRaw = form.get("attachments") as string | null; // JSON array of URLs
-    let attachments: string[] | undefined;
-    if (attachmentsRaw) {
-      try { attachments = JSON.parse(attachmentsRaw); } catch {}
+  try {
+    if (intent === "send") {
+      const receiverId = form.get("receiverId") as string;
+      const content = (form.get("content") as string) || "";
+      const attachmentsRaw = form.get("attachments") as string | null;
+      let attachments: string[] | undefined;
+      if (attachmentsRaw) {
+        try { attachments = JSON.parse(attachmentsRaw); } catch {}
+      }
+
+      if (!receiverId || !content) return json({ error: "receiverId and content required" }, { status: 400 });
+
+      // Find or create conversation
+      let conversation = await prisma.conversation.findFirst({
+        where: {
+          participants: { has: userId },
+          participants: { has: receiverId },
+          isActive: true
+        }
+      });
+
+      if (!conversation) {
+        conversation = await prisma.conversation.create({
+          data: {
+            participants: [userId, receiverId],
+            participantRoles: ["CUSTOMER", "CUSTOMER"], // Default roles
+            type: "CUSTOMER_PROVIDER",
+            isActive: true,
+            unreadCount: {},
+            lastReadAt: {}
+          }
+        });
+      }
+
+      // Create message
+      const message = await prisma.message.create({
+        data: {
+          content,
+          senderId: userId,
+          senderRole: "CUSTOMER",
+          conversationId: conversation.id,
+          attachments: attachments || []
+        }
+      });
+
+      // Update conversation
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          lastMessageId: message.id,
+          lastMessageAt: message.createdAt,
+          messageCount: { increment: 1 }
+        }
+      });
+
+      return json({ success: true, message });
     }
 
-    if (!receiverId || !content) return json({ error: "receiverId and content required" }, { status: 400 });
+    if (intent === "mark-read") {
+      const peerId = form.get("peerId") as string | undefined;
+      if (peerId) {
+        // Find conversation and mark messages as read
+        const conversation = await prisma.conversation.findFirst({
+          where: {
+            participants: { has: userId },
+            participants: { has: peerId },
+            isActive: true
+          }
+        });
 
-    const msg = await sendMessage({ senderId: userId, receiverId, content, bookingId: bookingId ?? undefined, bookingType, attachments });
-    return json({ success: true, message: msg });
+        if (conversation) {
+          await prisma.message.updateMany({
+            where: {
+              conversationId: conversation.id,
+              senderId: peerId,
+              readBy: { not: { has: userId } }
+            },
+            data: {
+              readBy: { push: userId }
+            }
+          });
+        }
+      }
+      return json({ success: true });
+    }
+
+    return json({ error: "Invalid action" }, { status: 400 });
+  } catch (error) {
+    console.error("Error in messages action:", error);
+    return json({ error: "Internal server error" }, { status: 500 });
   }
-
-  if (intent === "mark-read") {
-    const peerId = form.get("peerId") as string | undefined;
-    const res = await markMessagesRead(userId, peerId);
-    return json(res);
-  }
-
-  return json({ error: "Invalid action" }, { status: 400 });
 }

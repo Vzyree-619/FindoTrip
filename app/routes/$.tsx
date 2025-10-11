@@ -12,6 +12,11 @@ export const meta = () => generateMeta({
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   
+  // Skip API routes - let them be handled by their specific routes
+  if (url.pathname.startsWith('/api/')) {
+    return json({ pathname: url.pathname }, { status: 404 });
+  }
+  
   // Log 404s for analytics
   console.log(`404 Error: ${url.pathname} - Referrer: ${request.headers.get('referer') || 'Direct'}`);
   

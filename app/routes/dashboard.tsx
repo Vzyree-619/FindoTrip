@@ -121,14 +121,59 @@ export default function Dashboard() {
     );
   }
 
-  // Render provider-specific layout without customer sidebar/navigation
+  // Render provider-specific layout with overview
   const isProviderRole = user.role === "PROPERTY_OWNER" || user.role === "VEHICLE_OWNER" || user.role === "TOUR_GUIDE";
   if (isProviderRole) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <main className="flex-1">
-          <Outlet />
-        </main>
+        <div className="flex">
+          {/* Provider Sidebar */}
+          <div className="w-64 bg-white shadow-lg">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
+              <p className="text-sm text-gray-600 mt-1">Welcome back, {safeUser.name}</p>
+            </div>
+            <nav className="mt-6">
+              <div className="px-6 py-3">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="text-blue-600 font-medium">Total Bookings</div>
+                    <div className="text-2xl font-bold text-blue-900">{stats.bookingsCount}</div>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <div className="text-green-600 font-medium">Upcoming</div>
+                    <div className="text-2xl font-bold text-green-900">{stats.upcomingBookings}</div>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <div className="text-purple-600 font-medium">Reviews</div>
+                    <div className="text-2xl font-bold text-purple-900">{stats.reviewsCount}</div>
+                  </div>
+                  <div className="bg-orange-50 p-3 rounded-lg">
+                    <div className="text-orange-600 font-medium">Favorites</div>
+                    <div className="text-2xl font-bold text-orange-900">{stats.favoritesCount}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 py-3 space-y-2">
+                <a href="/dashboard/bookings" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                  📅 My Bookings
+                </a>
+                <a href="/dashboard/messages" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                  💬 Messages
+                </a>
+                <a href="/dashboard/reviews" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                  ⭐ Reviews
+                </a>
+                <a href="/dashboard/profile" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                  ⚙️ Profile
+                </a>
+              </div>
+            </nav>
+          </div>
+          <main className="flex-1">
+            <Outlet />
+          </main>
+        </div>
       </div>
     );
   }

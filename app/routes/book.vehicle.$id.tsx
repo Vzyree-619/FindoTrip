@@ -3,11 +3,27 @@ import { useLoaderData, Form, useActionData, useNavigation } from "@remix-run/re
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Select } from "~/components/ui/select";
+import { Badge } from "~/components/ui/badge";
+import { Separator } from "~/components/ui/separator";
+import { Alert, AlertDescription } from "~/components/ui/alert";
+import { Checkbox } from "~/components/ui/checkbox";
+import { 
+  Calendar, 
+  MapPin, 
+  Car, 
+  Shield, 
+  User, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle,
+  CreditCard,
+  Star
+} from "lucide-react";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -130,69 +146,304 @@ export default function VehicleBookingPage() {
   const total = pricing.total;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-6 grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Form method="post" replace>
-                <input type="hidden" name="intent" value="book" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Pickup Date</Label>
-                    <Input name="startDate" type="date" defaultValue={startDate || ''} required />
-                  </div>
-                  <div>
-                    <Label>Dropoff Date</Label>
-                    <Input name="endDate" type="date" defaultValue={endDate || ''} required />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <Label>Pickup Location</Label>
-                  <Input name="pickupLocation" defaultValue={pickupLocation || ''} placeholder="Enter pickup point" />
-                </div>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" name="insuranceSelected" />
-                    <span>Premium Insurance (+ {pricing.insuranceDaily}/day)</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" name="driverSelected" />
-                    <span>Driver (+ {pricing.driverDaily}/day)</span>
-                  </label>
-                </div>
-                {actionData && (actionData as any).error && (
-                  <p className="mt-3 text-red-600">{(actionData as any).error}</p>
-                )}
-                <div className="mt-6">
-                  <Button type="submit" disabled={disabled} className="w-full bg-[#01502E] hover:bg-[#013d23]">
-                    {disabled ? 'Processing…' : 'Book Now'}
-                  </Button>
-                </div>
-              </Form>
-            </CardContent>
-          </Card>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6">
+        {/* Header Section */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+            <Car className="h-4 w-4" />
+            <span>Vehicle Booking</span>
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900">Complete Your Booking</h1>
+          <p className="text-slate-600 mt-2">Review your selection and finalize your vehicle rental</p>
         </div>
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Price Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between"><span>Daily Rate</span><span>PKR {pricing.dailyRate.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span>Days</span><span>{days}</span></div>
-              <div className="flex justify-between"><span>Insurance</span><span>PKR {pricing.insurance.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span>Driver</span><span>PKR {pricing.driver.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span>Service Fee</span><span>PKR {pricing.service.toLocaleString()}</span></div>
-              <div className="text-xs text-gray-500">Note: Pricing excludes fuel, tolls, and parking fees.</div>
-              <div className="flex justify-between"><span>Taxes</span><span>PKR {pricing.taxes.toLocaleString()}</span></div>
-              <div className="flex justify-between font-bold border-t pt-2"><span>Total</span><span>PKR {total.toLocaleString()}</span></div>
-              <div className="mt-2 text-sm {isAvailable ? 'text-[#01502E]' : 'text-orange-700'}">{isAvailable ? 'Available' : 'Selected dates overlap with blocked periods'}</div>
-            </CardContent>
-          </Card>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Vehicle Information Card */}
+            <Card className="overflow-hidden">
+              <div className="relative">
+                <img 
+                  src={vehicle.image || '/car.jpg'} 
+                  alt={vehicle.name}
+                  className="w-full h-48 object-cover"
+                />
+                <div className="absolute top-4 right-4">
+                  <Badge variant={isAvailable ? "default" : "destructive"} className="bg-white/90 text-slate-900">
+                    {isAvailable ? (
+                      <>
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Available
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Unavailable
+                      </>
+                    )}
+                  </Badge>
+                </div>
+              </div>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900 mb-2">{vehicle.name}</h2>
+                    <div className="flex items-center gap-4 text-sm text-slate-600">
+                      <div className="flex items-center gap-1">
+                        <Car className="h-4 w-4" />
+                        <span>{vehicle.type}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <User className="h-4 w-4" />
+                        <span>{vehicle.capacity} passengers</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span>4.8</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-[#01502E]">PKR {vehicle.basePrice.toLocaleString()}</div>
+                    <div className="text-sm text-slate-600">per day</div>
+                  </div>
+                </div>
+                
+                <Separator className="my-4" />
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-slate-700">Owner:</span>
+                    <span className="ml-2 text-slate-600">{vehicle.owner.user.name}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-700">Contact:</span>
+                    <span className="ml-2 text-slate-600">{vehicle.owner.user.phone}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Booking Form */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Booking Details
+                </CardTitle>
+                <CardDescription>
+                  Select your rental dates and preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Form method="post" replace>
+                  <input type="hidden" name="intent" value="book" />
+                  
+                  {/* Date Selection */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="startDate" className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Pickup Date
+                      </Label>
+                      <Input 
+                        id="startDate"
+                        name="startDate" 
+                        type="date" 
+                        defaultValue={startDate || ''} 
+                        required 
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="endDate" className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Dropoff Date
+                      </Label>
+                      <Input 
+                        id="endDate"
+                        name="endDate" 
+                        type="date" 
+                        defaultValue={endDate || ''} 
+                        required 
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div className="space-y-2">
+                    <Label htmlFor="pickupLocation" className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Pickup Location
+                    </Label>
+                    <Input 
+                      id="pickupLocation"
+                      name="pickupLocation" 
+                      defaultValue={pickupLocation || ''} 
+                      placeholder="Enter pickup location" 
+                      className="h-11"
+                    />
+                  </div>
+
+                  {/* Additional Services */}
+                  <div className="space-y-4">
+                    <Label className="text-base font-medium">Additional Services</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-slate-50 transition-colors">
+                        <Checkbox id="insurance" name="insuranceSelected" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-blue-600" />
+                            <span className="font-medium">Premium Insurance</span>
+                          </div>
+                          <p className="text-sm text-slate-600">+ PKR {pricing.insuranceDaily.toLocaleString()} per day</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-slate-50 transition-colors">
+                        <Checkbox id="driver" name="driverSelected" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-green-600" />
+                            <span className="font-medium">Professional Driver</span>
+                          </div>
+                          <p className="text-sm text-slate-600">+ PKR {pricing.driverDaily.toLocaleString()} per day</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Error Display */}
+                  {actionData && (actionData as any).error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        {(actionData as any).error}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Submit Button */}
+                  <div className="pt-4">
+                    <Button 
+                      type="submit" 
+                      disabled={disabled || !isAvailable} 
+                      className="w-full h-12 text-lg font-semibold bg-[#01502E] hover:bg-[#013d23] disabled:opacity-50"
+                    >
+                      {disabled ? (
+                        <>
+                          <Clock className="h-5 w-5 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="h-5 w-5 mr-2" />
+                          Proceed to Payment
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </Form>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Pricing Sidebar */}
+          <div className="space-y-6">
+            <Card className="sticky top-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Price Breakdown
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Daily Rate</span>
+                    <span className="font-medium">PKR {pricing.dailyRate.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Duration</span>
+                    <span className="font-medium">{days} {days === 1 ? 'day' : 'days'}</span>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Base Rental</span>
+                    <span className="font-medium">PKR {pricing.rental.toLocaleString()}</span>
+                  </div>
+                  
+                  {pricing.insurance > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Insurance</span>
+                      <span className="font-medium">PKR {pricing.insurance.toLocaleString()}</span>
+                    </div>
+                  )}
+                  
+                  {pricing.driver > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Driver</span>
+                      <span className="font-medium">PKR {pricing.driver.toLocaleString()}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Service Fee</span>
+                    <span className="font-medium">PKR {pricing.service.toLocaleString()}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Taxes</span>
+                    <span className="font-medium">PKR {pricing.taxes.toLocaleString()}</span>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="flex justify-between items-center text-lg font-bold">
+                    <span>Total</span>
+                    <span className="text-[#01502E]">PKR {total.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Important Notes */}
+                <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+                  <h4 className="font-medium text-slate-900 mb-2">Important Notes</h4>
+                  <ul className="text-sm text-slate-600 space-y-1">
+                    <li>• Pricing excludes fuel, tolls, and parking fees</li>
+                    <li>• Security deposit required at pickup</li>
+                    <li>• Valid driving license required</li>
+                    <li>• Free cancellation up to 24 hours before pickup</li>
+                  </ul>
+                </div>
+
+                {/* Availability Status */}
+                <div className={`p-4 rounded-lg ${isAvailable ? 'bg-green-50 border border-green-200' : 'bg-orange-50 border border-orange-200'}`}>
+                  <div className={`flex items-center gap-2 ${isAvailable ? 'text-green-800' : 'text-orange-800'}`}>
+                    {isAvailable ? (
+                      <>
+                        <CheckCircle className="h-5 w-5" />
+                        <span className="font-medium">Available for selected dates</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-5 w-5" />
+                        <span className="font-medium">Selected dates may have conflicts</span>
+                      </>
+                    )}
+                  </div>
+                  <p className={`text-sm mt-1 ${isAvailable ? 'text-green-700' : 'text-orange-700'}`}>
+                    {isAvailable 
+                      ? 'Your vehicle is ready for booking' 
+                      : 'Please select different dates or contact the owner'
+                    }
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

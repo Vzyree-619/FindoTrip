@@ -18,8 +18,16 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
   async function loadConversations() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/chat/conversations?limit=50`);
+        const res = await fetch(`/api/chat/conversations?limit=50`);
       const json = await res.json();
+      
+      if (!json.success) {
+        console.warn("Chat conversations API failed:", json.error);
+        // Show empty state instead of crashing
+        setConversations([]);
+        return;
+      }
+      
       const items = (json?.data?.conversations || []) as any[];
       setCurrentUserId(currentUserIdProp || json?.data?.currentUserId || json?.data?.userId);
       const mapped: Conversation[] = items.map((c: any) => ({
@@ -47,6 +55,8 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
       }
     } catch (e) {
       console.error("Failed to load conversations", e);
+      // Show empty state instead of crashing
+      setConversations([]);
     } finally {
       setLoading(false);
     }

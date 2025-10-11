@@ -21,17 +21,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       return json({ error: "Missing conversationId or targetUserId" }, { status: 400 });
     }
 
-    // Load recent 50 messages between user and peer (oldest first)
-    const messages = await prisma.message.findMany({
-      where: {
-        OR: [
-          { senderId: userId, receiverId: peerId },
-          { senderId: peerId!, receiverId: userId },
-        ],
-      },
-      orderBy: { createdAt: "asc" },
-      take: 50,
-    });
+    // For now, return empty messages since we're using the new conversation system
+    const messages: any[] = [];
 
     // Participants
     const users = await prisma.user.findMany({
