@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link, useNavigate, useRevalidator } from "@remix-run/react";
+import { useLoaderData, Link, useRevalidator } from "@remix-run/react";
 import { ChatInterface } from "~/components/chat";
 import { useState } from "react";
 import { prisma } from "~/lib/db/db.server";

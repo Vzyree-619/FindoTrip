@@ -68,7 +68,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.user.findMany({
       take: 10,
       orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, role: true, createdAt: true, lastLoginAt: true }
+      select: { id: true, name: true, role: true, createdAt: true, lastLogin: true }
     }),
     
     // Mock error logs (in a real system, this would come from a logging service)
@@ -332,7 +332,7 @@ export default function SystemMonitoring() {
                       Joined: {new Date(activity.createdAt).toLocaleDateString()}
                     </p>
                     <p className="text-xs text-gray-400">
-                      Last login: {activity.lastLoginAt ? new Date(activity.lastLoginAt).toLocaleDateString() : "Never"}
+                      Last login: {activity.lastLogin ? new Date(activity.lastLogin).toLocaleDateString() : "Never"}
                     </p>
                   </div>
                 </div>

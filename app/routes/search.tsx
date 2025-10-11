@@ -1,19 +1,15 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSearchParams, useNavigate } from "@remix-run/react";
+import { useLoaderData, useSearchParams } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { 
   Search, 
   MapPin, 
   Calendar, 
   Users, 
-  Filter, 
   X, 
-  ChevronDown, 
-  ChevronUp,
   Star,
   Clock,
-  Zap,
   Car,
   Home,
   Plane,
@@ -21,7 +17,6 @@ import {
   Sliders,
   Grid,
   List,
-  SortAsc,
   Loader2
 } from "lucide-react";
 
@@ -451,7 +446,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function SearchPage() {
   const { results, total, filters, popularSearches, recentSearches } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get("serviceType") || "accommodations");

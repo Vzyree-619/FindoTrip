@@ -4,10 +4,9 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { Outlet, useLoaderData, NavLink, Link } from "@remix-run/react";
-import { requireUserId, getUser } from "~/lib/auth/auth.server";
+import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import {
-  User,
   Calendar,
   Heart,
   Star,
@@ -15,7 +14,6 @@ import {
   LogOut,
   Home,
   Bell,
-  CreditCard,
   MessageCircle,
 } from "lucide-react";
 

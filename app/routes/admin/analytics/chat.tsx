@@ -257,7 +257,7 @@ export default function AdminChatAnalytics() {
                 </div>
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Provider Response < 1h</span>
+                  <span className="text-sm text-gray-600">Provider Response &lt; 1h</span>
                   <div className="flex items-center space-x-2">
                     {getPerformanceIcon(metrics.userEngagement.providerResponseRate1Hour, 60)}
                     <span className={`text-sm font-medium ${getPerformanceColor(metrics.userEngagement.providerResponseRate1Hour, 60)}`}>
@@ -267,7 +267,7 @@ export default function AdminChatAnalytics() {
                 </div>
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Provider Response < 24h</span>
+                  <span className="text-sm text-gray-600">Provider Response &lt; 24h</span>
                   <div className="flex items-center space-x-2">
                     {getPerformanceIcon(metrics.userEngagement.providerResponseRate24Hours, 85)}
                     <span className={`text-sm font-medium ${getPerformanceColor(metrics.userEngagement.providerResponseRate24Hours, 85)}`}>

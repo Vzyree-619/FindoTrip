@@ -17,7 +17,7 @@ export default {
         ],
       },
       colors: {
-        primary: {
+        brand: {
           50: '#f0f9f4',
           100: '#dcf2e3',
           200: '#bce5cb',
@@ -133,7 +133,7 @@ export default {
   },
   plugins: [
     // Add custom utilities
-    function({ addUtilities, theme, addBase }) {
+    function({ addUtilities, theme, addBase }: { addUtilities: any, theme: any, addBase: any }) {
       // Screen reader only utility
       addUtilities({
         '.sr-only': {

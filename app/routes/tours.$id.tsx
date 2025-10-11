@@ -14,9 +14,6 @@ import {
   Heart, 
   Share2, 
   Calendar,
-  Zap,
-  Camera,
-  Award,
   CheckCircle,
   XCircle,
   AlertCircle
