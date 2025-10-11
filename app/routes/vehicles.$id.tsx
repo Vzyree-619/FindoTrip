@@ -205,11 +205,22 @@ export default function VehicleDetailPage() {
     const next = !isFavorite;
     setIsFavorite(next);
     try {
-      await fetch('/api/wishlist.toggle', {
+      const response = await fetch('/api/wishlist-toggle', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceType: 'vehicle', serviceId: vehicle.id, action: next ? 'add' : 'remove' })
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          serviceType: 'vehicle',
+          serviceId: vehicle.id,
+          action: next ? 'add' : 'remove'
+        })
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to toggle wishlist');
+      }
+      
       revalidator.revalidate();
     } catch {
       setIsFavorite(!next);

@@ -70,21 +70,52 @@ export async function action({ request }: ActionFunctionArgs) {
   const serviceType = (formData.get("serviceType") as string) || "property";
   const serviceId = (formData.get("serviceId") as string) || "";
 
-  if (intent === "remove" && serviceId) {
+  if ((intent === "add" || intent === "remove") && serviceId) {
     try {
-      if (serviceType === "property") {
-        const lists = await prisma.wishlist.findMany({ where: { userId, propertyIds: { has: serviceId } } });
-        await Promise.all(lists.map((l) => prisma.wishlist.update({ where: { id: l.id }, data: { propertyIds: l.propertyIds.filter((id) => id !== serviceId) } })));
-      } else if (serviceType === "vehicle") {
-        const lists = await prisma.wishlist.findMany({ where: { userId, vehicleIds: { has: serviceId } } });
-        await Promise.all(lists.map((l) => prisma.wishlist.update({ where: { id: l.id }, data: { vehicleIds: l.vehicleIds.filter((id) => id !== serviceId) } })));
-      } else if (serviceType === "tour") {
-        const lists = await prisma.wishlist.findMany({ where: { userId, tourIds: { has: serviceId } } });
-        await Promise.all(lists.map((l) => prisma.wishlist.update({ where: { id: l.id }, data: { tourIds: l.tourIds.filter((id) => id !== serviceId) } })));
+      // Find or create wishlist for user
+      let wishlist = await prisma.wishlist.findFirst({ where: { userId } });
+      
+      if (!wishlist) {
+        wishlist = await prisma.wishlist.create({
+          data: { 
+            userId, 
+            name: "My Favorites", 
+            propertyIds: [], 
+            vehicleIds: [], 
+            tourIds: [] 
+          }
+        });
       }
-      return json({ success: true, message: "Removed from favorites" });
+
+      // Update the appropriate array based on service type
+      const fieldMap = {
+        property: 'propertyIds',
+        vehicle: 'vehicleIds', 
+        tour: 'tourIds'
+      } as const;
+
+      const field = fieldMap[serviceType as keyof typeof fieldMap];
+      const currentIds = wishlist[field] || [];
+      
+      let updatedIds: string[];
+      if (intent === "add") {
+        updatedIds = [...new Set([...currentIds, serviceId])];
+      } else {
+        updatedIds = currentIds.filter(id => id !== serviceId);
+      }
+
+      await prisma.wishlist.update({
+        where: { id: wishlist.id },
+        data: { [field]: updatedIds }
+      });
+
+      return json({ 
+        success: true, 
+        message: intent === "add" ? "Added to favorites" : "Removed from favorites" 
+      });
     } catch (error) {
-      return json({ error: "Failed to remove from favorites" }, { status: 500 });
+      console.error("Favorites toggle error:", error);
+      return json({ error: "Failed to update favorites" }, { status: 500 });
     }
   }
 

@@ -155,18 +155,18 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="px-6 py-3 space-y-2">
-                <a href="/dashboard/bookings" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                <Link to="/dashboard/bookings" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   📅 My Bookings
-                </a>
-                <a href="/dashboard/messages" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                </Link>
+                <Link to="/dashboard/messages" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   💬 Messages
-                </a>
-                <a href="/dashboard/reviews" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                </Link>
+                <Link to="/dashboard/reviews" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   ⭐ Reviews
-                </a>
-                <a href="/dashboard/profile" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                </Link>
+                <Link to="/dashboard/profile" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   ⚙️ Profile
-                </a>
+                </Link>
               </div>
             </nav>
           </div>

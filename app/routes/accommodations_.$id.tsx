@@ -234,7 +234,7 @@ export default function AccommodationDetail() {
                 const next = !wishlisted;
                 setWishlisted(next); // optimistic
                 try {
-                  await fetch('/api/wishlist.toggle', {
+                  await fetch('/api/wishlist-toggle', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ serviceType: 'property', serviceId: accommodation.id, action: next ? 'add' : 'remove' })
