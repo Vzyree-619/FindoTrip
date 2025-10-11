@@ -1,9 +1,9 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link, useRevalidator } from "@remix-run/react";
+import { useLoaderData, Link, useRevalidator, useNavigate } from "@remix-run/react";
 import { ChatInterface } from "~/components/chat";
 import { useState } from "react";
 import { prisma } from "~/lib/db/db.server";
-import { getUser, requireUserId } from "~/lib/auth/auth.server";
+import { getUser, getUserId } from "~/lib/auth/auth.server";
 import {
   MapPin,
   Users,
@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
-  const userId = await requireUserId(request);
+  const userId = await getUserId(request);
   const { id } = params;
   
   if (!id) {

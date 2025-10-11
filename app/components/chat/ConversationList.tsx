@@ -28,8 +28,8 @@ export function ConversationList({
   }, [conversations, q]);
 
   return (
-    <div className={clsx("h-full flex flex-col", className)}>
-      <div className="p-3 border-b bg-white dark:bg-gray-900">
+    <div className={clsx("h-full flex flex-col min-h-0", className)}>
+      <div className="p-3 border-b bg-white dark:bg-gray-900 flex-shrink-0">
         <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-md px-2 py-1">
           <Search className="w-4 h-4 text-gray-500" />
           <input
@@ -44,7 +44,7 @@ export function ConversationList({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto divide-y">
+      <div className="flex-1 overflow-y-auto divide-y min-h-0">
         {loading ? (
           <div className="p-3 space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (

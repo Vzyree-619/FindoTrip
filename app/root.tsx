@@ -4,7 +4,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useRouteLoaderData,
+  useLoaderData,
 } from "@remix-run/react";
 import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -52,8 +52,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ user });
 }
 
-export function Layout({ children }: { children: React.ReactNode }) {
-  const data = useRouteLoaderData<typeof loader>("root");
+export default function App() {
+  const { user } = useLoaderData<typeof loader>();
   const { isOnline } = useNetwork();
   const [showOnlineIndicator, setShowOnlineIndicator] = useState(false);
   const [wasOffline, setWasOffline] = useState(false);
@@ -94,14 +94,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         
         {/* Main navigation */}
         <header className="sticky top-0 z-50 bg-white shadow-sm">
-          <NavBar user={data?.user} />
+          <NavBar user={user} />
         </header>
         
         {/* Mobile navigation is now handled in NavBar */}
         
         {/* Main content */}
         <main id="main-content" className="min-h-screen pb-16 lg:pb-0">
-          {children}
+          <Outlet />
         </main>
         
         {/* Network status indicators (debounced offline) */}
@@ -114,8 +114,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <OnlineIndicator show={showOnlineIndicator} />
         
         {/* Floating Chat Button - only show for authenticated users */}
-        {data?.user && (
-          <FloatingChatButton currentUserId={data.user.id} />
+        {user && (
+          <FloatingChatButton currentUserId={user.id} />
         )}
         
         {/* Scripts and restoration */}
@@ -143,10 +143,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </body>
     </html>
   );
-}
-
-export default function App() {
-  return <Outlet />;
 }
 
 // Export error boundary for the app

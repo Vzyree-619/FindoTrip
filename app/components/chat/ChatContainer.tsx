@@ -69,9 +69,9 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
   const selectedConversation = useMemo(() => conversations.find((c) => c.id === selectedId) || null, [conversations, selectedId]);
 
   return (
-    <div className={className}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-1 border rounded-md overflow-hidden">
+    <div className={`${className} h-full flex flex-col`}>
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 min-h-0">
+        <div className="md:col-span-1 border rounded-md overflow-hidden flex flex-col">
           <ConversationList
             conversations={conversations}
             loading={loading}
@@ -80,15 +80,17 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
               setOpen(true);
             }}
             onSearch={() => {}}
+            className="flex-1"
           />
         </div>
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 flex flex-col min-h-0">
           <ChatInterface
             isOpen={open}
             onClose={() => setOpen(false)}
             conversationId={selectedId ?? undefined}
             currentUserId={currentUserId}
             variant="inline"
+            className="flex-1"
             onSendMessage={async ({ conversationId, text }) => {
               const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
                 method: "POST",

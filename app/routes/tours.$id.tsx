@@ -1,7 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link, useRevalidator } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
-import { requireUserId } from "~/lib/auth/auth.server";
+import { getUserId } from "~/lib/auth/auth.server";
 import { ChatInterface } from "~/components/chat";
 import { useState, useMemo } from "react";
 import { 
@@ -80,7 +80,7 @@ interface LoaderData {
 // ========================================
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const userId = await requireUserId(request);
+  const userId = await getUserId(request);
   
   try {
     const tourId = params.id;

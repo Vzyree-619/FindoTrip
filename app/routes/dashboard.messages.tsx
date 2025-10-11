@@ -2,7 +2,7 @@ import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
-import { ChatContainer } from "~/components/chat/ChatContainer";
+import ChatContainer from "~/components/chat/ChatContainer";
 import { MessageCircle, Users, Settings } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -94,10 +94,10 @@ export default function MessagesDashboard() {
         </div>
 
         {/* Chat Interface */}
-        <div className="bg-white rounded-lg shadow-sm border">
+        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
           <ChatContainer 
             currentUserId={user.id}
-            className="h-[600px]"
+            className="h-[70vh] min-h-[500px] max-h-[800px]"
           />
         </div>
 

@@ -14,7 +14,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   // Skip API routes - let them be handled by their specific routes
   if (url.pathname.startsWith('/api/')) {
-    return json({ pathname: url.pathname }, { status: 404 });
+    throw new Response("API route not found", { status: 404 });
   }
   
   // Log 404s for analytics

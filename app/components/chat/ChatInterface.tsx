@@ -207,7 +207,7 @@ export function ChatInterface({
         className={clsx(
           variant === 'modal'
             ? "w-full sm:w-[720px] h-[80vh] sm:h-[600px] bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out]"
-            : "h-[75vh] md:h-[80vh] bg-white dark:bg-gray-900 border rounded-lg shadow-sm flex flex-col overflow-hidden"
+            : "h-full bg-white dark:bg-gray-900 border rounded-lg shadow-sm flex flex-col overflow-hidden"
         )}
       >
         {/* Header */}
@@ -227,7 +227,7 @@ export function ChatInterface({
         </div>
 
         {/* Messages */}
-        <div ref={listRef} onScroll={onScrollTop} className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50 dark:bg-gray-950">
+        <div ref={listRef} onScroll={onScrollTop} className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50 dark:bg-gray-950 min-h-0">
           {loading ? (
             <div className="h-full flex items-center justify-center text-gray-500">
               <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading chat…
