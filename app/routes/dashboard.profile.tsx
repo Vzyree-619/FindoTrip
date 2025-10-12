@@ -4,8 +4,8 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "@remix-run/node";
-import { useLoaderData, useActionData, Form, useNavigation } from "@remix-run/react";
-import { useState, useRef } from "react";
+import { useLoaderData, useActionData, Form, useNavigation, useFetcher } from "@remix-run/react";
+import { useState, useRef, useEffect } from "react";
 import { requireUserId, getUser } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import { v2 as cloudinary } from "cloudinary";
@@ -787,9 +787,26 @@ export default function ProfileSettings() {
 function AvatarUploader({ userName }: { userName: string }) {
   const [preview, setPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const fetcher = useFetcher();
+  
+  // Clear preview when form submission is successful
+  useEffect(() => {
+    if (fetcher.data?.success) {
+      setPreview(null);
+      if (inputRef.current) {
+        inputRef.current.value = '';
+      }
+    }
+  }, [fetcher.data]);
+  
+  const isSubmitting = fetcher.state === "submitting";
+  
   return (
     <div className="ml-4">
-      <Form method="post" encType="multipart/form-data">
+      <fetcher.Form 
+        method="post" 
+        encType="multipart/form-data"
+      >
         <input type="hidden" name="intent" value="update-avatar" />
         <input
           ref={inputRef}
@@ -805,7 +822,8 @@ function AvatarUploader({ userName }: { userName: string }) {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+          disabled={isSubmitting}
         >
           <Camera className="w-4 h-4 mr-2" />
           Change Photo
@@ -817,11 +835,35 @@ function AvatarUploader({ userName }: { userName: string }) {
           </div>
         )}
         {preview && (
-          <div className="mt-2">
-            <button type="submit" className="px-3 py-2 bg-[#01502E] text-white rounded-md">Save</button>
+          <div className="mt-2 flex gap-2">
+            <button 
+              type="submit" 
+              className="px-3 py-2 bg-[#01502E] text-white rounded-md hover:bg-[#013d23] transition-colors disabled:opacity-50"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPreview(null);
+                if (inputRef.current) {
+                  inputRef.current.value = '';
+                }
+              }}
+              className="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         )}
-      </Form>
+        {fetcher.data?.error && (
+          <p className="text-red-500 text-xs mt-1">{fetcher.data.error}</p>
+        )}
+        {fetcher.data?.success && (
+          <p className="text-green-500 text-xs mt-1">{fetcher.data.success}</p>
+        )}
+      </fetcher.Form>
     </div>
   );
 }

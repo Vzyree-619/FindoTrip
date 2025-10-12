@@ -80,7 +80,10 @@ export default function SearchForm({ className }: SearchFormProps) {
 
     try {
       const params = new URLSearchParams();
-      if (accommodationForm.destination) params.set('city', accommodationForm.destination);
+      if (accommodationForm.destination) {
+        // Use smart search that searches both name and city
+        params.set('search', accommodationForm.destination);
+      }
       if (accommodationForm.checkIn) params.set('checkIn', accommodationForm.checkIn);
       if (accommodationForm.checkOut) params.set('checkOut', accommodationForm.checkOut);
       if (accommodationForm.adults) params.set('adults', accommodationForm.adults.toString());
