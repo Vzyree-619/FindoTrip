@@ -157,7 +157,7 @@ export function MobileChatInterface({
   const participant = conversation?.participants?.[0];
 
   return (
-    <div className={clsx("fixed inset-0 z-50 bg-white dark:bg-gray-900 flex flex-col", className)}>
+    <div className={clsx("fixed inset-0 z-50 bg-white flex flex-col", className)}>
       {/* Mobile Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-[#01502E] text-white shadow-sm">
         <div className="flex items-center gap-3">
@@ -199,7 +199,7 @@ export function MobileChatInterface({
       {/* Messages Area */}
       <div 
         ref={listRef} 
-        className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-950"
+        className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {loading ? (
@@ -226,7 +226,7 @@ export function MobileChatInterface({
       </div>
 
       {/* Mobile Input Area */}
-      <div className="border-t bg-white dark:bg-gray-900 p-3" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <div className="border-t bg-white p-3" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="flex items-end gap-2">
           <button
             onClick={handleCameraCapture}
@@ -249,7 +249,7 @@ export function MobileChatInterface({
               }}
               placeholder="Type a message..."
               rows={1}
-              className="w-full resize-none rounded-full border bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-50 px-4 py-2 pr-12 text-base focus:outline-none focus:ring-2 focus:ring-[#01502E] max-h-32"
+              className="w-full resize-none rounded-full border bg-gray-50 text-gray-900 px-4 py-2 pr-12 text-base focus:outline-none focus:ring-2 focus:ring-[#01502E] max-h-32"
               style={{ minHeight: "40px" }}
             />
           </div>

@@ -5,6 +5,7 @@ import { clsx } from "./utils";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
 import AttachmentPreview from "./AttachmentPreview";
+import { useTheme } from "~/contexts/ThemeContext";
 
 export type ChatInterfaceProps = {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export function ChatInterface({
   className,
   variant = 'modal',
 }: ChatInterfaceProps) {
+  const { resolvedTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -206,8 +208,8 @@ export function ChatInterface({
       <div
         className={clsx(
           variant === 'modal'
-            ? "w-full sm:w-[720px] h-[80vh] sm:h-[600px] bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out]"
-            : "h-full bg-white dark:bg-gray-900 border rounded-lg shadow-sm flex flex-col overflow-hidden"
+            ? "w-full sm:w-[720px] h-[80vh] sm:h-[600px] bg-white rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out]"
+            : "h-full bg-white border rounded-lg shadow-sm flex flex-col overflow-hidden"
         )}
       >
         {/* Header */}
@@ -227,7 +229,9 @@ export function ChatInterface({
         </div>
 
         {/* Messages */}
-        <div ref={listRef} onScroll={onScrollTop} className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50 dark:bg-gray-950 min-h-0">
+        <div ref={listRef} onScroll={onScrollTop} className={`flex-1 overflow-y-auto p-3 space-y-2 min-h-0 ${
+          resolvedTheme === 'dark' ? 'bg-gray-950' : 'bg-gray-50'
+        }`}>
           {loading ? (
             <div className="h-full flex items-center justify-center text-gray-500">
               <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading chat…

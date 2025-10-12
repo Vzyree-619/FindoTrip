@@ -168,10 +168,10 @@ export function SwipeableMessageBubble({
       {/* Actions Menu */}
       {showActions && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => setShowActions(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-2 m-4">
+          <div className="bg-white rounded-lg shadow-xl p-2 m-4">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-100 rounded-lg"
             >
               <Copy className="w-5 h-5" />
               <span>Copy</span>
@@ -182,7 +182,7 @@ export function SwipeableMessageBubble({
                   onReply(message);
                   setShowActions(false);
                 }}
-                className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-100 rounded-lg"
               >
                 <Reply className="w-5 h-5" />
                 <span>Reply</span>
@@ -191,7 +191,7 @@ export function SwipeableMessageBubble({
             {isSender && (
               <button
                 onClick={handleDelete}
-                className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-red-600"
+                className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-100 rounded-lg text-red-600"
               >
                 <Trash2 className="w-5 h-5" />
                 <span>Delete</span>

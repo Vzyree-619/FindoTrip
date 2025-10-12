@@ -83,7 +83,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="border-t bg-white dark:bg-gray-900 p-2" aria-label="Chat input area">
+    <div className="border-t bg-white p-2" aria-label="Chat input area">
       <div className="flex items-end gap-2">
         <button
           type="button"
@@ -108,13 +108,13 @@ export function ChatInput({
             maxLength={maxLength}
             rows={1}
             className={clsx(
-              "w-full resize-none rounded-lg border bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-50",
+              "w-full resize-none rounded-lg border bg-gray-50 text-gray-900",
               "focus:outline-none focus:ring-2 focus:ring-[#01502E] px-3 py-2 text-sm"
             )}
             aria-label="Type a message"
           />
           {isEmojiOpen && (
-            <div className="absolute bottom-full mb-2 left-0 bg-white dark:bg-gray-800 border rounded-lg shadow p-2 grid grid-cols-8 gap-1">
+            <div className="absolute bottom-full mb-2 left-0 bg-white border rounded-lg shadow p-2 grid grid-cols-8 gap-1">
               {"😀😃😄😁😆😅😂😊😍😘😜🤗👍🙏👏🔥🎉✨🥳😎🤩".split("")
                 .filter(Boolean)
                 .map((e, i) => (

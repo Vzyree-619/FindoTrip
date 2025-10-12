@@ -301,6 +301,10 @@ model User {
   hasUnreadMessages Boolean @default(false)
   lastActiveAt DateTime?
 
+  // Chat settings (JSON strings for flexibility)
+  chatSettings    String?
+  privacySettings String?
+
   // ========================================
   // SECURITY & PRIVACY RELATIONSHIPS
   // ========================================

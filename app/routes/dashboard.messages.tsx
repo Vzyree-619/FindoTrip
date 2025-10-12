@@ -4,6 +4,8 @@ import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import ChatContainer from "~/components/chat/ChatContainer";
 import { MessageCircle, Users, Settings } from "lucide-react";
+import { ThemeProvider, updateGlobalTheme } from "~/contexts/ThemeContext";
+import { ThemeToggle } from "~/components/chat/ThemeToggle";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -11,7 +13,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Get user info
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, role: true, avatar: true }
+    select: { id: true, name: true, role: true, avatar: true, chatSettings: true }
   });
 
   if (!user) {
@@ -70,23 +72,42 @@ export async function loader({ request }: LoaderFunctionArgs) {
     })
   );
 
+  // Parse chat settings
+  const chatSettings = user.chatSettings ? JSON.parse(user.chatSettings) : {
+    theme: 'light',
+    fontSize: 'medium',
+    soundEnabled: true,
+    notificationsEnabled: true,
+    showOnlineStatus: true,
+    showReadReceipts: true,
+    showTypingIndicators: true,
+    autoDownloadMedia: false,
+    messagePreview: true,
+    darkMode: false
+  };
+
   return json({
     user,
-    conversations: processedConversations
+    conversations: processedConversations,
+    chatSettings
   });
 }
 
 export default function MessagesDashboard() {
-  const { user, conversations } = useLoaderData<typeof loader>();
+  const { user, conversations, chatSettings } = useLoaderData<typeof loader>();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <ThemeProvider initialTheme={chatSettings?.theme || 'light'}>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <MessageCircle className="w-8 h-8 text-[#01502E]" />
-            <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <MessageCircle className="w-8 h-8 text-[#01502E]" />
+              <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+            </div>
+            <ThemeToggle />
           </div>
           <p className="text-gray-600">
             Chat with customers, service providers, and support team
@@ -97,6 +118,7 @@ export default function MessagesDashboard() {
         <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
           <ChatContainer 
             currentUserId={user.id}
+            theme={chatSettings?.theme || 'light'}
             className="h-[70vh] min-h-[500px] max-h-[800px]"
           />
         </div>
@@ -137,12 +159,16 @@ export default function MessagesDashboard() {
             <p className="text-gray-600 text-sm mb-4">
               Manage your chat preferences and notifications
             </p>
-            <button className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors">
+            <a 
+              href="/dashboard/settings/chat"
+              className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors inline-block text-center"
+            >
               Settings
-            </button>
+            </a>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </ThemeProvider>
   );
 }

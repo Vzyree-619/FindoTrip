@@ -29,8 +29,8 @@ export function ConversationList({
 
   return (
     <div className={clsx("h-full flex flex-col min-h-0", className)}>
-      <div className="p-3 border-b bg-white dark:bg-gray-900 flex-shrink-0">
-        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-md px-2 py-1">
+      <div className="p-3 border-b bg-white flex-shrink-0">
+        <div className="flex items-center gap-2 bg-gray-100 rounded-md px-2 py-1">
           <Search className="w-4 h-4 text-gray-500" />
           <input
             value={q}
@@ -48,7 +48,7 @@ export function ConversationList({
         {loading ? (
           <div className="p-3 space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded" />
+              <div key={i} className="h-12 bg-gray-100 rounded" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -63,7 +63,7 @@ export function ConversationList({
                 <button
                   key={conv.id}
                   onClick={() => onSelect?.(conv.id)}
-                  className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50"
+                  className="w-full text-left p-3 hover:bg-gray-50 focus:bg-gray-50"
                 >
                   <div className="flex items-center gap-3">
                     <img src={p?.avatar || "/avatar.png"} alt="avatar" className="w-10 h-10 rounded-full object-cover" />

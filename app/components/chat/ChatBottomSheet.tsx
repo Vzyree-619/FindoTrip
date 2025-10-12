@@ -37,7 +37,7 @@ export function ChatBottomSheet({ isOpen, onClose, children, className }: ChatBo
       <div
         ref={sheetRef}
         className={clsx(
-          "relative w-full bg-white dark:bg-gray-900 rounded-t-2xl shadow-xl",
+          "relative w-full bg-white rounded-t-2xl shadow-xl",
           "transform transition-transform duration-300 ease-out",
           "animate-[slideUp_300ms_ease-out]",
           className
@@ -46,7 +46,7 @@ export function ChatBottomSheet({ isOpen, onClose, children, className }: ChatBo
       >
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-2">
-          <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
+          <div className="w-10 h-1 bg-gray-300 rounded-full" />
         </div>
         
         {children}

@@ -654,7 +654,7 @@ function TicketDetails({ ticketId, admins, templates }: { ticketId: string; admi
                 className={`p-3 rounded ${
                   message.sender.role === "SUPER_ADMIN"
                     ? "bg-blue-50 border border-blue-200"
-                    : "bg-gray-50"
+                    : "bg-white border border-gray-200"
                 }`}
               >
                 <div className="flex items-center space-x-2 mb-1">

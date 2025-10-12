@@ -260,7 +260,7 @@ export default function SupportChat({ ticket, isOpen, onClose, onTicketCreated }
                       className={`max-w-[80%] p-3 rounded-lg ${
                         message.sender.role === "SUPER_ADMIN"
                           ? "bg-[#01502E]/10 border border-[#01502E]/20"
-                          : "bg-gray-100"
+                          : "bg-white border border-gray-200"
                       }`}
                     >
                       <div className="flex items-center space-x-2 mb-1">
