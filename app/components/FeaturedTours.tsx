@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "@remix-run/react";
 import { ChevronLeft, ChevronRight, Star, MapPin, Clock, Users, Heart } from "lucide-react";
+import { useFavorites } from "~/hooks/useFavorites";
 
 // ========================================
 // TYPESCRIPT INTERFACES
@@ -88,7 +89,7 @@ export default function FeaturedTours({
 }: FeaturedToursProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   // Auto-slide functionality
   useEffect(() => {
@@ -109,15 +110,7 @@ export default function FeaturedTours({
   };
 
   const handleFavoriteToggle = (tourId: string) => {
-    setFavorites(prev => {
-      const newFavorites = new Set(prev);
-      if (newFavorites.has(tourId)) {
-        newFavorites.delete(tourId);
-      } else {
-        newFavorites.add(tourId);
-      }
-      return newFavorites;
-    });
+    toggleFavorite('tour', tourId);
   };
 
   if (tours.length === 0) {
@@ -267,7 +260,7 @@ export default function FeaturedTours({
                               >
                                 <Heart
                                   className={`w-5 h-5 transition-colors ${
-                                    favorites.has(tour.id) ? 'text-red-500 fill-red-500' : 'text-white'
+                                    isFavorite('tour', tour.id) ? 'text-red-500 fill-red-500' : 'text-white'
                                   }`}
                                 />
                               </button>
@@ -363,7 +356,7 @@ export default function FeaturedTours({
                     >
                       <Heart
                         className={`w-4 h-4 transition-colors ${
-                          favorites.has(tour.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'
+                          isFavorite('tour', tour.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'
                         }`}
                       />
                     </button>
@@ -425,4 +418,3 @@ export default function FeaturedTours({
     </section>
   );
 }
-import React from 'react';

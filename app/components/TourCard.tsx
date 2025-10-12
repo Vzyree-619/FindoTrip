@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "@remix-run/react";
 import { Heart, Star, Users, Clock, MapPin, Globe, Calendar, Zap, Shield } from "lucide-react";
+import { useFavorites } from "~/hooks/useFavorites";
 
 // ========================================
 // TYPESCRIPT INTERFACES
@@ -90,7 +91,7 @@ export default function TourCard({ tour }: TourCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isImageHovered, setIsImageHovered] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(tour.isFavorite || false);
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   // Auto-slide images
   useEffect(() => {
@@ -105,7 +106,8 @@ export default function TourCard({ tour }: TourCardProps) {
   const handleFavoriteToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsFavorite(!isFavorite);
+    
+    toggleFavorite('tour', tour.id);
     tour.onToggleFavorite?.(tour.id);
   };
 
@@ -211,7 +213,7 @@ export default function TourCard({ tour }: TourCardProps) {
           >
             <Heart
               className={`w-4 h-4 transition-colors duration-200 ${
-                isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-600'
+                isFavorite('tour', tour.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'
               }`}
             />
           </button>
@@ -366,4 +368,3 @@ export function TourCardSkeleton() {
     </div>
   );
 }
-import React from 'react';

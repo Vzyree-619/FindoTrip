@@ -22,7 +22,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true }
+    select: { id: true, name: true, role: true, avatar: true }
   });
 
   // Redirect based on role only when visiting the root dashboard path
@@ -129,7 +129,7 @@ export default function Dashboard() {
           <div className="w-64 bg-white shadow-lg">
             <div className="p-6">
               <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
-              <p className="text-sm text-gray-600 mt-1">Welcome back, {safeUser.name}</p>
+              <p className="text-sm text-gray-600 mt-1">Welcome back, {user.name}</p>
             </div>
             <nav className="mt-6">
               <div className="px-6 py-3">
