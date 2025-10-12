@@ -3,6 +3,8 @@ import { useLoaderData, Link, useRevalidator } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { getUserId } from "~/lib/auth/auth.server";
 import { ChatInterface } from "~/components/chat";
+import ShareModal from "~/components/common/ShareModal";
+import FloatingShareButton from "~/components/common/FloatingShareButton";
 import { useState } from "react";
 import { 
   Star, 
@@ -200,6 +202,7 @@ export default function VehicleDetailPage() {
   const [selectedEndDate, setSelectedEndDate] = useState('');
   const [selectedLocation, setSelectedLocation] = useState(vehicle.location);
   const [chatOpen, setChatOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   const handleFavoriteToggle = async () => {
     const next = !isFavorite;
@@ -257,14 +260,31 @@ export default function VehicleDetailPage() {
   const handleContactOwner = async () => {
     try {
       const receiverId = vehicle.owner.id;
-      const form = new FormData();
-      form.append('intent', 'send');
-      form.append('receiverId', receiverId);
-      form.append('content', `Hi ${vehicle.owner.name}, I have a question about ${vehicle.brand} ${vehicle.model}.`);
-      form.append('bookingType', 'vehicle');
-      await fetch('/api/messages', { method: 'POST', body: form });
-      window.location.href = `/dashboard/messages?peerId=${receiverId}`;
-    } catch {}
+      
+      // Create conversation and send message using the messages API
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          intent: 'send',
+          receiverId: receiverId,
+          content: `Hi ${vehicle.owner.name}, I have a question about ${vehicle.brand} ${vehicle.model}.`,
+          bookingType: 'vehicle'
+        })
+      });
+      
+      if (response.ok) {
+        // Redirect to messages dashboard with the specific conversation
+        window.location.href = `/dashboard/messages?peerId=${receiverId}`;
+      } else {
+        // Fallback: just redirect to messages
+        window.location.href = `/dashboard/messages`;
+      }
+    } catch (error) {
+      console.error('Error contacting owner:', error);
+      // Fallback: redirect to messages
+      window.location.href = `/dashboard/messages`;
+    }
   };
 
   return (
@@ -390,7 +410,10 @@ export default function VehicleDetailPage() {
               }`}
             />
           </button>
-          <button className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg hover:bg-white transition-colors">
+          <button 
+            onClick={() => setShareModalOpen(true)}
+            className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg hover:bg-white transition-colors"
+          >
             <Share2 className="w-5 h-5 text-gray-600" />
           </button>
         </div>
@@ -744,6 +767,26 @@ export default function VehicleDetailPage() {
         onClose={() => setChatOpen(false)}
         targetUserId={(vehicle as any).owner?.id}
         initialMessage={`Hi ${vehicle.owner.name}, I'm interested in your ${vehicle.brand} ${vehicle.model}.${selectedStartDate && selectedEndDate ? ` Dates: ${selectedStartDate} to ${selectedEndDate}.` : ''}`}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        open={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        title={`${vehicle.brand} ${vehicle.model}`}
+        url={typeof window !== 'undefined' ? window.location.href : ''}
+        description={`Check out this amazing ${vehicle.brand} ${vehicle.model} for rent! ${vehicle.features.slice(0, 3).join(', ')}`}
+        image={vehicle.images[0]}
+      />
+
+      {/* Floating Share Button */}
+      <FloatingShareButton
+        title={`${vehicle.brand} ${vehicle.model}`}
+        url={typeof window !== 'undefined' ? window.location.href : ''}
+        description={`Check out this amazing ${vehicle.brand} ${vehicle.model} for rent! ${vehicle.features.slice(0, 3).join(', ')}`}
+        image={vehicle.images[0]}
+        position="bottom-right"
+        variant="floating"
       />
     </div>
   );

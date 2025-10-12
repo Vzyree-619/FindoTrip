@@ -3,6 +3,8 @@ import { useLoaderData, Link, useRevalidator } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { getUserId } from "~/lib/auth/auth.server";
 import { ChatInterface } from "~/components/chat";
+import ShareModal from "~/components/common/ShareModal";
+import FloatingShareButton from "~/components/common/FloatingShareButton";
 import { useState, useMemo } from "react";
 import { 
   Star, 
@@ -81,6 +83,15 @@ interface LoaderData {
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await getUserId(request);
+  
+  // Get user data for chat functionality
+  let user = null;
+  if (userId) {
+    user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, role: true, avatar: true }
+    });
+  }
   
   try {
     const tourId = params.id;
@@ -191,6 +202,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     // Return simplified tour data that matches the actual schema
     return json({
+      user,
       tour: {
         ...tour,
         guide: {
@@ -247,7 +259,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 // ========================================
 
 export default function TourDetailPage() {
-  const { tour } = useLoaderData<typeof loader>();
+  const { user, tour } = useLoaderData<typeof loader>();
   const revalidator = useRevalidator();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(Boolean((tour as any).isFavorite));
@@ -255,6 +267,8 @@ export default function TourDetailPage() {
   const [groupSize, setGroupSize] = useState(tour.groupSize.min);
   const [selectedTime, setSelectedTime] = useState((tour as any).timeSlots?.[0] || '');
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const [extras, setExtras] = useState<{ key: string; label: string; price: number; selected: boolean }[]>([
     { key: 'lunch', label: 'Lunch', price: 1500, selected: false },
     { key: 'photo', label: 'Photo package', price: 2000, selected: false },
@@ -320,7 +334,6 @@ export default function TourDetailPage() {
     return colors[category as keyof typeof colors] || 'bg-gray-500';
   };
 
-  const [chatOpen, setChatOpen] = useState(false);
   const handleMessageGuide = () => setChatOpen(true);
 
   return (
@@ -445,7 +458,10 @@ export default function TourDetailPage() {
               }`}
             />
           </button>
-          <button className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg hover:bg-white transition-colors">
+          <button 
+            onClick={() => setShareModalOpen(true)}
+            className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg hover:bg-white transition-colors"
+          >
             <Share2 className="w-5 h-5 text-gray-600" />
           </button>
         </div>
@@ -793,7 +809,42 @@ export default function TourDetailPage() {
         isOpen={chatOpen}
         onClose={() => setChatOpen(false)}
         targetUserId={(tour as any).guide?.id}
+        currentUserId={user?.id}
         initialMessage={`Hi ${tour.guide.name}, I'm interested in the ${tour.title}${selectedDate ? ` on ${selectedDate}` : ''}.`}
+        fetchConversation={async ({ targetUserId }) => {
+          const response = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
+          if (!response.ok) throw new Error("Failed to fetch conversation");
+          return response.json();
+        }}
+        onSendMessage={async ({ targetUserId, text }) => {
+          const response = await fetch('/api/chat.send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ targetUserId, text })
+          });
+          if (!response.ok) throw new Error("Failed to send message");
+          return response.json();
+        }}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        open={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        title={tour.title}
+        url={typeof window !== 'undefined' ? window.location.href : ''}
+        description={`Join this amazing ${tour.category} tour! ${tour.description.slice(0, 100)}...`}
+        image={tour.images[0]}
+      />
+
+      {/* Floating Share Button */}
+      <FloatingShareButton
+        title={tour.title}
+        url={typeof window !== 'undefined' ? window.location.href : ''}
+        description={`Join this amazing ${tour.category} tour! ${tour.description.slice(0, 100)}...`}
+        image={tour.images[0]}
+        position="bottom-right"
+        variant="floating"
       />
     </div>
   );

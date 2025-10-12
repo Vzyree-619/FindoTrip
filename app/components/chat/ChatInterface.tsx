@@ -51,19 +51,16 @@ export function ChatInterface({
   const load = async () => {
     // Default fetch via API if not provided
     const defaultFetch = async ({ conversationId, targetUserId }: { conversationId?: string; targetUserId?: string }): Promise<FetchConversationResult> => {
-      let cid = conversationId;
-      if (!cid && targetUserId) {
-        const res = await fetch('/api/chat/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetUserId, type: 'CUSTOMER_PROVIDER' }) });
+      if (targetUserId) {
+        // Use the chat conversation API
+        const res = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
         const json = await res.json();
-        cid = json?.data?.id;
+        return { 
+          conversation: json.data?.conversation, 
+          messages: json.data?.messages || [] 
+        } as FetchConversationResult;
       }
-      const convRes = await fetch(`/api/chat/conversations/${cid}`);
-      const convJson = await convRes.json();
-      const conversation = convJson?.data;
-      const msgsRes = await fetch(`/api/chat/conversations/${cid}/messages?limit=50`);
-      const msgsJson = await msgsRes.json();
-      const messages = msgsJson?.data?.messages || [];
-      return { conversation, messages } as FetchConversationResult;
+      return { conversation: null, messages: [] };
     };
     setLoading(true);
     try {
@@ -74,16 +71,16 @@ export function ChatInterface({
         try {
           const sendFn =
             onSendMessage ||
-            (async ({ conversationId, text }: { conversationId?: string; text: string; files?: File[] }) => {
-              const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
+            (async ({ targetUserId, text }: { targetUserId?: string; text: string; files?: File[] }) => {
+              const res = await fetch('/api/chat.send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: text }),
+                body: JSON.stringify({ targetUserId, text }),
               });
               const json = await res.json();
               return json?.data as Message;
             });
-          const sent = await sendFn({ conversationId: res.conversation.id, text: initialMessage, files: [] });
+          const sent = await sendFn({ targetUserId, text: initialMessage, files: [] });
           if (sent) setMessages((prev) => [...prev, sent]);
         } catch {}
       }
@@ -138,8 +135,8 @@ export function ChatInterface({
   }, [isOpen, variant, conversationId, targetUserId]);
 
   const onSend = async (text: string, files?: File[]) => {
-    const defaultSend = async ({ conversationId, text, files }: { conversationId?: string; text: string; files?: File[] }) => {
-      const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: text }) });
+    const defaultSend = async ({ targetUserId, text, files }: { targetUserId?: string; text: string; files?: File[] }) => {
+      const res = await fetch('/api/chat.send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetUserId, text }) });
       const json = await res.json();
       return json?.data as Message;
     };
@@ -155,7 +152,7 @@ export function ChatInterface({
     };
     setMessages((prev) => [...prev, temp]);
     scrollToBottomSmooth();
-    const result = await (onSendMessage || defaultSend)({ conversationId: conversation?.id, targetUserId, text, files });
+    const result = await (onSendMessage || defaultSend)({ targetUserId, text, files });
     if (result) {
       setMessages((prev) => prev.map((m) => (m.id === temp.id ? result : m)));
     } else {

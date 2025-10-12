@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "@remix-run/react";
+import ShareModal from "~/components/common/ShareModal";
 import { 
   Star, 
   MapPin, 
@@ -114,6 +115,19 @@ export default function SearchResults({
   onQuickView
 }: SearchResultsProps) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [shareModal, setShareModal] = useState<{ 
+    open: boolean; 
+    title: string; 
+    url: string; 
+    description?: string; 
+    image?: string; 
+  }>({ 
+    open: false, 
+    title: '', 
+    url: '',
+    description: '',
+    image: ''
+  });
 
   const handleFavoriteToggle = (id: string) => {
     setFavorites(prev => {
@@ -128,7 +142,15 @@ export default function SearchResults({
     onToggleFavorite?.(id);
   };
 
-  const handleShare = (id: string) => {
+  const handleShare = (id: string, title: string, description?: string, image?: string) => {
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    setShareModal({ 
+      open: true, 
+      title, 
+      url,
+      description: description || `Check out this amazing ${serviceType}!`,
+      image
+    });
     onShare?.(id);
   };
 
@@ -187,6 +209,16 @@ export default function SearchResults({
           onQuickView={handleQuickView}
         />
       ))}
+      
+      {/* Share Modal */}
+      <ShareModal
+        open={shareModal.open}
+        onClose={() => setShareModal({ open: false, title: '', url: '', description: '', image: '' })}
+        title={shareModal.title}
+        url={shareModal.url}
+        description={shareModal.description}
+        image={shareModal.image}
+      />
     </div>
   );
 }
@@ -480,7 +512,7 @@ function SearchResultCard({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onShare(result.id);
+                handleShare(result.id, result.title, result.description, result.images[0]);
               }}
               className="bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg hover:bg-white transition-colors"
             >

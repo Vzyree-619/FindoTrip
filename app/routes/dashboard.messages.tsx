@@ -9,6 +9,8 @@ import { ThemeToggle } from "~/components/chat/ThemeToggle";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
+  const url = new URL(request.url);
+  const peerId = url.searchParams.get('peerId');
   
   // Get user info
   const user = await prisma.user.findUnique({
@@ -89,12 +91,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({
     user,
     conversations: processedConversations,
-    chatSettings
+    chatSettings,
+    peerId
   });
 }
 
 export default function MessagesDashboard() {
-  const { user, conversations, chatSettings } = useLoaderData<typeof loader>();
+  const { user, conversations, chatSettings, peerId } = useLoaderData<typeof loader>();
 
   return (
     <ThemeProvider initialTheme={chatSettings?.theme || 'light'}>
@@ -120,6 +123,7 @@ export default function MessagesDashboard() {
             currentUserId={user.id}
             theme={chatSettings?.theme || 'light'}
             className="h-[70vh] min-h-[500px] max-h-[800px]"
+            initialPeerId={peerId}
           />
         </div>
 

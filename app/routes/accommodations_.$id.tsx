@@ -1,6 +1,8 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link, useRevalidator, useNavigate } from "@remix-run/react";
 import { ChatInterface } from "~/components/chat";
+import ShareModal from "~/components/common/ShareModal";
+import FloatingShareButton from "~/components/common/FloatingShareButton";
 import { useState } from "react";
 import { prisma } from "~/lib/db/db.server";
 import { getUser, getUserId } from "~/lib/auth/auth.server";
@@ -107,6 +109,7 @@ export default function AccommodationDetail() {
   const [guests, setGuests] = useState(1);
   const [wishlisted, setWishlisted] = useState(isWishlisted);
   const [chatOpen, setChatOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   const images = accommodation.images.length > 0 
     ? accommodation.images 
@@ -225,7 +228,10 @@ export default function AccommodationDetail() {
           </div>
 
           <div className="flex gap-2">
-              <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+              <button 
+                onClick={() => setShareModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
                 <Share2 size={18} />
                 Share
               </button>
@@ -640,9 +646,44 @@ export default function AccommodationDetail() {
           isOpen={chatOpen}
           onClose={() => setChatOpen(false)}
           targetUserId={accommodation.owner.user.id}
+          currentUserId={user?.id}
           initialMessage={`Hi, I'm interested in ${accommodation.name}${checkIn && checkOut ? ` for ${checkIn} to ${checkOut}` : ''}.`}
+          fetchConversation={async ({ targetUserId }) => {
+            const response = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
+            if (!response.ok) throw new Error("Failed to fetch conversation");
+            return response.json();
+          }}
+          onSendMessage={async ({ targetUserId, text }) => {
+            const response = await fetch('/api/chat.send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ targetUserId, text })
+            });
+            if (!response.ok) throw new Error("Failed to send message");
+            return response.json();
+          }}
         />
       )}
+
+      {/* Share Modal */}
+      <ShareModal
+        open={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        title={accommodation.name}
+        url={typeof window !== 'undefined' ? window.location.href : ''}
+        description={`Check out this beautiful ${accommodation.propertyType} in ${accommodation.location}! ${accommodation.amenities?.slice(0, 3).join(', ')}`}
+        image={accommodation.images[0]}
+      />
+
+      {/* Floating Share Button */}
+      <FloatingShareButton
+        title={accommodation.name}
+        url={typeof window !== 'undefined' ? window.location.href : ''}
+        description={`Check out this beautiful ${accommodation.propertyType} in ${accommodation.location}! ${accommodation.amenities?.slice(0, 3).join(', ')}`}
+        image={accommodation.images[0]}
+        position="bottom-right"
+        variant="floating"
+      />
     </div>
   );
 }

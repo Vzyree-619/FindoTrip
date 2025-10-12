@@ -8,9 +8,10 @@ type ChatContainerProps = {
   className?: string;
   currentUserId?: string;
   theme?: 'light' | 'dark' | 'auto';
+  initialPeerId?: string;
 };
 
-export default function ChatContainer({ className, currentUserId: currentUserIdProp, theme = 'light' }: ChatContainerProps) {
+export default function ChatContainer({ className, currentUserId: currentUserIdProp, theme = 'light', initialPeerId }: ChatContainerProps) {
   const [loading, setLoading] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -67,6 +68,20 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
   useEffect(() => {
     loadConversations();
   }, []);
+
+  // Auto-open conversation if initialPeerId is provided
+  useEffect(() => {
+    if (initialPeerId && conversations.length > 0) {
+      // Find conversation with this peer
+      const conversation = conversations.find(conv => 
+        conv.participants.some(p => p.id === initialPeerId)
+      );
+      if (conversation) {
+        setSelectedId(conversation.id);
+        setOpen(true);
+      }
+    }
+  }, [initialPeerId, conversations]);
 
   const selectedConversation = useMemo(() => conversations.find((c) => c.id === selectedId) || null, [conversations, selectedId]);
 
