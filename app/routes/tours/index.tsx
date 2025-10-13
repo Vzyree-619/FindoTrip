@@ -82,7 +82,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const groupSizeParam = searchParams.get("groupSize") || "";
     const sortBy = searchParams.get("sortBy") || "featured";
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "12");
+    const limit = parseInt(searchParams.get("limit") || "24");
 
     console.log('Tours search parameters:', { search, category, difficulty, minPrice, maxPrice, location });
     console.log('Difficulty filter value:', difficulty, 'Type:', typeof difficulty);
@@ -355,6 +355,282 @@ export async function loader({ request }: LoaderFunctionArgs) {
             isVerified: true
           },
           reviews: [{ rating: 5 }, { rating: 4 }, { rating: 5 }]
+        },
+        {
+          id: "7",
+          title: "Karachi Food Safari",
+          description: "Explore Karachi's diverse food scene with local food experts and taste authentic Pakistani cuisine.",
+          pricePerPerson: 18000,
+          duration: 1,
+          difficulty: "Easy",
+          category: "Food",
+          location: "Karachi, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: false,
+          totalBookings: 35,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-7",
+            name: "Hassan Ali",
+            avatar: null,
+            averageRating: 4.7,
+            totalReviews: 40,
+            isVerified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 4 }, { rating: 5 }]
+        },
+        {
+          id: "8",
+          title: "Peshawar Heritage Walk",
+          description: "Discover the rich history and culture of Peshawar with guided heritage walks through ancient streets.",
+          pricePerPerson: 20000,
+          duration: 2,
+          difficulty: "Easy",
+          category: "Cultural",
+          location: "Peshawar, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: true,
+          totalBookings: 28,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-8",
+            name: "Ahmad Shah",
+            avatar: null,
+            averageRating: 4.8,
+            totalReviews: 35,
+            isVerified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 5 }, { rating: 4 }]
+        },
+        {
+          id: "9",
+          title: "Quetta Mountain Adventure",
+          description: "Experience the rugged beauty of Quetta's mountains with challenging hikes and breathtaking views.",
+          pricePerPerson: 35000,
+          duration: 3,
+          difficulty: "Hard",
+          category: "Adventure",
+          location: "Quetta, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: false,
+          totalBookings: 12,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-9",
+            name: "Muhammad Khan",
+            avatar: null,
+            averageRating: 4.9,
+            totalReviews: 20,
+            isVerified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 5 }, { rating: 5 }]
+        },
+        {
+          id: "10",
+          title: "Multan Sufi Heritage Tour",
+          description: "Explore the spiritual heritage of Multan with visits to Sufi shrines and cultural sites.",
+          pricePerPerson: 22000,
+          duration: 2,
+          difficulty: "Easy",
+          category: "Cultural",
+          location: "Multan, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: true,
+          totalBookings: 22,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-10",
+            name: "Fatima Ali",
+            avatar: null,
+            averageRating: 4.6,
+            totalReviews: 25,
+            isVerified: true
+          },
+          reviews: [{ rating: 4 }, { rating: 5 }, { rating: 4 }]
+        },
+        {
+          id: "11",
+          title: "Gilgit Wildlife Safari",
+          description: "Spot rare wildlife in Gilgit's national parks with expert guides and wildlife photography opportunities.",
+          pricePerPerson: 40000,
+          duration: 2,
+          difficulty: "Moderate",
+          category: "Nature",
+          location: "Gilgit, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: false,
+          totalBookings: 18,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-11",
+            name: "Ali Hassan",
+            avatar: null,
+            averageRating: 4.8,
+            totalReviews: 30,
+            isVerified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 4 }, { rating: 5 }]
+        },
+        {
+          id: "12",
+          title: "Faisalabad Textile Tour",
+          description: "Learn about Pakistan's textile industry with factory visits and traditional craft demonstrations.",
+          pricePerPerson: 15000,
+          duration: 1,
+          difficulty: "Easy",
+          category: "Cultural",
+          location: "Faisalabad, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: false,
+          totalBookings: 15,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-12",
+            name: "Sara Khan",
+            avatar: null,
+            averageRating: 4.5,
+            totalReviews: 18,
+            isVerified: true
+          },
+          reviews: [{ rating: 4 }, { rating: 4 }, { rating: 5 }]
+        },
+        {
+          id: "13",
+          title: "Chitral Valley Adventure",
+          description: "Explore the remote Chitral Valley with its unique culture, Kalash people, and stunning mountain landscapes.",
+          pricePerPerson: 55000,
+          duration: 3,
+          difficulty: "Moderate",
+          category: "Adventure",
+          location: "Chitral, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: true,
+          totalBookings: 8,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-13",
+            name: "Wali Khan",
+            avatar: null,
+            averageRating: 4.9,
+            totalReviews: 15,
+            isVerified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 5 }, { rating: 4 }]
+        },
+        {
+          id: "14",
+          title: "Thar Desert Safari",
+          description: "Experience the magic of Thar Desert with camel safaris, traditional music, and starlit nights.",
+          pricePerPerson: 30000,
+          duration: 2,
+          difficulty: "Easy",
+          category: "Cultural",
+          location: "Thar Desert, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: false,
+          totalBookings: 20,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-14",
+            name: "Rashid Ali",
+            avatar: null,
+            averageRating: 4.7,
+            totalReviews: 25,
+            isVerified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 4 }, { rating: 5 }]
+        },
+        {
+          id: "15",
+          title: "Makran Coastal Tour",
+          description: "Discover Pakistan's hidden coastline with pristine beaches, fishing villages, and marine life.",
+          pricePerPerson: 40000,
+          duration: 2,
+          difficulty: "Easy",
+          category: "Nature",
+          location: "Makran Coast, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: false,
+          totalBookings: 12,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-15",
+            name: "Hassan Baloch",
+            avatar: null,
+            averageRating: 4.6,
+            totalReviews: 18,
+            isVerified: true
+          },
+          reviews: [{ rating: 4 }, { rating: 5 }, { rating: 4 }]
+        },
+        {
+          id: "16",
+          title: "Kalash Cultural Experience",
+          description: "Immerse yourself in the unique culture of the Kalash people with traditional ceremonies and festivals.",
+          pricePerPerson: 35000,
+          duration: 2,
+          difficulty: "Easy",
+          category: "Cultural",
+          location: "Kalash Valley, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: true,
+          totalBookings: 15,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-16",
+            name: "Gul Khan",
+            avatar: null,
+            averageRating: 4.8,
+            totalReviews: 22,
+            isVerified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 5 }, { rating: 4 }]
+        },
+        {
+          id: "17",
+          title: "Neelum Valley Trek",
+          description: "Trek through the beautiful Neelum Valley with its crystal-clear rivers and lush green forests.",
+          pricePerPerson: 45000,
+          duration: 4,
+          difficulty: "Moderate",
+          category: "Nature",
+          location: "Neelum Valley, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: false,
+          totalBookings: 10,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-17",
+            name: "Ahmad Sheikh",
+            avatar: null,
+            averageRating: 4.7,
+            totalReviews: 16,
+            isVerified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 4 }, { rating: 5 }]
+        },
+        {
+          id: "18",
+          title: "Punjab Heritage Trail",
+          description: "Explore the rich heritage of Punjab with visits to historical sites, museums, and traditional crafts.",
+          pricePerPerson: 25000,
+          duration: 3,
+          difficulty: "Easy",
+          category: "Cultural",
+          location: "Punjab, Pakistan",
+          images: ["/tour.jpg"],
+          isFeatured: false,
+          totalBookings: 25,
+          createdAt: new Date(),
+          guide: {
+            id: "guide-18",
+            name: "Sara Ahmed",
+            avatar: null,
+            averageRating: 4.5,
+            totalReviews: 30,
+            isVerified: true
+          },
+          reviews: [{ rating: 4 }, { rating: 4 }, { rating: 5 }]
         }
       ];
 
@@ -421,7 +697,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       console.log(`Filtered fallback tours: ${tours.length} tours match the criteria`);
       console.log('Fallback tours after filtering:', tours.map(t => ({ title: t.title, difficulty: t.difficulty })));
-      total = tours.length;
+      
+      // Apply pagination to fallback data
+      const totalTours = tours.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedTours = tours.slice(startIndex, endIndex);
+      
+      console.log(`Pagination: page ${page}, limit ${limit}, startIndex ${startIndex}, endIndex ${endIndex}`);
+      console.log(`Paginated tours: ${paginatedTours.length} out of ${totalTours} total`);
+      
+      tours = paginatedTours;
+      total = totalTours;
       categories = [
         "Adventure", 
         "Cultural", 
@@ -440,7 +727,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
         "Swat, Pakistan",
         "Islamabad, Pakistan",
         "Lahore, Pakistan",
-        "Baltistan, Pakistan"
+        "Baltistan, Pakistan",
+        "Karachi, Pakistan",
+        "Peshawar, Pakistan",
+        "Quetta, Pakistan",
+        "Multan, Pakistan",
+        "Gilgit, Pakistan",
+        "Faisalabad, Pakistan",
+        "Chitral, Pakistan",
+        "Thar Desert, Pakistan",
+        "Makran Coast, Pakistan",
+        "Kalash Valley, Pakistan",
+        "Neelum Valley, Pakistan",
+        "Punjab, Pakistan"
       ];
     }
 
@@ -820,18 +1119,40 @@ export default function ToursPage() {
           </div>
 
           {/* Sort Options */}
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Sort by:</span>
-                <select
-                  value={searchParams.get("sortBy") || "featured"}
-                  onChange={(e) => handleFilterChange("sortBy", e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="featured">Featured</option>
-                  <option value="rating">Highest Rated</option>
-                  <option value="price_low">Price: Low to High</option>
-                  <option value="price_high">Price: High to Low</option>
-                </select>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">Sort by:</span>
+              <select
+                value={searchParams.get("sortBy") || "featured"}
+                onChange={(e) => handleFilterChange("sortBy", e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="featured">Featured</option>
+                <option value="rating">Highest Rated</option>
+                <option value="price_low">Price: Low to High</option>
+                <option value="price_high">Price: High to Low</option>
+              </select>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select
+                value={searchParams.get("limit") || "24"}
+                onChange={(e) => {
+                  const newParams = new URLSearchParams(searchParams);
+                  newParams.set("limit", e.target.value);
+                  newParams.set("page", "1"); // Reset to first page when changing limit
+                  setSearchParams(newParams);
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="6">6 per page</option>
+                <option value="12">12 per page</option>
+                <option value="24">24 per page</option>
+                <option value="48">48 per page</option>
+                <option value="100">All tours</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -862,6 +1183,122 @@ export default function ToursPage() {
             )}
           </div>
         </Card>
+
+        {/* Pagination */}
+        {total > 0 && (
+          <div className="mt-8 flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Showing {((parseInt(searchParams.get("page") || "1") - 1) * parseInt(searchParams.get("limit") || "12")) + 1} to {Math.min(parseInt(searchParams.get("page") || "1") * parseInt(searchParams.get("limit") || "12"), total)} of {total} tours
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              {/* Previous Button */}
+              <button
+                onClick={() => {
+                  const currentPage = parseInt(searchParams.get("page") || "1");
+                  if (currentPage > 1) {
+                    const newParams = new URLSearchParams(searchParams);
+                    newParams.set("page", (currentPage - 1).toString());
+                    setSearchParams(newParams);
+                  }
+                }}
+                disabled={parseInt(searchParams.get("page") || "1") <= 1}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+
+              {/* Page Numbers */}
+              {(() => {
+                const currentPage = parseInt(searchParams.get("page") || "1");
+                const limit = parseInt(searchParams.get("limit") || "24");
+                const totalPages = Math.ceil(total / limit);
+                const pages = [];
+                
+                // Show first page
+                if (currentPage > 3) {
+                  pages.push(
+                    <button
+                      key={1}
+                      onClick={() => {
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.set("page", "1");
+                        setSearchParams(newParams);
+                      }}
+                      className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      1
+                    </button>
+                  );
+                  if (currentPage > 4) {
+                    pages.push(<span key="ellipsis1" className="px-2 text-gray-500">...</span>);
+                  }
+                }
+
+                // Show pages around current page
+                for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => {
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.set("page", i.toString());
+                        setSearchParams(newParams);
+                      }}
+                      className={`px-3 py-2 text-sm font-medium border rounded-md ${
+                        i === currentPage
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "text-gray-500 bg-white border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+
+                // Show last page
+                if (currentPage < totalPages - 2) {
+                  if (currentPage < totalPages - 3) {
+                    pages.push(<span key="ellipsis2" className="px-2 text-gray-500">...</span>);
+                  }
+                  pages.push(
+                    <button
+                      key={totalPages}
+                      onClick={() => {
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.set("page", totalPages.toString());
+                        setSearchParams(newParams);
+                      }}
+                      className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      {totalPages}
+                    </button>
+                  );
+                }
+
+                return pages;
+              })()}
+
+              {/* Next Button */}
+              <button
+                onClick={() => {
+                  const currentPage = parseInt(searchParams.get("page") || "1");
+                  const limit = parseInt(searchParams.get("limit") || "24");
+                  const totalPages = Math.ceil(total / limit);
+                  if (currentPage < totalPages) {
+                    const newParams = new URLSearchParams(searchParams);
+                    newParams.set("page", (currentPage + 1).toString());
+                    setSearchParams(newParams);
+                  }
+                }}
+                disabled={parseInt(searchParams.get("page") || "1") >= Math.ceil(total / parseInt(searchParams.get("limit") || "12"))}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Empty State */}
         {tours.length === 0 && !isLoading && (
