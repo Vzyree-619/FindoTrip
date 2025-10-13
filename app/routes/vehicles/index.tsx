@@ -1,11 +1,11 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useSearchParams, isRouteErrorResponse, useRouteError } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { VehicleGrid, VehicleCardSkeleton, VehicleComparison } from "~/components/VehicleCard";
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
-import { Search, Filter, MapPin, Calendar, Users, Star, Car, Zap, Fuel } from "lucide-react";
+import { Search, Filter, MapPin, Calendar, Users, Star, Car, Zap, Fuel, AlertTriangle } from "lucide-react";
 
 // ========================================
 // TYPESCRIPT INTERFACES
@@ -85,6 +85,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const minPrice = minPriceParam ? parseInt(minPriceParam) : undefined;
     const maxPrice = maxPriceParam ? parseInt(maxPriceParam) : undefined;
     const location = searchParams.get("location") || "";
+
+    console.log('Search parameters:', { search, category, fuelType, transmission, minPrice, maxPrice, location });
     // Booking duration in days (optional)
     const daysParam = searchParams.get("days");
     const pickupDate = searchParams.get("pickupDate");
@@ -103,9 +105,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
+        { brand: { contains: search, mode: 'insensitive' } },
         { model: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
-        { location: { contains: search, mode: 'insensitive' } }
+        { location: { contains: search, mode: 'insensitive' } },
+        { city: { contains: search, mode: 'insensitive' } }
       ];
     }
 
@@ -153,6 +157,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Try to get vehicles from database; fallback to mock data if DB unavailable
     let vehicles, total, categories, fuelTypes, transmissions, priceStats, locations;
     try {
+      console.log('Fetching vehicles with where clause:', JSON.stringify(where, null, 2));
+      
       // Get vehicles
       vehicles = await prisma.vehicle.findMany({
         where,
@@ -161,6 +167,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             select: {
               id: true,
               businessName: true,
+              averageRating: true,
               verified: true
             }
           },
@@ -172,6 +179,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
         skip: (page - 1) * limit,
         take: limit
       });
+      
+      console.log(`Found ${vehicles.length} vehicles from database`);
+
+      // If no vehicles found, throw error to trigger fallback
+      if (vehicles.length === 0) {
+        throw new Error('No vehicles found in database');
+      }
 
       // Get total count
       total = await prisma.vehicle.count({ where });
@@ -208,8 +222,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
       });
     } catch (dbError) {
       console.warn('Database connection failed for vehicles. Using fallback data:', dbError);
+      console.log('Using fallback data with 6 vehicles');
       // Fallback mock data - use proper MongoDB ObjectID format
-      vehicles = [
+      let allVehicles = [
         {
           id: '68e923fa690cf38b0d128aba',
           name: 'Toyota Corolla',
@@ -261,15 +276,182 @@ export async function loader({ request }: LoaderFunctionArgs) {
             verified: true
           },
           reviews: [{ rating: 4 }, { rating: 5 }, { rating: 4 }]
+        },
+        {
+          id: '68e923fc690cf38b0d128abc',
+          name: 'Honda Civic',
+          model: 'Civic',
+          year: 2021,
+          mileage: 15000,
+          images: ['/car.jpg', '/placeholder-vehicle.jpg'],
+          basePrice: 12000,
+          originalPrice: 14000,
+          category: 'Economy',
+          transmission: 'Automatic',
+          fuelType: 'Gasoline',
+          passengerCapacity: 5,
+          luggageCapacity: 3,
+          fuelEfficiency: 16,
+          location: 'Islamabad, Pakistan',
+          createdAt: new Date(),
+          totalBookings: 15,
+          isFeatured: false,
+          owner: {
+            id: '68e923fc690cf38b0d128abc',
+            businessName: 'Ahmed Ali',
+            verified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 5 }, { rating: 4 }]
+        },
+        {
+          id: '68e923fd690cf38b0d128abd',
+          name: 'Toyota Hilux',
+          model: 'Hilux',
+          year: 2020,
+          mileage: 30000,
+          images: ['/car.jpg', '/placeholder-vehicle.jpg'],
+          basePrice: 15000,
+          originalPrice: 17000,
+          category: 'SUV',
+          transmission: 'Manual',
+          fuelType: 'Diesel',
+          passengerCapacity: 5,
+          luggageCapacity: 4,
+          fuelEfficiency: 12,
+          location: 'Lahore, Pakistan',
+          createdAt: new Date(),
+          totalBookings: 28,
+          isFeatured: true,
+          owner: {
+            id: '68e923fd690cf38b0d128abd',
+            businessName: 'Muhammad Hassan',
+            verified: true
+          },
+          reviews: [{ rating: 4 }, { rating: 5 }, { rating: 4 }]
+        },
+        {
+          id: '68e923fe690cf38b0d128abe',
+          name: 'Suzuki Swift',
+          model: 'Swift',
+          year: 2022,
+          mileage: 8000,
+          images: ['/car.jpg', '/placeholder-vehicle.jpg'],
+          basePrice: 6000,
+          originalPrice: 7000,
+          category: 'Economy',
+          transmission: 'Manual',
+          fuelType: 'Gasoline',
+          passengerCapacity: 5,
+          luggageCapacity: 2,
+          fuelEfficiency: 18,
+          location: 'Karachi, Pakistan',
+          createdAt: new Date(),
+          totalBookings: 12,
+          isFeatured: false,
+          owner: {
+            id: '68e923fe690cf38b0d128abe',
+            businessName: 'Fatima Khan',
+            verified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 4 }, { rating: 5 }]
+        },
+        {
+          id: '68e923ff690cf38b0d128abf',
+          name: 'BMW X5',
+          model: 'X5',
+          year: 2021,
+          mileage: 20000,
+          images: ['/car.jpg', '/placeholder-vehicle.jpg'],
+          basePrice: 35000,
+          originalPrice: 40000,
+          category: 'Luxury',
+          transmission: 'Automatic',
+          fuelType: 'Gasoline',
+          passengerCapacity: 7,
+          luggageCapacity: 6,
+          fuelEfficiency: 10,
+          location: 'Islamabad, Pakistan',
+          createdAt: new Date(),
+          totalBookings: 8,
+          isFeatured: true,
+          owner: {
+            id: '68e923ff690cf38b0d128abf',
+            businessName: 'Luxury Cars Ltd',
+            verified: true
+          },
+          reviews: [{ rating: 5 }, { rating: 5 }, { rating: 5 }]
         }
       ];
 
+      // Apply search filters to fallback data
+      console.log('Applying filters to fallback data:', { search, category, fuelType, transmission, minPrice, maxPrice, location });
+      vehicles = allVehicles.filter(vehicle => {
+        // Search filter
+        if (search) {
+          const searchLower = search.toLowerCase();
+          const matchesSearch = 
+            vehicle.name.toLowerCase().includes(searchLower) ||
+            vehicle.model.toLowerCase().includes(searchLower) ||
+            vehicle.location.toLowerCase().includes(searchLower);
+          
+          if (!matchesSearch) return false;
+        }
+
+        // Category filter
+        if (category && vehicle.category !== category) {
+          return false;
+        }
+
+        // Fuel type filter
+        if (fuelType && vehicle.fuelType !== fuelType) {
+          return false;
+        }
+
+        // Transmission filter
+        if (transmission && vehicle.transmission !== transmission) {
+          return false;
+        }
+
+        // Price filter
+        if (minPrice !== undefined && vehicle.basePrice < minPrice) {
+          return false;
+        }
+        if (maxPrice !== undefined && vehicle.basePrice > maxPrice) {
+          return false;
+        }
+
+        // Location filter
+        if (location && !vehicle.location.toLowerCase().includes(location.toLowerCase())) {
+          return false;
+        }
+
+        return true;
+      });
+
+      console.log(`Filtered fallback data: ${vehicles.length} vehicles match the criteria`);
       total = vehicles.length;
-      categories = [{ category: 'Economy' }, { category: 'SUV' }, { category: 'Luxury' }];
-      fuelTypes = [{ fuelType: 'Gasoline' }, { fuelType: 'Diesel' }, { fuelType: 'Electric' }];
-      transmissions = [{ transmission: 'Automatic' }, { transmission: 'Manual' }];
-      priceStats = { _min: { basePrice: 6000 }, _max: { basePrice: 25000 } } as any;
-      locations = [{ location: 'Skardu, Pakistan' }, { location: 'Hunza, Pakistan' }];
+      categories = [
+        { category: 'Economy' }, 
+        { category: 'SUV' }, 
+        { category: 'Luxury' }
+      ];
+      fuelTypes = [
+        { fuelType: 'Gasoline' }, 
+        { fuelType: 'Diesel' }, 
+        { fuelType: 'Electric' }
+      ];
+      transmissions = [
+        { transmission: 'Automatic' }, 
+        { transmission: 'Manual' }
+      ];
+      priceStats = { _min: { basePrice: 6000 }, _max: { basePrice: 40000 } } as any;
+      locations = [
+        { location: 'Skardu, Pakistan' }, 
+        { location: 'Hunza, Pakistan' },
+        { location: 'Islamabad, Pakistan' },
+        { location: 'Lahore, Pakistan' },
+        { location: 'Karachi, Pakistan' }
+      ];
     }
 
     // Format vehicles
@@ -289,14 +471,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const availability = ((vehicle as any).available ? 'Available' : 'Fully Booked') as 'Available' | 'Limited' | 'Fully Booked';
 
       // Basic features fallback (until features UI is finalized)
-      const features = Array.isArray((vehicle as any).features) && (vehicle as any).features.length
+      const features = Array.isArray((vehicle as any).features) && (vehicle as any).features.length > 0
         ? (vehicle as any).features
         : [
             'GPS Navigation', 'Bluetooth', 'Backup Camera', 'Child Seat Available',
             'Air Conditioning', 'USB Charging'
           ];
 
-      const pricePerDay = (vehicle as any).basePrice;
+      const pricePerDay = (vehicle as any).basePrice || 0;
       const totalPrice = days ? pricePerDay * Math.max(1, days) : pricePerDay;
       return {
         id: (vehicle as any).id,
@@ -313,9 +495,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
         isElectric: (vehicle as any).fuelType === 'Electric',
         owner: {
           id: (vehicle as any).owner.id,
-          name: (vehicle as any).owner.businessName,
-          avatar: null,
-          rating: 0,
+          name: (vehicle as any).owner.businessName || 'Unknown Owner',
+          avatar: undefined,
+          rating: (vehicle as any).owner.averageRating || 0,
           reviewCount: 0,
           isVerified: (vehicle as any).owner.verified || false
         },
@@ -378,6 +560,54 @@ export default function VehiclesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [compareList, setCompareList] = useState<string[]>([]);
+  const [searchInput, setSearchInput] = useState(searchParams.get("search") || "");
+
+  // Debounced search function with proper cleanup
+  const debouncedSearch = useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout;
+      return (key: string, value: string) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          console.log('Debounced search triggered:', { key, value });
+          setSearchParams(prevParams => {
+            const newParams = new URLSearchParams(prevParams);
+            if (value && value.trim()) {
+              newParams.set(key, value.trim());
+            } else {
+              newParams.delete(key);
+            }
+            newParams.set('page', '1');
+            console.log('Setting search params:', newParams.toString());
+            return newParams;
+          });
+        }, 300);
+      };
+    })(),
+    [setSearchParams]
+  );
+
+  // Update search input when URL parameters change
+  useEffect(() => {
+    const searchValue = searchParams.get("search") || "";
+    setSearchInput(searchValue);
+  }, [searchParams]);
+
+  // Reset loading state when data changes with minimum loading time
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 500); // Minimum 500ms loading time to prevent flickering
+    
+    return () => clearTimeout(timer);
+  }, [vehicles]);
+
+  // Cleanup debounced search on unmount
+  useEffect(() => {
+    return () => {
+      // This will be handled by the debounced search function itself
+    };
+  }, []);
 
   const handleFilterChange = (key: string, value: string) => {
     const newParams = new URLSearchParams(searchParams);
@@ -390,7 +620,20 @@ export default function VehiclesPage() {
     setSearchParams(newParams);
   };
 
+  const handleSearchInput = (value: string) => {
+    console.log('Search input changed:', value);
+    setSearchInput(value);
+    
+    // Only show loading if there's a significant change
+    if (value.length > 2 || value.length === 0) {
+      setIsLoading(true);
+    }
+    
+    debouncedSearch('search', value);
+  };
+
   const clearFilters = () => {
+    setSearchInput('');
     setSearchParams(new URLSearchParams());
   };
 
@@ -441,10 +684,15 @@ export default function VehiclesPage() {
                 <input
                   type="text"
                   placeholder="Search vehicles, models, or locations..."
-                  value={searchParams.get("search") || ""}
-                  onChange={(e) => handleFilterChange("search", e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => handleSearchInput(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
+                {isLoading && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#01502E]"></div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -605,19 +853,35 @@ export default function VehiclesPage() {
 
         {/* Vehicles Grid */}
         <Card className="p-4">
-          {isLoading ? (
-            <VehicleGrid vehicles={Array(12).fill(null).map((_, i) => ({ id: i.toString() } as any))} columns={3} />
-          ) : (
-            <VehicleGrid 
-              vehicles={vehicles} 
-              columns={3} 
-              showCompare={true}
-              selectedDates={{
-                start: '2024-01-15',
-                end: '2024-01-17'
-              }}
-            />
-          )}
+          <div className="transition-opacity duration-300">
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array(6).fill(null).map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="bg-gray-200 rounded-lg h-64 mb-4"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="transition-opacity duration-300">
+                <VehicleGrid 
+                  key={`vehicles-${vehicles.length}-${searchParams.toString()}`}
+                  vehicles={vehicles} 
+                  columns={3} 
+                  showCompare={true}
+                  selectedDates={{
+                    start: '2024-01-15',
+                    end: '2024-01-17'
+                  }}
+                />
+              </div>
+            )}
+          </div>
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="outline" onClick={() => (window.location.href = '/vehicles')}>Browse All Vehicles</Button>
           </div>
@@ -667,6 +931,67 @@ export default function VehiclesPage() {
           onClear={clearCompare}
         />
       )}
+    </div>
+  );
+}
+
+// ========================================
+// ERROR BOUNDARY
+// ========================================
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error)) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full text-center">
+          <div className="mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500 rounded-full mb-4">
+              <AlertTriangle className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              {error.status} - {error.statusText}
+            </h1>
+            <p className="text-gray-600 mb-6">
+              {error.status === 404 
+                ? "No vehicles found at this location."
+                : "Something went wrong while loading vehicles."
+              }
+            </p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-[#01502E] text-white px-6 py-3 rounded-lg hover:bg-[#013d23] transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="max-w-md w-full text-center">
+        <div className="mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500 rounded-full mb-4">
+            <AlertTriangle className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Unexpected Error
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Something went wrong while loading the vehicles page.
+          </p>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-[#01502E] text-white px-6 py-3 rounded-lg hover:bg-[#013d23] transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
     </div>
   );
 }

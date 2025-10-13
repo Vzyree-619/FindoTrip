@@ -110,7 +110,7 @@ const getTransmissionIcon = (transmission: string) => {
 export default function VehicleCard({ vehicle, showCompare = false, selectedDates }: VehicleCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(vehicle.isFavorite || false);
+  const [isFavorite, setIsFavorite] = useState(vehicle.isFavorite ?? false);
   const [isInCompare, setIsInCompare] = useState(false);
   const [showPriceBreakdown, setShowPriceBreakdown] = useState(false);
 
@@ -131,13 +131,14 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
   // Removed image click interception to allow navigation when clicking the image
 
   const calculatePrice = () => {
+    const price = vehicle.price || 0;
     if (selectedDates) {
       const start = new Date(selectedDates.start);
       const end = new Date(selectedDates.end);
       const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-      return vehicle.price * days;
+      return price * days;
     }
-    return vehicle.price;
+    return price;
   };
 
   const getAvailabilityColor = (availability: string) => {
@@ -149,8 +150,9 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
     return colors[availability as keyof typeof colors] || 'bg-[#01502E]';
   };
 
-  const visibleFeatures = vehicle.features.slice(0, 3);
-  const hiddenFeaturesCount = vehicle.features.length - 3;
+  const features = Array.isArray(vehicle.features) ? vehicle.features : [];
+  const visibleFeatures = features.slice(0, 3);
+  const hiddenFeaturesCount = Math.max(0, features.length - 3);
 
   return (
     <div
@@ -169,7 +171,7 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
         <div className="relative h-64 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
           {/* Main Image */}
           <img
-            src={vehicle.images[currentImageIndex] || '/placeholder-vehicle.jpg'}
+            src={vehicle.images?.[currentImageIndex] || '/placeholder-vehicle.jpg'}
             alt={`${vehicle.name} ${vehicle.model}`}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
@@ -222,7 +224,7 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
           </div>
 
           {/* Image Indicators */}
-          {vehicle.images.length > 1 && (
+          {vehicle.images && vehicle.images.length > 1 && (
             <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1">
               {vehicle.images.map((_, index) => (
                 <div
@@ -272,7 +274,7 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
               {vehicle.mileage && (
                 <>
                   <span>•</span>
-                  <span>{vehicle.mileage.toLocaleString()} km</span>
+                  <span>{(vehicle.mileage || 0).toLocaleString()} km</span>
                 </>
               )}
             </div>
@@ -283,20 +285,20 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
             <div className="flex items-center space-x-1">
               <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
                 <span className="text-xs font-medium text-gray-700">
-                  {vehicle.owner.name.charAt(0)}
+                  {vehicle.owner?.name?.charAt(0) || '?'}
                 </span>
               </div>
-              <span className="text-sm font-medium text-gray-700">{vehicle.owner.name}</span>
-              {vehicle.owner.isVerified && (
+              <span className="text-sm font-medium text-gray-700">{vehicle.owner?.name || 'Unknown Owner'}</span>
+              {vehicle.owner?.isVerified && (
                 <Shield className="w-4 h-4 text-[#01502E]" />
               )}
             </div>
             <div className="flex items-center space-x-1">
               <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
               <span className="text-sm font-medium text-gray-700">
-                {vehicle.rating.toFixed(1)}
+                {(vehicle.rating || 0).toFixed(1)}
               </span>
-              <span className="text-xs text-gray-500">({vehicle.reviewCount})</span>
+              <span className="text-xs text-gray-500">({vehicle.reviewCount || 0})</span>
             </div>
           </div>
 
@@ -304,19 +306,19 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Users className="w-4 h-4 text-gray-500" />
-              <span>{vehicle.specs.passengers} passengers</span>
+              <span>{vehicle.specs?.passengers || 0} passengers</span>
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Luggage className="w-4 h-4 text-gray-500" />
-              <span>{vehicle.specs.luggage} bags</span>
+              <span>{vehicle.specs?.luggage || 0} bags</span>
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Fuel className="w-4 h-4 text-gray-500" />
-              <span>{vehicle.specs.fuelEfficiency} MPG</span>
+              <span>{vehicle.specs?.fuelEfficiency || 0} MPG</span>
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-600">
-              {getTransmissionIcon(vehicle.specs.transmission)}
-              <span>{vehicle.specs.transmission}</span>
+              {getTransmissionIcon(vehicle.specs?.transmission || 'Automatic')}
+              <span>{vehicle.specs?.transmission || 'Automatic'}</span>
             </div>
           </div>
 
@@ -375,7 +377,7 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <span className="text-2xl font-bold text-gray-900">
-                  PKR {calculatePrice().toLocaleString()}
+                  PKR {(calculatePrice() || 0).toLocaleString()}
                 </span>
                 <span className="text-sm text-gray-500">
                   {selectedDates ? 'total (with driver)' : 'per day (with driver)'}
@@ -384,10 +386,10 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
               {vehicle.originalPrice && vehicle.originalPrice > vehicle.price && (
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500 line-through">
-                    PKR {vehicle.originalPrice.toLocaleString()}
+                    PKR {(vehicle.originalPrice || 0).toLocaleString()}
                   </span>
                   <span className="text-xs text-green-600 font-medium">
-                    Save PKR {(vehicle.originalPrice - vehicle.price).toLocaleString()}
+                    Save PKR {((vehicle.originalPrice || 0) - (vehicle.price || 0)).toLocaleString()}
                   </span>
                 </div>
               )}

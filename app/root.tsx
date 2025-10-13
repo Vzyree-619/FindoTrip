@@ -48,8 +48,13 @@ export const links: LinksFunction = () => [
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await getUser(request);
-  return json({ user });
+  try {
+    const user = await getUser(request);
+    return json({ user });
+  } catch (error) {
+    console.error("Root loader error:", error);
+    return json({ user: null });
+  }
 }
 
 export default function App() {

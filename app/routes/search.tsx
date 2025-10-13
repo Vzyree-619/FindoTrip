@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useSearchParams, isRouteErrorResponse, useRouteError } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { useState, useEffect } from "react";
 import { 
@@ -17,7 +17,8 @@ import {
   Sliders,
   Grid,
   List,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from "lucide-react";
 
 // ========================================
@@ -255,11 +256,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
           owner: {
             select: {
               id: true,
+              businessName: true,
               name: true,
-              avatar: true,
               averageRating: true,
               totalReviews: true,
-              isVerified: true
+              verified: true
             }
           },
           images: true,
@@ -282,14 +283,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
         images: vehicle.images || ['/placeholder-vehicle.jpg'],
         price: vehicle.basePrice,
         originalPrice: vehicle.originalPrice,
-        rating: vehicle.averageRating || 0,
-        reviewCount: vehicle.totalReviews || 0,
+        rating: vehicle.rating || 0,
+        reviewCount: vehicle.reviewCount || 0,
         location: vehicle.location,
         distance: Math.floor(Math.random() * 50) + 1,
         category: vehicle.category,
         features: vehicle.features || [],
-        isAvailable: true,
-        isFeatured: vehicle.isFeatured || false,
+        isAvailable: vehicle.available,
+        isFeatured: false, // This field doesn't exist in schema
         isPopular: vehicle.totalBookings > 10,
         isNew: new Date(vehicle.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       }));
@@ -1142,6 +1143,67 @@ export default function SearchPage() {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ========================================
+// ERROR BOUNDARY
+// ========================================
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error)) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full text-center">
+          <div className="mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500 rounded-full mb-4">
+              <AlertTriangle className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              {error.status} - {error.statusText}
+            </h1>
+            <p className="text-gray-600 mb-6">
+              {error.status === 404 
+                ? "No search results found."
+                : "Something went wrong while searching."
+              }
+            </p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-[#01502E] text-white px-6 py-3 rounded-lg hover:bg-[#013d23] transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="max-w-md w-full text-center">
+        <div className="mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500 rounded-full mb-4">
+            <AlertTriangle className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Search Error
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Something went wrong while performing the search.
+          </p>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-[#01502E] text-white px-6 py-3 rounded-lg hover:bg-[#013d23] transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     </div>
   );
