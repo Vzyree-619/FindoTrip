@@ -1,79 +1,109 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useActionData, Form, Link } from "@remix-run/react";
-import { requireAdmin } from "~/lib/auth/middleware";
+import { useLoaderData, useFetcher, useSearchParams } from "@remix-run/react";
+import { requireAdmin, logAdminAction } from "~/lib/admin.server";
 import { prisma } from "~/lib/db/db.server";
-import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card";
+import { Card } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
-import { Badge } from "~/components/ui/badge";
 import { 
   Users, 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  Edit, 
-  Trash2, 
-  Shield, 
-  ShieldOff, 
-  Eye,
-  Mail,
+  UserCheck, 
+  UserX, 
+  Mail, 
+  Phone, 
   Calendar,
-  AlertTriangle,
-  CheckCircle
+  Shield,
+  Building,
+  Car,
+  MapPin,
+  Search,
+  Filter,
+  MoreVertical,
+  Eye,
+  Edit,
+  Trash2,
+  Ban,
+  CheckCircle,
+  XCircle,
+  Star,
+  MessageSquare
 } from "lucide-react";
 import { useState } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await requireAdmin(request);
+  const admin = await requireAdmin(request);
   const url = new URL(request.url);
-  const search = url.searchParams.get("search") || "";
-  const role = url.searchParams.get("role") || "";
-  const status = url.searchParams.get("status") || "";
-
+  const search = url.searchParams.get('search') || '';
+  const role = url.searchParams.get('role') || 'all';
+  const status = url.searchParams.get('status') || 'all';
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = parseInt(url.searchParams.get('limit') || '20');
+  
   // Build where clause
   const where: any = {};
   
   if (search) {
     where.OR = [
-      { name: { contains: search, mode: "insensitive" } },
-      { email: { contains: search, mode: "insensitive" } }
+      { name: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+      { businessName: { contains: search, mode: 'insensitive' } }
     ];
   }
   
-  if (role) {
+  if (role !== 'all') {
     where.role = role;
   }
   
-  if (status === "active") {
-    where.active = true;
-  } else if (status === "inactive") {
-    where.active = false;
+  if (status === 'verified') {
+    where.verified = true;
+  } else if (status === 'unverified') {
+    where.verified = false;
   }
-
-  const [users, totalUsers, activeUsers, pendingUsers] = await Promise.all([
+  
+  // Get users with pagination
+  const [users, totalCount] = await Promise.all([
     prisma.user.findMany({
       where,
       select: {
         id: true,
-        name: true,
         email: true,
+        name: true,
         role: true,
-        active: true,
+        phone: true,
+        avatar: true,
+        verified: true,
         createdAt: true,
-        lastLogin: true,
-        avatar: true
       },
-      orderBy: { createdAt: "desc" },
-      take: 50
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit
     }),
-    prisma.user.count(),
-    prisma.user.count({ where: { active: true } }),
-    prisma.user.count({ where: { active: false } })
+    prisma.user.count({ where })
   ]);
-
-  return json({ 
-    user, 
-    users, 
-    stats: { totalUsers, activeUsers, pendingUsers },
+  
+  // Get role counts
+  const roleCounts = await prisma.user.groupBy({
+    by: ['role'],
+    _count: { role: true }
+  });
+  
+  const statusCounts = await Promise.all([
+    prisma.user.count({ where: { verified: true } }),
+    prisma.user.count({ where: { verified: false } })
+  ]);
+  
+  return json({
+    admin,
+    users,
+    totalCount,
+    roleCounts,
+    statusCounts,
+    pagination: {
+      page,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
+      hasNext: page < Math.ceil(totalCount / limit),
+      hasPrev: page > 1
+    },
     filters: { search, role, status }
   });
 }
@@ -81,292 +111,374 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const admin = await requireAdmin(request);
   const formData = await request.formData();
-  const intent = formData.get("intent") as string;
-  const userId = formData.get("userId") as string;
-
-  if (!userId) {
-    return json({ error: "User ID is required" }, { status: 400 });
-  }
-
+  const action = formData.get('action') as string;
+  const userId = formData.get('userId') as string;
+  const reason = formData.get('reason') as string;
+  
   try {
-    switch (intent) {
-      case "toggle-status":
-        const currentUser = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { active: true }
-        });
-
-        if (!currentUser) {
-          return json({ error: "User not found" }, { status: 404 });
-        }
-
-        await prisma.user.update({
-          where: { id: userId },
-          data: { active: !currentUser.active }
-        });
-
-        return json({ success: true, message: `User ${currentUser.active ? 'deactivated' : 'activated'} successfully` });
-
-      case "delete-user":
-        // Check if user has any bookings or content
-        const userContent = await prisma.user.findUnique({
-          where: { id: userId }
-        });
-
-        if (!userContent) {
-          return json({ error: "User not found" }, { status: 404 });
-        }
-
-        await prisma.user.delete({
-          where: { id: userId }
-        });
-
-        return json({ success: true, message: "User deleted successfully" });
-
-      default:
-        return json({ error: "Invalid action" }, { status: 400 });
+    if (action === 'verify') {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { verified: true }
+      });
+      await logAdminAction(admin.id, 'USER_VERIFIED', `Verified user: ${userId}`, request);
+    } else if (action === 'unverify') {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { verified: false }
+      });
+      await logAdminAction(admin.id, 'USER_UNVERIFIED', `Unverified user: ${userId}`, request);
+    } else if (action === 'delete') {
+      await prisma.user.delete({
+        where: { id: userId }
+      });
+      await logAdminAction(admin.id, 'USER_DELETED', `Deleted user: ${userId}. Reason: ${reason}`, request);
     }
+    
+    return json({ success: true });
   } catch (error) {
-    console.error("User management error:", error);
-    return json({ error: "An error occurred" }, { status: 500 });
+    console.error('User action error:', error);
+    return json({ success: false, error: 'Failed to process user action' }, { status: 500 });
   }
 }
 
-export default function UserManagement() {
-  const { user, users, stats, filters } = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
-
+export default function AdminUsers() {
+  const { admin, users, totalCount, roleCounts, statusCounts, pagination, filters } = useLoaderData<typeof loader>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteUserId, setDeleteUserId] = useState('');
+  
+  const fetcher = useFetcher();
+  
+  const handleSearch = (search: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (search) {
+      newParams.set('search', search);
+    } else {
+      newParams.delete('search');
+    }
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  };
+  
+  const handleFilter = (key: string, value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value === 'all') {
+      newParams.delete(key);
+    } else {
+      newParams.set(key, value);
+    }
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  };
+  
+  const handleUserAction = (action: string, userId: string, reason?: string) => {
+    const formData = new FormData();
+    formData.append('action', action);
+    formData.append('userId', userId);
+    if (reason) formData.append('reason', reason);
+    fetcher.submit(formData, { method: 'post' });
+  };
+  
   const getRoleColor = (role: string) => {
     switch (role) {
-      case "CUSTOMER": return "bg-blue-100 text-blue-800";
-      case "PROPERTY_OWNER": return "bg-green-100 text-green-800";
-      case "VEHICLE_OWNER": return "bg-purple-100 text-purple-800";
-      case "TOUR_GUIDE": return "bg-orange-100 text-orange-800";
-      case "SUPER_ADMIN": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+      case 'CUSTOMER': return 'bg-blue-100 text-blue-800';
+      case 'PROPERTY_OWNER': return 'bg-green-100 text-green-800';
+      case 'VEHICLE_OWNER': return 'bg-purple-100 text-purple-800';
+      case 'TOUR_GUIDE': return 'bg-orange-100 text-orange-800';
+      case 'SUPER_ADMIN': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
-
-  const getStatusIcon = (active: boolean) => {
-    return active ? (
-      <CheckCircle className="h-4 w-4 text-green-600" />
-    ) : (
-      <AlertTriangle className="h-4 w-4 text-red-600" />
-    );
+  
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'CUSTOMER': return Users;
+      case 'PROPERTY_OWNER': return Building;
+      case 'VEHICLE_OWNER': return Car;
+      case 'TOUR_GUIDE': return MapPin;
+      case 'SUPER_ADMIN': return Shield;
+      default: return UserCheck;
+    }
   };
-
+  
+  const roles = [
+    { value: 'all', label: 'All Roles', count: totalCount },
+    { value: 'CUSTOMER', label: 'Customers', count: roleCounts.find(r => r.role === 'CUSTOMER')?._count.role || 0 },
+    { value: 'PROPERTY_OWNER', label: 'Property Owners', count: roleCounts.find(r => r.role === 'PROPERTY_OWNER')?._count.role || 0 },
+    { value: 'VEHICLE_OWNER', label: 'Vehicle Owners', count: roleCounts.find(r => r.role === 'VEHICLE_OWNER')?._count.role || 0 },
+    { value: 'TOUR_GUIDE', label: 'Tour Guides', count: roleCounts.find(r => r.role === 'TOUR_GUIDE')?._count.role || 0 }
+  ];
+  
+  const statuses = [
+    { value: 'all', label: 'All Status', count: totalCount },
+    { value: 'verified', label: 'Verified', count: statusCounts[0] },
+    { value: 'unverified', label: 'Unverified', count: statusCounts[1] }
+  ];
+  
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Users className="w-8 h-8 text-[#01502E]" />
-            <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          </div>
-          <p className="text-gray-600">Manage all users on the platform</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+          <p className="text-gray-600">Manage all users across the platform</p>
         </div>
-
-        {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Users className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Users</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Active Users</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.activeUsers}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <AlertTriangle className="h-6 w-6 text-red-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Inactive Users</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.pendingUsers}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex items-center space-x-4">
+          <div className="text-sm text-gray-500">
+            Total Users: {totalCount.toLocaleString()}
+          </div>
         </div>
-
-        {/* Filters */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <Form method="get" className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-64">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    type="text"
-                    name="search"
-                    placeholder="Search users..."
-                    defaultValue={filters.search}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
-                  />
-                </div>
-              </div>
-              
-              <select
-                name="role"
-                defaultValue={filters.role}
-                className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
-              >
-                <option value="">All Roles</option>
-                <option value="CUSTOMER">Customers</option>
-                <option value="PROPERTY_OWNER">Property Owners</option>
-                <option value="VEHICLE_OWNER">Vehicle Owners</option>
-                <option value="TOUR_GUIDE">Tour Guides</option>
-                <option value="SUPER_ADMIN">Super Admins</option>
-              </select>
-
-              <select
-                name="status"
-                defaultValue={filters.status}
-                className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
-              >
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-
-              <Button type="submit" className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                Filter
-              </Button>
-            </Form>
-          </CardContent>
-        </Card>
-
-        {/* Action Messages */}
-        {actionData && 'success' in actionData && actionData.success && (
-          <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md">
-            {actionData.message}
-          </div>
-        )}
-
-        {actionData && 'error' in actionData && actionData.error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
-            {actionData.error}
-          </div>
-        )}
-
-        {/* Users Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Users ({users.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4">User</th>
-                    <th className="text-left py-3 px-4">Role</th>
-                    <th className="text-left py-3 px-4">Status</th>
-                    <th className="text-left py-3 px-4">Bookings</th>
-                    <th className="text-left py-3 px-4">Joined</th>
-                    <th className="text-left py-3 px-4">Last Login</th>
-                    <th className="text-left py-3 px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id} className="border-b hover:bg-gray-50">
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          {user.avatar ? (
-                            <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full" />
-                          ) : (
-                            <div className="w-10 h-10 bg-[#01502E] text-white rounded-full flex items-center justify-center">
-                              {user.name?.[0]?.toUpperCase()}
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-medium">{user.name}</p>
-                            <p className="text-sm text-gray-500">{user.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <Badge className={getRoleColor(user.role)}>
-                          {user.role.replace("_", " ")}
-                        </Badge>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(user.active)}
-                          <span className={user.active ? "text-green-600" : "text-red-600"}>
-                            {user.active ? "Active" : "Inactive"}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-sm">-</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-sm text-gray-500">
-                          {new Date(user.createdAt).toLocaleDateString()}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="text-sm text-gray-500">
-                          {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never"}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <Form method="post" className="inline">
-                            <input type="hidden" name="intent" value="toggle-status" />
-                            <input type="hidden" name="userId" value={user.id} />
-                            <Button
-                              type="submit"
-                              variant="outline"
-                              size="sm"
-                              className={user.active ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
-                            >
-                              {user.active ? <ShieldOff className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-                            </Button>
-                          </Form>
-                          
-                          <Link to={`/admin/users/${user.id}`}>
-                            <Button variant="outline" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
       </div>
+      
+      {/* Filters */}
+      <Card className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={filters.search}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          
+          {/* Role Filter */}
+          <select
+            value={filters.role}
+            onChange={(e) => handleFilter('role', e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            {roles.map((role) => (
+              <option key={role.value} value={role.value}>
+                {role.label} ({role.count})
+              </option>
+            ))}
+          </select>
+          
+          {/* Status Filter */}
+          <select
+            value={filters.status}
+            onChange={(e) => handleFilter('status', e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            {statuses.map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.label} ({status.count})
+              </option>
+            ))}
+          </select>
+          
+          {/* Results per page */}
+          <select
+            value={pagination.limit}
+            onChange={(e) => {
+              const newParams = new URLSearchParams(searchParams);
+              newParams.set('limit', e.target.value);
+              newParams.set('page', '1');
+              setSearchParams(newParams);
+            }}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="10">10 per page</option>
+            <option value="20">20 per page</option>
+            <option value="50">50 per page</option>
+            <option value="100">100 per page</option>
+          </select>
+        </div>
+      </Card>
+      
+      {/* Users List */}
+      <div className="space-y-4">
+        {users.length === 0 ? (
+          <Card className="p-8 text-center">
+            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Users Found</h3>
+            <p className="text-gray-600">Try adjusting your search or filter criteria.</p>
+          </Card>
+        ) : (
+          users.map((user) => {
+            const RoleIcon = getRoleIcon(user.role);
+            
+            return (
+              <Card key={user.id} className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                      <RoleIcon className="w-6 h-6 text-gray-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                          {user.role.replace('_', ' ')}
+                        </span>
+                        {user.verified ? (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Verified
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 flex items-center">
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Unverified
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
+                        <div className="flex items-center space-x-2">
+                          <Mail className="w-4 h-4" />
+                          <span>{user.email}</span>
+                        </div>
+                        {user.phone && (
+                          <div className="flex items-center space-x-2">
+                            <Phone className="w-4 h-4" />
+                            <span>{user.phone}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="w-4 h-4" />
+                          <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      
+                      
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {user.role !== 'SUPER_ADMIN' && (
+                      <>
+                        {user.verified ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUserAction('unverify', user.id)}
+                            disabled={fetcher.state === 'submitting'}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Unverify
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUserAction('verify', user.id)}
+                            disabled={fetcher.state === 'submitting'}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Verify
+                          </Button>
+                        )}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteUserId(user.id)}
+                          disabled={fetcher.state === 'submitting'}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            );
+          })
+        )}
+      </div>
+      
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-500">
+            Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, totalCount)} of {totalCount} users
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const newParams = new URLSearchParams(searchParams);
+                newParams.set('page', (pagination.page - 1).toString());
+                setSearchParams(newParams);
+              }}
+              disabled={!pagination.hasPrev}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-gray-500">
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const newParams = new URLSearchParams(searchParams);
+                newParams.set('page', (pagination.page + 1).toString());
+                setSearchParams(newParams);
+              }}
+              disabled={!pagination.hasNext}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {deleteUserId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete User</h3>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Are you sure you want to delete this user? This action cannot be undone.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for deletion
+                </label>
+                <textarea
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={3}
+                  placeholder="Please provide a reason for deletion..."
+                />
+              </div>
+              <div className="flex items-center justify-end space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDeleteUserId('');
+                    setDeleteReason('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    handleUserAction('delete', deleteUserId, deleteReason);
+                    setDeleteUserId('');
+                    setDeleteReason('');
+                  }}
+                  disabled={!deleteReason.trim() || fetcher.state === 'submitting'}
+                >
+                  {fetcher.state === 'submitting' ? 'Deleting...' : 'Delete User'}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
