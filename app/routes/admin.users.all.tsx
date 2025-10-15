@@ -272,6 +272,22 @@ export default function AllUsers() {
     userName: ''
   });
   const [reason, setReason] = useState('');
+  const [duration, setDuration] = useState('');
+  const [userDetails, setUserDetails] = useState<{ open: boolean; userId: string; userName: string }>({
+    open: false,
+    userId: '',
+    userName: ''
+  });
+  const [editModal, setEditModal] = useState<{ open: boolean; userId: string; userName: string }>({
+    open: false,
+    userId: '',
+    userName: ''
+  });
+  const [messageModal, setMessageModal] = useState<{ open: boolean; userId: string; userName: string }>({
+    open: false,
+    userId: '',
+    userName: ''
+  });
   
   const fetcher = useFetcher();
   
@@ -604,172 +620,211 @@ export default function AllUsers() {
         </div>
       </Card>
       
-      {/* Users List */}
-      <div className="space-y-4">
-        {users.length === 0 ? (
-          <Card className="p-8 text-center">
-            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Users Found</h3>
-            <p className="text-gray-600">No users match your current filters.</p>
-          </Card>
-        ) : (
-          <>
-            {/* Select All */}
-            <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
-              <input
-                type="checkbox"
-                checked={selectedUsers.length === users.length}
-                onChange={handleSelectAll}
-                className="rounded"
-              />
+      {/* Bulk Actions */}
+      {selectedUsers.length > 0 && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
               <span className="text-sm font-medium text-gray-700">
-                Select All ({users.length} users)
+                {selectedUsers.length} users selected
               </span>
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Export Selected
+              </Button>
+              <Button variant="outline" size="sm" className="text-red-600 border-red-600 hover:bg-red-50">
+                <UserX className="w-4 h-4 mr-2" />
+                Suspend Selected
+              </Button>
             </div>
-            
-            {users.map((user) => {
-              const RoleIcon = getRoleIcon(user.role);
-              const businessInfo = getBusinessInfo(user);
-              
-              return (
-                <Card key={user.id} className="p-4">
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedUsers.includes(user.id)}
-                      onChange={() => handleSelectUser(user.id)}
-                      className="rounded"
-                    />
-                    
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                      <RoleIcon className="w-6 h-6 text-gray-600" />
-                    </div>
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedUsers([])}
+            >
+              Clear Selection
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Users Table */}
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.length === users.length}
+                    onChange={handleSelectAll}
+                    className="rounded"
+                  />
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  User
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Role
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Activity
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center">
+                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Users Found</h3>
+                    <p className="text-gray-600">No users match your current filters.</p>
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) => {
+                  const RoleIcon = getRoleIcon(user.role);
+                  const businessInfo = getBusinessInfo(user);
+                  
+                  return (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.includes(user.id)}
+                          onChange={() => handleSelectUser(user.id)}
+                          className="rounded"
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4">
+                            <RoleIcon className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                            <div className="text-sm text-gray-500">{user.email}</div>
+                            <div className="text-xs text-gray-400">
+                              Joined: {new Date(user.createdAt).toLocaleDateString()}
+                              {user.lastLoginAt && (
+                                <span> • Last seen: {new Date(user.lastLoginAt).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
                           {user.role.replace('_', ' ')}
                         </span>
-                        {user.verified && (
-                          <div className="flex items-center space-x-1 text-green-600">
-                            <CheckCircle className="w-4 h-4" />
-                            <span className="text-sm font-medium">Verified</span>
-                          </div>
-                        )}
-                        {user.isActive ? (
-                          <div className="flex items-center space-x-1 text-green-600">
-                            <UserCheck className="w-4 h-4" />
-                            <span className="text-sm font-medium">Active</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center space-x-1 text-red-600">
-                            <UserX className="w-4 h-4" />
-                            <span className="text-sm font-medium">Inactive</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                        <div className="flex items-center space-x-2">
-                          <Mail className="w-4 h-4" />
-                          <span>{user.email}</span>
-                        </div>
-                        {user.phone && (
-                          <div className="flex items-center space-x-2">
-                            <Phone className="w-4 h-4" />
-                            <span>{user.phone}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="w-4 h-4" />
-                          <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        
                         {businessInfo && (
-                          <>
-                            <div className="flex items-center space-x-2">
-                              <Building className="w-4 h-4" />
-                              <span>{businessInfo.businessName}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <DollarSign className="w-4 h-4" />
-                              <span>PKR {businessInfo.totalEarnings?.toLocaleString() || 0} earned</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Star className="w-4 h-4" />
-                              <span>{businessInfo.totalBookings || 0} bookings</span>
-                            </div>
-                          </>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {businessInfo.businessName}
+                          </div>
                         )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      {!user.verified && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUserAction('verify_user', user.id, user.name)}
-                          disabled={fetcher.state === 'submitting'}
-                          className="text-green-600 border-green-600 hover:bg-green-50"
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Verify
-                        </Button>
-                      )}
-                      
-                      {user.verified && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUserAction('unverify_user', user.id, user.name)}
-                          disabled={fetcher.state === 'submitting'}
-                          className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
-                        >
-                          <XCircle className="w-4 h-4 mr-1" />
-                          Unverify
-                        </Button>
-                      )}
-                      
-                      {user.isActive ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUserAction('deactivate_user', user.id, user.name)}
-                          disabled={fetcher.state === 'submitting'}
-                          className="text-red-600 border-red-600 hover:bg-red-50"
-                        >
-                          <UserX className="w-4 h-4 mr-1" />
-                          Deactivate
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUserAction('activate_user', user.id, user.name)}
-                          disabled={fetcher.state === 'submitting'}
-                          className="text-green-600 border-green-600 hover:bg-green-50"
-                        >
-                          <UserCheck className="w-4 h-4 mr-1" />
-                          Activate
-                        </Button>
-                      )}
-                      
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={`/admin/users/${user.id}`}>
-                          <Eye className="w-4 h-4 mr-1" />
-                          View
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </>
-        )}
-      </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col space-y-1">
+                          {user.isActive ? (
+                            <div className="flex items-center space-x-1 text-green-600">
+                              <UserCheck className="w-4 h-4" />
+                              <span className="text-sm font-medium">Active</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-1 text-red-600">
+                              <UserX className="w-4 h-4" />
+                              <span className="text-sm font-medium">Inactive</span>
+                            </div>
+                          )}
+                          {user.verified ? (
+                            <div className="flex items-center space-x-1 text-green-600">
+                              <CheckCircle className="w-4 h-4" />
+                              <span className="text-sm font-medium">Verified</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-1 text-yellow-600">
+                              <Clock className="w-4 h-4" />
+                              <span className="text-sm font-medium">Unverified</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {user.role === 'CUSTOMER' ? (
+                            <>
+                              <div>Bookings: {user._count.propertyBookings + user._count.vehicleBookings + user._count.tourBookings}</div>
+                              <div className="text-gray-500">Reviews: {user._count.reviews}</div>
+                            </>
+                          ) : businessInfo ? (
+                            <>
+                              <div>Earned: PKR {businessInfo.totalEarnings?.toLocaleString() || 0}</div>
+                              <div className="text-gray-500">Bookings: {businessInfo.totalBookings || 0}</div>
+                            </>
+                          ) : (
+                            <div className="text-gray-500">No activity data</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setUserDetails({ open: true, userId: user.id, userName: user.name })}
+                            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditModal({ open: true, userId: user.id, userName: user.name })}
+                            className="text-green-600 border-green-600 hover:bg-green-50"
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUserAction('deactivate_user', user.id, user.name)}
+                            disabled={fetcher.state === 'submitting'}
+                            className="text-red-600 border-red-600 hover:bg-red-50"
+                          >
+                            <UserX className="w-4 h-4 mr-1" />
+                            Suspend
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMessageModal({ open: true, userId: user.id, userName: user.name })}
+                            className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                          >
+                            <MessageSquare className="w-4 h-4 mr-1" />
+                            Message
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
       
       {/* Pagination */}
       {pagination.totalPages > 1 && (
@@ -809,6 +864,278 @@ export default function AllUsers() {
         </div>
       )}
       
+      {/* User Details Modal */}
+      {userDetails.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">User Details</h3>
+              <Button
+                variant="outline"
+                onClick={() => setUserDetails({ open: false, userId: '', userName: '' })}
+              >
+                <XCircle className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* User Information */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Personal Information</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Name:</span>
+                    <span className="font-medium">{userDetails.userName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Email:</span>
+                    <span className="font-medium">user@example.com</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Phone:</span>
+                    <span className="font-medium">+1234567890</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Role:</span>
+                    <span className="font-medium">Customer</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Status:</span>
+                    <span className="font-medium text-green-600">Active</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Activity Summary */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Activity Summary</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Bookings:</span>
+                    <span className="font-medium">5</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Spent:</span>
+                    <span className="font-medium">PKR 1,250</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Reviews Given:</span>
+                    <span className="font-medium">3</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Last Login:</span>
+                    <span className="font-medium">2 hours ago</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Tabs for detailed information */}
+            <div className="mt-6">
+              <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8">
+                  <button className="border-b-2 border-blue-500 py-2 px-1 text-sm font-medium text-blue-600">
+                    Bookings
+                  </button>
+                  <button className="border-b-2 border-transparent py-2 px-1 text-sm font-medium text-gray-500 hover:text-gray-700">
+                    Reviews
+                  </button>
+                  <button className="border-b-2 border-transparent py-2 px-1 text-sm font-medium text-gray-500 hover:text-gray-700">
+                    Activity Log
+                  </button>
+                  <button className="border-b-2 border-transparent py-2 px-1 text-sm font-medium text-gray-500 hover:text-gray-700">
+                    Messages
+                  </button>
+                </nav>
+              </div>
+              
+              <div className="mt-4">
+                <p className="text-gray-600">Detailed user information would be displayed here...</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+      
+      {/* Edit User Modal */}
+      {editModal.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="p-6 w-full max-w-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
+              <Button
+                variant="outline"
+                onClick={() => setEditModal({ open: false, userId: '', userName: '' })}
+              >
+                <XCircle className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue={editModal.userName}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    defaultValue="user@example.com"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    defaultValue="+1234567890"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Role
+                  </label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="CUSTOMER">Customer</option>
+                    <option value="PROPERTY_OWNER">Property Owner</option>
+                    <option value="VEHICLE_OWNER">Vehicle Owner</option>
+                    <option value="TOUR_GUIDE">Tour Guide</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Verification Status
+                  </label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="verified">Verified</option>
+                    <option value="unverified">Unverified</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Account Status
+                  </label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Admin Notes
+                </label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={3}
+                  placeholder="Add internal notes about this user..."
+                />
+              </div>
+              
+              <div className="flex items-center justify-end space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditModal({ open: false, userId: '', userName: '' })}
+                >
+                  Cancel
+                </Button>
+                <Button className="bg-blue-600 hover:bg-blue-700">
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+      
+      {/* Message User Modal */}
+      {messageModal.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="p-6 w-full max-w-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Send Message</h3>
+              <Button
+                variant="outline"
+                onClick={() => setMessageModal({ open: false, userId: '', userName: '' })}
+              >
+                <XCircle className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  To: {messageModal.userName}
+                </label>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Subject
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter message subject..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Message
+                </label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={6}
+                  placeholder="Type your message here..."
+                />
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center">
+                  <input type="checkbox" className="rounded" />
+                  <span className="ml-2 text-sm text-gray-700">Send email notification</span>
+                </label>
+                <label className="flex items-center">
+                  <input type="checkbox" className="rounded" />
+                  <span className="ml-2 text-sm text-gray-700">Send SMS notification</span>
+                </label>
+              </div>
+              
+              <div className="flex items-center justify-end space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setMessageModal({ open: false, userId: '', userName: '' })}
+                >
+                  Cancel
+                </Button>
+                <Button className="bg-purple-600 hover:bg-purple-700">
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Send Message
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+      
       {/* Action Modal */}
       {actionModal.open && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -817,7 +1144,7 @@ export default function AllUsers() {
               {actionModal.action === 'verify_user' && 'Verify User'}
               {actionModal.action === 'unverify_user' && 'Unverify User'}
               {actionModal.action === 'activate_user' && 'Activate User'}
-              {actionModal.action === 'deactivate_user' && 'Deactivate User'}
+              {actionModal.action === 'deactivate_user' && 'Suspend User'}
               {actionModal.action === 'ban_user' && 'Ban User'}
               {actionModal.action === 'unban_user' && 'Unban User'}
             </h3>
@@ -827,7 +1154,7 @@ export default function AllUsers() {
                   {actionModal.action === 'verify_user' && 'Are you sure you want to verify this user?'}
                   {actionModal.action === 'unverify_user' && 'Are you sure you want to unverify this user?'}
                   {actionModal.action === 'activate_user' && 'Are you sure you want to activate this user?'}
-                  {actionModal.action === 'deactivate_user' && 'Are you sure you want to deactivate this user?'}
+                  {actionModal.action === 'deactivate_user' && 'Are you sure you want to suspend this user?'}
                   {actionModal.action === 'ban_user' && 'Are you sure you want to ban this user?'}
                   {actionModal.action === 'unban_user' && 'Are you sure you want to unban this user?'}
                 </p>
@@ -835,18 +1162,38 @@ export default function AllUsers() {
               </div>
               
               {(actionModal.action === 'deactivate_user' || actionModal.action === 'ban_user') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reason (optional):
-                  </label>
-                  <textarea
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={3}
-                    placeholder="Enter reason for this action..."
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reason:
+                    </label>
+                    <textarea
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows={3}
+                      placeholder="Enter reason for this action..."
+                    />
+                  </div>
+                  
+                  {actionModal.action === 'deactivate_user' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Duration:
+                      </label>
+                      <select
+                        value={duration}
+                        onChange={(e) => setDuration(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="1">1 Day</option>
+                        <option value="7">1 Week</option>
+                        <option value="30">1 Month</option>
+                        <option value="indefinite">Indefinite</option>
+                      </select>
+                    </div>
+                  )}
+                </>
               )}
               
               <div className="flex items-center justify-end space-x-3">
