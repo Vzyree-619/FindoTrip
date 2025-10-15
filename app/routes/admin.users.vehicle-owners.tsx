@@ -1,35 +1,40 @@
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useFetcher, useSearchParams, Link } from "@remix-run/react";
-import { requireAdmin, logAdminAction } from "~/lib/admin.server";
+import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData, useSearchParams, Link } from "@remix-run/react";
+import { requireAdmin } from "~/lib/admin.server";
 import { prisma } from "~/lib/db/db.server";
 import { Card } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { 
+  Users, 
   Car, 
-  User, 
   Search,
   Filter,
   Download,
   Eye,
   Edit,
-  Ban,
   CheckCircle,
   XCircle,
   Clock,
   Mail,
   Phone,
-  Calendar,
   Star,
   DollarSign,
-  MapPin,
-  AlertTriangle,
+  TrendingUp,
+  Activity,
+  MessageSquare,
+  MoreHorizontal,
   UserCheck,
   UserX,
   Settings,
-  Activity,
-  TrendingUp,
-  TrendingDown,
-  BarChart3
+  AlertTriangle,
+  Award,
+  Flag,
+  Ban,
+  Calendar,
+  MapPin,
+  BarChart3,
+  Shield,
+  Wrench
 } from "lucide-react";
 import { useState } from "react";
 
@@ -52,9 +57,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (search) {
     whereClause.OR = [
       { name: { contains: search, mode: 'insensitive' } },
-      { email: { contains: search, mode: 'insensitive' } },
-      { phone: { contains: search, mode: 'insensitive' } },
-      { vehicleOwner: { businessName: { contains: search, mode: 'insensitive' } } }
+      { email: { contains: search, mode: 'insensitive' } }
     ];
   }
   
@@ -79,42 +82,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.user.findMany({
       where: whereClause,
       include: {
-        vehicleOwner: {
-          select: {
-            businessName: true,
-            businessPhone: true,
-            businessEmail: true,
-            businessAddress: true,
-            businessCity: true,
-            businessCountry: true,
-            verificationLevel: true,
-            totalEarnings: true,
-            totalBookings: true,
-            averageRating: true,
-            totalReviews: true,
-            joinedDate: true,
-            lastActiveDate: true,
-            subscriptionPlan: true,
-            subscriptionStatus: true
-          }
-        },
         vehicles: {
           select: {
             id: true,
             brand: true,
             model: true,
-            category: true,
-            city: true,
+            status: true,
             basePrice: true,
-            available: true,
-            approvalStatus: true,
-            createdAt: true
+            city: true,
+            createdAt: true,
+            _count: {
+              select: {
+                bookings: true
+              }
+            }
           }
         },
         _count: {
           select: {
-            vehicleBookings: true,
-            reviews: true
+            vehicles: true,
+            vehicleBookings: true
           }
         }
       },
@@ -125,68 +112,91 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.user.count({ where: whereClause })
   ]);
   
-  // Get statistics
-  const stats = await Promise.all([
+  // Calculate additional metrics for each owner
+  const ownersWithMetrics = await Promise.all(
+    vehicleOwners.map(async (owner) => {
+      // Get total revenue from vehicles
+      const totalRevenue = await prisma.vehicleBooking.aggregate({
+        where: {
+          vehicle: {
+            ownerId: owner.id
+          },
+          status: 'COMPLETED'
+        },
+        _sum: {
+          totalPrice: true
+        }
+      });
+      
+      // Get average rating
+      const avgRating = await prisma.review.aggregate({
+        where: {
+          vehicle: {
+            ownerId: owner.id
+          }
+        },
+        _avg: {
+          rating: true
+        }
+      });
+      
+      // Get fleet utilization rate
+      const totalVehicles = owner.vehicles.length;
+      const activeVehicles = owner.vehicles.filter(v => v.status === 'ACTIVE').length;
+      const utilizationRate = totalVehicles > 0 ? (activeVehicles / totalVehicles) * 100 : 0;
+      
+      // Get total rentals
+      const totalRentals = await prisma.vehicleBooking.count({
+        where: {
+          vehicle: {
+            ownerId: owner.id
+          }
+        }
+      });
+      
+      // Get insurance status (simplified - would need actual insurance data)
+      const insuranceStatus = 'Valid'; // This would come from actual insurance data
+      
+      // Get compliance issues (simplified)
+      const complianceIssues = 0; // This would come from actual compliance data
+      
+      return {
+        ...owner,
+        totalRevenue: totalRevenue._sum.totalPrice || 0,
+        averageRating: avgRating._avg.rating || 0,
+        utilizationRate,
+        totalRentals,
+        insuranceStatus,
+        complianceIssues
+      };
+    })
+  );
+  
+  // Get counts
+  const counts = await Promise.all([
     prisma.user.count({ where: { role: 'VEHICLE_OWNER' } }),
     prisma.user.count({ where: { role: 'VEHICLE_OWNER', verified: true } }),
-    prisma.user.count({ where: { role: 'VEHICLE_OWNER', verified: false } }),
     prisma.user.count({ where: { role: 'VEHICLE_OWNER', isActive: true } }),
-    prisma.user.count({ where: { role: 'VEHICLE_OWNER', isActive: false } }),
-    prisma.vehicle.count({ where: { owner: { role: 'VEHICLE_OWNER' } } }),
-    prisma.vehicle.count({ where: { owner: { role: 'VEHICLE_OWNER' }, available: true } }),
-    prisma.vehicle.count({ where: { owner: { role: 'VEHICLE_OWNER' }, approvalStatus: 'PENDING' } })
+    prisma.user.count({ 
+      where: { 
+        role: 'VEHICLE_OWNER',
+        createdAt: {
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+        }
+      }
+    })
   ]);
-  
-  // Get top performing vehicle owners
-  const topPerformers = await prisma.user.findMany({
-    where: { role: 'VEHICLE_OWNER' },
-    include: {
-      vehicleOwner: {
-        select: {
-          businessName: true,
-          totalEarnings: true,
-          totalBookings: true,
-          averageRating: true
-        }
-      }
-    },
-    orderBy: { vehicleOwner: { totalEarnings: 'desc' } },
-    take: 5
-  });
-  
-  // Get recent activity
-  const recentActivity = await prisma.auditLog.findMany({
-    where: {
-      user: { role: 'VEHICLE_OWNER' }
-    },
-    take: 10,
-    orderBy: { timestamp: 'desc' },
-    include: {
-      user: {
-        select: {
-          name: true,
-          email: true
-        }
-      }
-    }
-  });
   
   return json({
     admin,
-    vehicleOwners,
+    vehicleOwners: ownersWithMetrics,
     totalCount,
-    stats: {
-      total: stats[0],
-      verified: stats[1],
-      unverified: stats[2],
-      active: stats[3],
-      inactive: stats[4],
-      totalVehicles: stats[5],
-      activeVehicles: stats[6],
-      pendingVehicles: stats[7]
+    counts: {
+      total: counts[0],
+      verified: counts[1],
+      active: counts[2],
+      newThisMonth: counts[3]
     },
-    topPerformers,
-    recentActivity,
     pagination: {
       page,
       limit,
@@ -198,98 +208,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 }
 
-export async function action({ request }: ActionFunctionArgs) {
-  const admin = await requireAdmin(request);
-  const formData = await request.formData();
-  const action = formData.get('action') as string;
-  const userId = formData.get('userId') as string;
-  const reason = formData.get('reason') as string;
-  
-  try {
-    if (action === 'verify_user') {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { verified: true }
-      });
-      await logAdminAction(admin.id, 'VEHICLE_OWNER_VERIFIED', `Verified vehicle owner: ${userId}`, request);
-      
-    } else if (action === 'unverify_user') {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { verified: false }
-      });
-      await logAdminAction(admin.id, 'VEHICLE_OWNER_UNVERIFIED', `Unverified vehicle owner: ${userId}`, request);
-      
-    } else if (action === 'activate_user') {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { isActive: true }
-      });
-      await logAdminAction(admin.id, 'VEHICLE_OWNER_ACTIVATED', `Activated vehicle owner: ${userId}`, request);
-      
-    } else if (action === 'deactivate_user') {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { 
-          isActive: false,
-          deactivationReason: reason
-        }
-      });
-      await logAdminAction(admin.id, 'VEHICLE_OWNER_DEACTIVATED', `Deactivated vehicle owner: ${userId}. Reason: ${reason}`, request);
-    }
-    
-    return json({ success: true });
-  } catch (error) {
-    console.error('Vehicle owner management action error:', error);
-    return json({ success: false, error: 'Failed to process action' }, { status: 500 });
-  }
-}
-
 export default function VehicleOwners() {
-  const { admin, vehicleOwners, totalCount, stats, topPerformers, recentActivity, pagination, filters } = useLoaderData<typeof loader>();
+  const { admin, vehicleOwners, totalCount, counts, pagination, filters } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [actionModal, setActionModal] = useState<{ open: boolean; action: string; userId: string; userName: string }>({
-    open: false,
-    action: '',
-    userId: '',
-    userName: ''
-  });
-  const [reason, setReason] = useState('');
-  
-  const fetcher = useFetcher();
-  
-  const handleUserAction = (action: string, userId: string, userName: string) => {
-    setActionModal({ open: true, action, userId, userName });
-    setReason('');
-  };
-  
-  const submitAction = () => {
-    const formData = new FormData();
-    formData.append('action', actionModal.action);
-    formData.append('userId', actionModal.userId);
-    if (reason) formData.append('reason', reason);
-    fetcher.submit(formData, { method: 'post' });
-    
-    setActionModal({ open: false, action: '', userId: '', userName: '' });
-    setReason('');
-  };
-  
-  const handleSelectAll = () => {
-    if (selectedUsers.length === vehicleOwners.length) {
-      setSelectedUsers([]);
-    } else {
-      setSelectedUsers(vehicleOwners.map(user => user.id));
-    }
-  };
-  
-  const handleSelectUser = (userId: string) => {
-    if (selectedUsers.includes(userId)) {
-      setSelectedUsers(selectedUsers.filter(id => id !== userId));
-    } else {
-      setSelectedUsers([...selectedUsers, userId]);
-    }
-  };
   
   return (
     <div className="space-y-6">
@@ -297,15 +218,9 @@ export default function VehicleOwners() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Vehicle Owners</h1>
-          <p className="text-gray-600">Manage vehicle owners and their business accounts</p>
+          <p className="text-gray-600">Manage vehicle owners and their fleet performance</p>
         </div>
         <div className="flex items-center space-x-4">
-          {selectedUsers.length > 0 && (
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Export Selected ({selectedUsers.length})
-            </Button>
-          )}
           <Button onClick={() => window.print()} variant="outline">
             <Download className="w-4 h-4 mr-2" />
             Export All
@@ -322,70 +237,7 @@ export default function VehicleOwners() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Total Owners</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Verified</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.verified}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Clock className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Unverified</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.unverified}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Car className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Vehicles</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalVehicles}</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-      
-      {/* Performance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Car className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Active Vehicles</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.activeVehicles}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Clock className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Pending Vehicles</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.pendingVehicles}</p>
+              <p className="text-2xl font-bold text-gray-900">{counts.total}</p>
             </div>
           </div>
         </Card>
@@ -393,47 +245,67 @@ export default function VehicleOwners() {
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <UserCheck className="w-6 h-6 text-blue-600" />
+              <CheckCircle className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Active Owners</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
+              <p className="text-sm font-medium text-gray-600">Verified</p>
+              <p className="text-2xl font-bold text-gray-900">{counts.verified}</p>
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <UserCheck className="w-6 h-6 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Active</p>
+              <p className="text-2xl font-bold text-gray-900">{counts.active}</p>
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">New This Month</p>
+              <p className="text-2xl font-bold text-gray-900">{counts.newThisMonth}</p>
             </div>
           </div>
         </Card>
       </div>
       
-      {/* Top Performers */}
+      {/* Quick Filters */}
       <Card className="p-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Vehicle Owners</h3>
-        <div className="space-y-3">
-          {topPerformers.map((owner, index) => (
-            <div key={owner.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-bold text-green-600">#{index + 1}</span>
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{owner.name}</p>
-                  <p className="text-sm text-gray-600">{owner.vehicleOwner?.businessName}</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4 text-sm text-gray-600">
-                <div className="flex items-center space-x-1">
-                  <DollarSign className="w-4 h-4" />
-                  <span>PKR {owner.vehicleOwner?.totalEarnings?.toLocaleString() || 0}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Star className="w-4 h-4" />
-                  <span>{owner.vehicleOwner?.averageRating?.toFixed(1) || 'N/A'}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Car className="w-4 h-4" />
-                  <span>{owner.vehicleOwner?.totalBookings || 0} bookings</span>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center space-x-2">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Quick Filters:</span>
+          </div>
+          
+          <Button variant="outline" size="sm">
+            <Award className="w-4 h-4 mr-2" />
+            Top Performers
+          </Button>
+          
+          <Button variant="outline" size="sm">
+            <Shield className="w-4 h-4 mr-2" />
+            Insurance Valid
+          </Button>
+          
+          <Button variant="outline" size="sm">
+            <Wrench className="w-4 h-4 mr-2" />
+            Maintenance Due
+          </Button>
+          
+          <Button variant="outline" size="sm">
+            <AlertTriangle className="w-4 h-4 mr-2" />
+            Compliance Issues
+          </Button>
         </div>
       </Card>
       
@@ -457,10 +329,10 @@ export default function VehicleOwners() {
               className="px-3 py-1 border border-gray-300 rounded-md text-sm"
             >
               <option value="all">All Status</option>
-              <option value="verified">Verified ({stats.verified})</option>
-              <option value="unverified">Unverified ({stats.unverified})</option>
-              <option value="active">Active ({stats.active})</option>
-              <option value="inactive">Inactive ({stats.inactive})</option>
+              <option value="verified">Verified ({counts.verified})</option>
+              <option value="unverified">Unverified</option>
+              <option value="active">Active ({counts.active})</option>
+              <option value="inactive">Inactive</option>
             </select>
           </div>
           
@@ -477,35 +349,10 @@ export default function VehicleOwners() {
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
+              <option value="revenue">Highest Revenue</option>
+              <option value="rentals">Most Rentals</option>
+              <option value="rating">Highest Rating</option>
             </select>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <label className="text-sm text-gray-600">From:</label>
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => {
-                const newParams = new URLSearchParams(searchParams);
-                newParams.set('dateFrom', e.target.value);
-                setSearchParams(newParams);
-              }}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-            />
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <label className="text-sm text-gray-600">To:</label>
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => {
-                const newParams = new URLSearchParams(searchParams);
-                newParams.set('dateTo', e.target.value);
-                setSearchParams(newParams);
-              }}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-            />
           </div>
           
           <div className="flex items-center space-x-2">
@@ -525,171 +372,156 @@ export default function VehicleOwners() {
         </div>
       </Card>
       
-      {/* Vehicle Owners List */}
-      <div className="space-y-4">
-        {vehicleOwners.length === 0 ? (
-          <Card className="p-8 text-center">
-            <Car className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Vehicle Owners Found</h3>
-            <p className="text-gray-600">No vehicle owners match your current filters.</p>
-          </Card>
-        ) : (
-          <>
-            {/* Select All */}
-            <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
-              <input
-                type="checkbox"
-                checked={selectedUsers.length === vehicleOwners.length}
-                onChange={handleSelectAll}
-                className="rounded"
-              />
-              <span className="text-sm font-medium text-gray-700">
-                Select All ({vehicleOwners.length} owners)
-              </span>
-            </div>
-            
-            {vehicleOwners.map((owner) => (
-              <Card key={owner.id} className="p-4">
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedUsers.includes(owner.id)}
-                    onChange={() => handleSelectUser(owner.id)}
-                    className="rounded"
-                  />
-                  
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <Car className="w-6 h-6 text-green-600" />
-                  </div>
-                  
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{owner.name}</h3>
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Vehicle Owner
-                      </span>
-                      {owner.verified && (
-                        <div className="flex items-center space-x-1 text-green-600">
-                          <CheckCircle className="w-4 h-4" />
-                          <span className="text-sm font-medium">Verified</span>
+      {/* Vehicle Owners Table */}
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Owner
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Fleet
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Rentals
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Revenue
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Rating
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Utilization
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Insurance
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {vehicleOwners.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center">
+                    <Car className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Vehicle Owners Found</h3>
+                    <p className="text-gray-600">No vehicle owners match your current filters.</p>
+                  </td>
+                </tr>
+              ) : (
+                vehicleOwners.map((owner) => (
+                  <tr key={owner.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4">
+                          <Car className="w-5 h-5 text-gray-600" />
                         </div>
-                      )}
-                      {owner.isActive ? (
-                        <div className="flex items-center space-x-1 text-green-600">
-                          <UserCheck className="w-4 h-4" />
-                          <span className="text-sm font-medium">Active</span>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{owner.name}</div>
+                          <div className="text-sm text-gray-500">{owner.email}</div>
+                          <div className="flex items-center space-x-2 mt-1">
+                            {owner.verified && (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Verified
+                              </span>
+                            )}
+                            {owner.isActive ? (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Active
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Inactive
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      ) : (
-                        <div className="flex items-center space-x-1 text-red-600">
-                          <UserX className="w-4 h-4" />
-                          <span className="text-sm font-medium">Inactive</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        <div className="font-medium">{owner._count.vehicles}</div>
+                        <div className="text-gray-500">
+                          {owner.vehicles.filter(v => v.status === 'ACTIVE').length} active
                         </div>
-                      )}
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-3">
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        <div className="font-medium">{owner.totalRentals}</div>
+                        <div className="text-gray-500">Total rentals</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        <div className="font-medium">PKR {owner.totalRevenue.toLocaleString()}</div>
+                        <div className="text-gray-500">Total earned</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-1">
+                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                        <span className="text-sm font-medium text-gray-900">
+                          {owner.averageRating.toFixed(1)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        <div className="flex items-center space-x-1">
+                          <BarChart3 className="w-4 h-4 text-gray-500" />
+                          <span>{owner.utilizationRate.toFixed(1)}%</span>
+                        </div>
+                        <div className="text-gray-500 text-xs">
+                          Fleet Utilization
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
-                        <Mail className="w-4 h-4" />
-                        <span>{owner.email}</span>
-                      </div>
-                      {owner.phone && (
-                        <div className="flex items-center space-x-2">
-                          <Phone className="w-4 h-4" />
-                          <span>{owner.phone}</span>
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          owner.insuranceStatus === 'Valid' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {owner.insuranceStatus}
                         </div>
-                      )}
+                        {owner.complianceIssues > 0 && (
+                          <div className="text-red-600 text-xs">
+                            {owner.complianceIssues} issues
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4" />
-                        <span>Joined {new Date(owner.createdAt).toLocaleDateString()}</span>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/admin/users/${owner.id}`}>
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Link>
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <MessageSquare className="w-4 h-4 mr-1" />
+                          Message
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
                       </div>
-                    </div>
-                    
-                    {owner.vehicleOwner && (
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                        <div className="flex items-center space-x-2">
-                          <Car className="w-4 h-4" />
-                          <span>{owner.vehicleOwner.businessName}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <DollarSign className="w-4 h-4" />
-                          <span>PKR {owner.vehicleOwner.totalEarnings?.toLocaleString() || 0} earned</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Star className="w-4 h-4" />
-                          <span>{owner.vehicleOwner.averageRating?.toFixed(1) || 'N/A'} ({owner.vehicleOwner.totalReviews || 0} reviews)</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Car className="w-4 h-4" />
-                          <span>{owner.vehicles.length} vehicles</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    {!owner.verified && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleUserAction('verify_user', owner.id, owner.name)}
-                        disabled={fetcher.state === 'submitting'}
-                        className="text-green-600 border-green-600 hover:bg-green-50"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Verify
-                      </Button>
-                    )}
-                    
-                    {owner.verified && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleUserAction('unverify_user', owner.id, owner.name)}
-                        disabled={fetcher.state === 'submitting'}
-                        className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
-                      >
-                        <XCircle className="w-4 h-4 mr-1" />
-                        Unverify
-                      </Button>
-                    )}
-                    
-                    {owner.isActive ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleUserAction('deactivate_user', owner.id, owner.name)}
-                        disabled={fetcher.state === 'submitting'}
-                        className="text-red-600 border-red-600 hover:bg-red-50"
-                      >
-                        <UserX className="w-4 h-4 mr-1" />
-                        Deactivate
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleUserAction('activate_user', owner.id, owner.name)}
-                        disabled={fetcher.state === 'submitting'}
-                        className="text-green-600 border-green-600 hover:bg-green-50"
-                      >
-                        <UserCheck className="w-4 h-4 mr-1" />
-                        Activate
-                      </Button>
-                    )}
-                    
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={`/admin/users/${owner.id}`}>
-                        <Eye className="w-4 h-4 mr-1" />
-                        View
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </>
-        )}
-      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
       
       {/* Pagination */}
       {pagination.totalPages > 1 && (
@@ -726,66 +558,6 @@ export default function VehicleOwners() {
               Next
             </Button>
           </div>
-        </div>
-      )}
-      
-      {/* Action Modal */}
-      {actionModal.open && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {actionModal.action === 'verify_user' && 'Verify Vehicle Owner'}
-              {actionModal.action === 'unverify_user' && 'Unverify Vehicle Owner'}
-              {actionModal.action === 'activate_user' && 'Activate Vehicle Owner'}
-              {actionModal.action === 'deactivate_user' && 'Deactivate Vehicle Owner'}
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-600 mb-2">
-                  {actionModal.action === 'verify_user' && 'Are you sure you want to verify this vehicle owner?'}
-                  {actionModal.action === 'unverify_user' && 'Are you sure you want to unverify this vehicle owner?'}
-                  {actionModal.action === 'activate_user' && 'Are you sure you want to activate this vehicle owner?'}
-                  {actionModal.action === 'deactivate_user' && 'Are you sure you want to deactivate this vehicle owner?'}
-                </p>
-                <p className="font-medium text-gray-900">{actionModal.userName}</p>
-              </div>
-              
-              {(actionModal.action === 'deactivate_user') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reason (optional):
-                  </label>
-                  <textarea
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={3}
-                    placeholder="Enter reason for deactivation..."
-                  />
-                </div>
-              )}
-              
-              <div className="flex items-center justify-end space-x-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setActionModal({ open: false, action: '', userId: '', userName: '' })}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={submitAction}
-                  disabled={fetcher.state === 'submitting'}
-                  className={
-                    actionModal.action.includes('deactivate') 
-                      ? 'bg-red-600 hover:bg-red-700' 
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }
-                >
-                  {fetcher.state === 'submitting' ? 'Processing...' : 'Confirm'}
-                </Button>
-              </div>
-            </div>
-          </Card>
         </div>
       )}
     </div>

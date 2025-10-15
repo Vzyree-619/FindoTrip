@@ -6,7 +6,7 @@ import { Card } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { 
   Users, 
-  Building, 
+  User, 
   Search,
   Filter,
   Download,
@@ -31,8 +31,10 @@ import {
   Flag,
   Ban,
   Calendar,
-  MapPin,
-  BarChart3
+  BarChart3,
+  Shield,
+  Crown,
+  CreditCard
 } from "lucide-react";
 import { useState } from "react";
 
@@ -47,9 +49,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const page = parseInt(url.searchParams.get('page') || '1');
   const limit = parseInt(url.searchParams.get('limit') || '20');
   
-  // Build where clause for property owners
+  // Build where clause for customers
   const whereClause: any = {
-    role: 'PROPERTY_OWNER'
+    role: 'CUSTOMER'
   };
   
   if (search) {
@@ -67,6 +69,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     whereClause.isActive = true;
   } else if (status === 'inactive') {
     whereClause.isActive = false;
+  } else if (status === 'vip') {
+    whereClause.isVip = true;
   }
   
   if (dateFrom || dateTo) {
@@ -75,30 +79,48 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (dateTo) whereClause.createdAt.lte = new Date(dateTo);
   }
   
-  // Get property owners with detailed information
-  const [propertyOwners, totalCount] = await Promise.all([
+  // Get customers with detailed information
+  const [customers, totalCount] = await Promise.all([
     prisma.user.findMany({
       where: whereClause,
       include: {
-        properties: {
+        propertyBookings: {
           select: {
             id: true,
-            name: true,
+            totalPrice: true,
             status: true,
-            basePrice: true,
-            city: true,
-            createdAt: true,
-            _count: {
-              select: {
-                bookings: true
-              }
-            }
+            createdAt: true
+          }
+        },
+        vehicleBookings: {
+          select: {
+            id: true,
+            totalPrice: true,
+            status: true,
+            createdAt: true
+          }
+        },
+        tourBookings: {
+          select: {
+            id: true,
+            totalPrice: true,
+            status: true,
+            createdAt: true
+          }
+        },
+        reviews: {
+          select: {
+            id: true,
+            rating: true,
+            createdAt: true
           }
         },
         _count: {
           select: {
-            properties: true,
-            propertyBookings: true
+            propertyBookings: true,
+            vehicleBookings: true,
+            tourBookings: true,
+            reviews: true
           }
         }
       },
@@ -109,93 +131,63 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.user.count({ where: whereClause })
   ]);
   
-  // Calculate additional metrics for each owner
-  const ownersWithMetrics = await Promise.all(
-    propertyOwners.map(async (owner) => {
-      // Get total revenue from properties
-      const totalRevenue = await prisma.propertyBooking.aggregate({
-        where: {
-          property: {
-            ownerId: owner.id
-          },
-          status: 'COMPLETED'
-        },
-        _sum: {
-          totalPrice: true
-        }
-      });
-      
-      // Get average rating
-      const avgRating = await prisma.review.aggregate({
-        where: {
-          property: {
-            ownerId: owner.id
-          }
-        },
-        _avg: {
-          rating: true
-        }
-      });
-      
-      // Get response rate (simplified calculation)
-      const totalBookings = await prisma.propertyBooking.count({
-        where: {
-          property: {
-            ownerId: owner.id
-          }
-        }
-      });
-      
-      const respondedBookings = await prisma.propertyBooking.count({
-        where: {
-          property: {
-            ownerId: owner.id
-          },
-          status: { in: ['CONFIRMED', 'CANCELLED'] }
-        }
-      });
-      
-      const responseRate = totalBookings > 0 ? (respondedBookings / totalBookings) * 100 : 0;
-      
-      // Get cancellation rate
-      const cancelledBookings = await prisma.propertyBooking.count({
-        where: {
-          property: {
-            ownerId: owner.id
-          },
-          status: 'CANCELLED'
-        }
-      });
-      
-      const cancellationRate = totalBookings > 0 ? (cancelledBookings / totalBookings) * 100 : 0;
-      
-      // Calculate account health score (0-100)
-      const healthScore = Math.max(0, Math.min(100, 
-        (responseRate * 0.3) + 
-        ((100 - cancellationRate) * 0.3) + 
-        (avgRating._avg.rating ? avgRating._avg.rating * 20 : 0) + 
-        (owner.verified ? 20 : 0)
-      ));
-      
-      return {
-        ...owner,
-        totalRevenue: totalRevenue._sum.totalPrice || 0,
-        averageRating: avgRating._avg.rating || 0,
-        responseRate,
-        cancellationRate,
-        healthScore
-      };
-    })
-  );
+  // Calculate additional metrics for each customer
+  const customersWithMetrics = customers.map((customer) => {
+    const allBookings = [
+      ...customer.propertyBookings,
+      ...customer.vehicleBookings,
+      ...customer.tourBookings
+    ];
+    
+    const totalBookings = allBookings.length;
+    const totalSpent = allBookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
+    const cancelledBookings = allBookings.filter(booking => booking.status === 'CANCELLED').length;
+    const cancellationRate = totalBookings > 0 ? (cancelledBookings / totalBookings) * 100 : 0;
+    
+    const averageRating = customer.reviews.length > 0 
+      ? customer.reviews.reduce((sum, review) => sum + review.rating, 0) / customer.reviews.length 
+      : 0;
+    
+    // Determine customer tier
+    let customerTier = 'Regular';
+    if (totalSpent >= 50000) customerTier = 'VIP';
+    else if (totalSpent >= 20000) customerTier = 'Premium';
+    else if (totalSpent >= 10000) customerTier = 'Gold';
+    
+    // Get last booking date
+    const lastBooking = allBookings.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
+    
+    const lastBookingDate = lastBooking ? new Date(lastBooking.createdAt) : null;
+    const daysSinceLastBooking = lastBookingDate 
+      ? Math.floor((Date.now() - lastBookingDate.getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+    
+    // Check for payment issues (simplified)
+    const paymentIssues = 0; // This would come from actual payment data
+    
+    return {
+      ...customer,
+      totalBookings,
+      totalSpent,
+      cancellationRate,
+      averageRating,
+      customerTier,
+      lastBookingDate,
+      daysSinceLastBooking,
+      paymentIssues
+    };
+  });
   
   // Get counts
   const counts = await Promise.all([
-    prisma.user.count({ where: { role: 'PROPERTY_OWNER' } }),
-    prisma.user.count({ where: { role: 'PROPERTY_OWNER', verified: true } }),
-    prisma.user.count({ where: { role: 'PROPERTY_OWNER', isActive: true } }),
+    prisma.user.count({ where: { role: 'CUSTOMER' } }),
+    prisma.user.count({ where: { role: 'CUSTOMER', verified: true } }),
+    prisma.user.count({ where: { role: 'CUSTOMER', isActive: true } }),
     prisma.user.count({ 
       where: { 
-        role: 'PROPERTY_OWNER',
+        role: 'CUSTOMER',
         createdAt: {
           gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
         }
@@ -203,27 +195,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     })
   ]);
   
-  // Get top performers
-  const topPerformers = await prisma.user.findMany({
-    where: { role: 'PROPERTY_OWNER' },
-    include: {
-      _count: {
-        select: {
-          propertyBookings: true
-        }
-      }
-    },
-    orderBy: {
-      propertyBookings: {
-        _count: 'desc'
-      }
-    },
-    take: 5
-  });
-  
   return json({
     admin,
-    propertyOwners: ownersWithMetrics,
+    customers: customersWithMetrics,
     totalCount,
     counts: {
       total: counts[0],
@@ -231,7 +205,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       active: counts[2],
       newThisMonth: counts[3]
     },
-    topPerformers,
     pagination: {
       page,
       limit,
@@ -243,21 +216,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 }
 
-export default function PropertyOwners() {
-  const { admin, propertyOwners, totalCount, counts, topPerformers, pagination, filters } = useLoaderData<typeof loader>();
+export default function Customers() {
+  const { admin, customers, totalCount, counts, pagination, filters } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const getHealthScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600 bg-green-100';
-    if (score >= 60) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
+  const getTierColor = (tier: string) => {
+    switch (tier) {
+      case 'VIP': return 'bg-purple-100 text-purple-800';
+      case 'Premium': return 'bg-blue-100 text-blue-800';
+      case 'Gold': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
   
-  const getHealthScoreLabel = (score: number) => {
-    if (score >= 80) return 'Excellent';
-    if (score >= 60) return 'Good';
-    if (score >= 40) return 'Fair';
-    return 'Poor';
+  const getTierIcon = (tier: string) => {
+    switch (tier) {
+      case 'VIP': return Crown;
+      case 'Premium': return Award;
+      case 'Gold': return Star;
+      default: return User;
+    }
   };
   
   return (
@@ -265,8 +243,8 @@ export default function PropertyOwners() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Property Owners</h1>
-          <p className="text-gray-600">Manage property owners and their business performance</p>
+          <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
+          <p className="text-gray-600">Manage customers and their booking behavior</p>
         </div>
         <div className="flex items-center space-x-4">
           <Button onClick={() => window.print()} variant="outline">
@@ -281,10 +259,10 @@ export default function PropertyOwners() {
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <Building className="w-6 h-6 text-blue-600" />
+              <User className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Owners</p>
+              <p className="text-sm font-medium text-gray-600">Total Customers</p>
               <p className="text-2xl font-bold text-gray-900">{counts.total}</p>
             </div>
           </div>
@@ -336,28 +314,28 @@ export default function PropertyOwners() {
           </div>
           
           <Button variant="outline" size="sm">
+            <Crown className="w-4 h-4 mr-2" />
+            VIP Customers
+          </Button>
+          
+          <Button variant="outline" size="sm">
             <Award className="w-4 h-4 mr-2" />
-            Top Performers
+            Premium Customers
           </Button>
           
           <Button variant="outline" size="sm">
             <Clock className="w-4 h-4 mr-2" />
-            New Owners (&lt; 30 days)
+            Recent Bookings
           </Button>
           
           <Button variant="outline" size="sm">
             <AlertTriangle className="w-4 h-4 mr-2" />
-            Inactive (90+ days)
+            Payment Issues
           </Button>
           
           <Button variant="outline" size="sm">
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Verified Only
-          </Button>
-          
-          <Button variant="outline" size="sm">
-            <Flag className="w-4 h-4 mr-2" />
-            Pending Properties
+            <CreditCard className="w-4 h-4 mr-2" />
+            High Spenders
           </Button>
         </div>
       </Card>
@@ -386,6 +364,7 @@ export default function PropertyOwners() {
               <option value="unverified">Unverified</option>
               <option value="active">Active ({counts.active})</option>
               <option value="inactive">Inactive</option>
+              <option value="vip">VIP Customers</option>
             </select>
           </div>
           
@@ -402,7 +381,7 @@ export default function PropertyOwners() {
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
-              <option value="revenue">Highest Revenue</option>
+              <option value="spent">Highest Spent</option>
               <option value="bookings">Most Bookings</option>
               <option value="rating">Highest Rating</option>
             </select>
@@ -412,7 +391,7 @@ export default function PropertyOwners() {
             <Search className="w-4 h-4 text-gray-500" />
             <input
               type="text"
-              placeholder="Search property owners..."
+              placeholder="Search customers..."
               value={filters.search}
               onChange={(e) => {
                 const newParams = new URLSearchParams(searchParams);
@@ -425,32 +404,32 @@ export default function PropertyOwners() {
         </div>
       </Card>
       
-      {/* Property Owners Table */}
+      {/* Customers Table */}
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Owner
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Properties
+                  Customer
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Bookings
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Revenue
+                  Total Spent
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rating
+                  Rating Given
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Performance
+                  Cancellation Rate
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Health Score
+                  Customer Tier
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Last Booking
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -458,116 +437,131 @@ export default function PropertyOwners() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {propertyOwners.length === 0 ? (
+              {customers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-8 text-center">
-                    <Building className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Property Owners Found</h3>
-                    <p className="text-gray-600">No property owners match your current filters.</p>
+                    <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Customers Found</h3>
+                    <p className="text-gray-600">No customers match your current filters.</p>
                   </td>
                 </tr>
               ) : (
-                propertyOwners.map((owner) => (
-                  <tr key={owner.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4">
-                          <Building className="w-5 h-5 text-gray-600" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{owner.name}</div>
-                          <div className="text-sm text-gray-500">{owner.email}</div>
-                          <div className="flex items-center space-x-2 mt-1">
-                            {owner.verified && (
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Verified
-                              </span>
-                            )}
-                            {owner.isActive ? (
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Active
-                              </span>
-                            ) : (
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                Inactive
-                              </span>
-                            )}
+                customers.map((customer) => {
+                  const TierIcon = getTierIcon(customer.customerTier);
+                  
+                  return (
+                    <tr key={customer.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4">
+                            <TierIcon className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                            <div className="text-sm text-gray-500">{customer.email}</div>
+                            <div className="flex items-center space-x-2 mt-1">
+                              {customer.verified && (
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  Verified
+                                </span>
+                              )}
+                              {customer.isActive ? (
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  Active
+                                </span>
+                              ) : (
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  Inactive
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        <div className="font-medium">{owner._count.properties}</div>
-                        <div className="text-gray-500">
-                          {owner.properties.filter(p => p.status === 'ACTIVE').length} active
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          <div className="font-medium">{customer.totalBookings}</div>
+                          <div className="text-gray-500">
+                            {customer._count.propertyBookings} properties, {customer._count.vehicleBookings} vehicles, {customer._count.tourBookings} tours
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        <div className="font-medium">{owner._count.propertyBookings}</div>
-                        <div className="text-gray-500">
-                          {owner.responseRate.toFixed(1)}% response rate
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          <div className="font-medium">PKR {customer.totalSpent.toLocaleString()}</div>
+                          <div className="text-gray-500">Total spent</div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        <div className="font-medium">PKR {owner.totalRevenue.toLocaleString()}</div>
-                        <div className="text-gray-500">
-                          {owner.cancellationRate.toFixed(1)}% cancellation
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-1">
-                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                        <span className="text-sm font-medium text-gray-900">
-                          {owner.averageRating.toFixed(1)}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-1">
-                          <BarChart3 className="w-4 h-4 text-gray-500" />
-                          <span>{owner.responseRate.toFixed(1)}%</span>
+                          <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                          <span className="text-sm font-medium text-gray-900">
+                            {customer.averageRating.toFixed(1)}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            ({customer._count.reviews} reviews)
+                          </span>
                         </div>
-                        <div className="text-gray-500 text-xs">
-                          Response Rate
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          <div className={`font-medium ${
+                            customer.cancellationRate > 20 ? 'text-red-600' : 
+                            customer.cancellationRate > 10 ? 'text-yellow-600' : 'text-green-600'
+                          }`}>
+                            {customer.cancellationRate.toFixed(1)}%
+                          </div>
+                          <div className="text-gray-500 text-xs">Cancellation rate</div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${getHealthScoreColor(owner.healthScore)}`}>
-                          {owner.healthScore.toFixed(0)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTierColor(customer.customerTier)}`}>
+                            {customer.customerTier}
+                          </span>
+                          {customer.paymentIssues > 0 && (
+                            <div className="text-red-600 text-xs">
+                              {customer.paymentIssues} issues
+                            </div>
+                          )}
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {getHealthScoreLabel(owner.healthScore)}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to={`/admin/users/${owner.id}`}>
-                            <Eye className="w-4 h-4 mr-1" />
-                            View
-                          </Link>
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <MessageSquare className="w-4 h-4 mr-1" />
-                          Message
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {customer.lastBookingDate ? (
+                            <>
+                              <div className="font-medium">
+                                {customer.lastBookingDate.toLocaleDateString()}
+                              </div>
+                              <div className="text-gray-500 text-xs">
+                                {customer.daysSinceLastBooking} days ago
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-gray-500">No bookings</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center space-x-2">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/admin/users/${customer.id}`}>
+                              <Eye className="w-4 h-4 mr-1" />
+                              View
+                            </Link>
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <MessageSquare className="w-4 h-4 mr-1" />
+                            Message
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -578,7 +572,7 @@ export default function PropertyOwners() {
       {pagination.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, totalCount)} of {totalCount} property owners
+            Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, totalCount)} of {totalCount} customers
           </div>
           <div className="flex items-center space-x-2">
             <Button

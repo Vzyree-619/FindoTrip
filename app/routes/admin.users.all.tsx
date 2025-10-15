@@ -288,6 +288,12 @@ export default function AllUsers() {
     userId: '',
     userName: ''
   });
+  const [moreActionsModal, setMoreActionsModal] = useState<{ open: boolean; userId: string; userName: string }>({
+    open: false,
+    userId: '',
+    userName: ''
+  });
+  const [selectedAction, setSelectedAction] = useState('');
   
   const fetcher = useFetcher();
   
@@ -812,9 +818,15 @@ export default function AllUsers() {
                             <MessageSquare className="w-4 h-4 mr-1" />
                             Message
                           </Button>
-                          <Button variant="outline" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
+                          <div className="relative">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setMoreActionsModal({ open: true, userId: user.id, userName: user.name })}
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -1130,6 +1142,149 @@ export default function AllUsers() {
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Send Message
                 </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+      
+      {/* More Actions Modal */}
+      {moreActionsModal.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="p-6 w-full max-w-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">More Actions</h3>
+              <Button
+                variant="outline"
+                onClick={() => setMoreActionsModal({ open: false, userId: '', userName: '' })}
+              >
+                <XCircle className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Advanced actions for: <span className="font-medium">{moreActionsModal.userName}</span>
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setSelectedAction('activity_log');
+                    // Handle activity log
+                  }}
+                >
+                  <Activity className="w-4 h-4 mr-2" />
+                  View Activity Log
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setSelectedAction('login_history');
+                    // Handle login history
+                  }}
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  View Login History
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setSelectedAction('reset_password');
+                    // Handle password reset
+                  }}
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Reset Password
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setSelectedAction('verify_manually');
+                    // Handle manual verification
+                  }}
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Verify Email/Phone
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-red-600 border-red-600 hover:bg-red-50"
+                  onClick={() => {
+                    setSelectedAction('ban_user');
+                    // Handle ban user
+                  }}
+                >
+                  <Ban className="w-4 h-4 mr-2" />
+                  Ban User (Permanent)
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-red-600 border-red-600 hover:bg-red-50"
+                  onClick={() => {
+                    setSelectedAction('delete_account');
+                    // Handle delete account
+                  }}
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Delete Account
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setSelectedAction('impersonate');
+                    // Handle impersonation
+                  }}
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Impersonate User
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setSelectedAction('export_data');
+                    // Handle data export
+                  }}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export User Data
+                </Button>
+              </div>
+              
+              <div className="flex items-center justify-end space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setMoreActionsModal({ open: false, userId: '', userName: '' })}
+                >
+                  Cancel
+                </Button>
+                {selectedAction && (
+                  <Button
+                    onClick={() => {
+                      // Handle selected action
+                      setMoreActionsModal({ open: false, userId: '', userName: '' });
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Execute Action
+                  </Button>
+                )}
               </div>
             </div>
           </Card>
