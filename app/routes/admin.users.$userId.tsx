@@ -1,5 +1,6 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
+import { useState } from "react";
 import { requireAdmin } from "~/lib/admin.server";
 import { prisma } from "~/lib/db/db.server";
 import { Card } from "~/components/ui/card";
@@ -32,7 +33,12 @@ import {
   TrendingUp,
   Award,
   Flag,
-  Ban
+  Ban,
+  CreditCard,
+  FileText,
+  BarChart3,
+  Globe,
+  MapPin as LocationIcon
 } from "lucide-react";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -215,6 +221,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 export default function UserDetails() {
   const { admin, user, totalBookings, totalSpent, totalEarned, recentActivity } = useLoaderData<typeof loader>();
+  const [activeTab, setActiveTab] = useState('overview');
   
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -472,16 +479,309 @@ export default function UserDetails() {
         </Card>
       </div>
       
-      {/* Detailed Information Tabs */}
-      <div className="space-y-6">
-        {/* Bookings */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Bookings</h3>
-          {totalBookings === 0 ? (
-            <p className="text-gray-600">No bookings found</p>
-          ) : (
+      {/* Comprehensive Tabbed Interface */}
+      <Card className="p-6">
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'overview'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'activity'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Activity
+            </button>
+            <button
+              onClick={() => setActiveTab('bookings')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'bookings'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Bookings
+            </button>
+            <button
+              onClick={() => setActiveTab('payments')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'payments'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Payments
+            </button>
+            <button
+              onClick={() => setActiveTab('messages')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'messages'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Messages
+            </button>
+          </nav>
+        </div>
+        
+        {/* Tab Content */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Recent Bookings */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Recent Bookings (Last 5)</h4>
+              {totalBookings === 0 ? (
+                <p className="text-gray-600">No bookings found</p>
+              ) : (
+                <div className="space-y-3">
+                  {user.propertyBookings.slice(0, 5).map((booking) => (
+                    <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Building className="w-5 h-5 text-blue-600" />
+                        <div>
+                          <p className="font-medium text-gray-900">{booking.property.name}</p>
+                          <p className="text-sm text-gray-600">{booking.property.city}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-gray-900">PKR {booking.totalPrice.toLocaleString()}</p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(booking.createdAt).toLocaleDateString()}
+                        </p>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Completed
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {user.vehicleBookings.slice(0, 5).map((booking) => (
+                    <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Car className="w-5 h-5 text-green-600" />
+                        <div>
+                          <p className="font-medium text-gray-900">{booking.vehicle.brand} {booking.vehicle.model}</p>
+                          <p className="text-sm text-gray-600">{booking.vehicle.city}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-gray-900">PKR {booking.totalPrice.toLocaleString()}</p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(booking.createdAt).toLocaleDateString()}
+                        </p>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Completed
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {user.tourBookings.slice(0, 5).map((booking) => (
+                    <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <MapPin className="w-5 h-5 text-purple-600" />
+                        <div>
+                          <p className="font-medium text-gray-900">{booking.tour.title}</p>
+                          <p className="text-sm text-gray-600">{booking.tour.city}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-gray-900">PKR {booking.totalPrice.toLocaleString()}</p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(booking.createdAt).toLocaleDateString()}
+                        </p>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Completed
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-4">
+                <Button variant="outline" size="sm">
+                  View All Bookings
+                </Button>
+              </div>
+            </div>
+            
+            {/* Reviews Given */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Reviews Given (Last 3)</h4>
+              {user._count.reviews === 0 ? (
+                <p className="text-gray-600">No reviews found</p>
+              ) : (
+                <div className="space-y-4">
+                  {user.reviews.slice(0, 3).map((review) => (
+                    <div key={review.id} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="flex items-center space-x-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-4 h-4 ${
+                                i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm text-gray-600">
+                          {new Date(review.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-gray-900 mb-2">{review.content}</p>
+                      <p className="text-sm text-gray-600">
+                        Review for: {review.property?.name || review.vehicle?.brand + ' ' + review.vehicle?.model || review.tour?.title}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-4">
+                <Button variant="outline" size="sm">
+                  View All Reviews
+                </Button>
+              </div>
+            </div>
+            
+            {/* Payment Methods */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Payment Methods</h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <CreditCard className="w-5 h-5 text-blue-600" />
+                    <div>
+                      <p className="font-medium text-gray-900">Visa ending in 1234</p>
+                      <p className="text-sm text-gray-600">Primary payment method</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    View Details
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <CreditCard className="w-5 h-5 text-red-600" />
+                    <div>
+                      <p className="font-medium text-gray-900">Mastercard ending in 5678</p>
+                      <p className="text-sm text-gray-600">Backup payment method</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    View Details
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-4">
+                <Button variant="outline" size="sm">
+                  View Payment History
+                </Button>
+              </div>
+            </div>
+            
+            {/* Admin Notes */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Admin Notes (Internal Only)</h4>
+              <div className="space-y-4">
+                <div>
+                  <textarea
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={3}
+                    placeholder="Add internal notes about this user..."
+                  />
+                  <div className="mt-2">
+                    <Button size="sm">Save Note</Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h5 className="font-medium text-gray-900">Previous Notes:</h5>
+                  <div className="p-3 bg-yellow-50 rounded-lg">
+                    <p className="text-sm text-gray-700">Mar 15: Customer requested refund, processed successfully. -Admin123</p>
+                    <p className="text-xs text-gray-500 mt-1">March 15, 2024 at 2:30 PM</p>
+                  </div>
+                  
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <p className="text-sm text-gray-700">Feb 10: VIP customer, excellent booking history. -Admin456</p>
+                    <p className="text-xs text-gray-500 mt-1">February 10, 2024 at 10:15 AM</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Quick Actions */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="outline" className="justify-start">
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Email
+                </Button>
+                <Button variant="outline" className="justify-start">
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Send Notification
+                </Button>
+                <Button variant="outline" className="justify-start">
+                  <Shield className="w-4 h-4 mr-2" />
+                  Reset Password
+                </Button>
+                <Button variant="outline" className="justify-start">
+                  <Activity className="w-4 h-4 mr-2" />
+                  View Login History
+                </Button>
+                <Button variant="outline" className="justify-start">
+                  <Activity className="w-4 h-4 mr-2" />
+                  View Activity Log
+                </Button>
+                <Button variant="outline" className="justify-start">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Data
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'activity' && (
+          <div className="space-y-6">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">Activity Timeline</h4>
+            {recentActivity.length === 0 ? (
+              <p className="text-gray-600">No recent activity</p>
+            ) : (
+              <div className="space-y-3">
+                {recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <Activity className="w-4 h-4 text-gray-500" />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900">{activity.action}</p>
+                      <p className="text-xs text-gray-600">
+                        {new Date(activity.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        
+        {activeTab === 'bookings' && (
+          <div className="space-y-6">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">All Bookings</h4>
             <div className="space-y-4">
-              {user.propertyBookings.slice(0, 5).map((booking) => (
+              {user.propertyBookings.map((booking) => (
                 <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <Building className="w-5 h-5 text-blue-600" />
@@ -498,7 +798,7 @@ export default function UserDetails() {
                   </div>
                 </div>
               ))}
-              {user.vehicleBookings.slice(0, 5).map((booking) => (
+              {user.vehicleBookings.map((booking) => (
                 <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <Car className="w-5 h-5 text-green-600" />
@@ -515,7 +815,7 @@ export default function UserDetails() {
                   </div>
                 </div>
               ))}
-              {user.tourBookings.slice(0, 5).map((booking) => (
+              {user.tourBookings.map((booking) => (
                 <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <MapPin className="w-5 h-5 text-purple-600" />
@@ -533,65 +833,65 @@ export default function UserDetails() {
                 </div>
               ))}
             </div>
-          )}
-        </Card>
+          </div>
+        )}
         
-        {/* Reviews */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Reviews</h3>
-          {user._count.reviews === 0 ? (
-            <p className="text-gray-600">No reviews found</p>
-          ) : (
+        {activeTab === 'payments' && (
+          <div className="space-y-6">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">Payment History</h4>
             <div className="space-y-4">
-              {user.reviews.slice(0, 5).map((review) => (
-                <div key={review.id} className="p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="flex items-center space-x-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${
-                            i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-sm text-gray-600">
-                      {new Date(review.createdAt).toLocaleDateString()}
-                    </span>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">Luxury Villa Booking</p>
+                    <p className="text-sm text-gray-600">April 15, 2024</p>
                   </div>
-                  <p className="text-gray-900 mb-2">{review.content}</p>
-                  <p className="text-sm text-gray-600">
-                    Review for: {review.property?.name || review.vehicle?.brand + ' ' + review.vehicle?.model || review.tour?.title}
-                  </p>
+                  <div className="text-right">
+                    <p className="font-medium text-gray-900">PKR 1,305</p>
+                    <p className="text-sm text-green-600">Paid</p>
+                  </div>
                 </div>
-              ))}
+              </div>
+              
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">Car Rental</p>
+                    <p className="text-sm text-gray-600">April 10, 2024</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium text-gray-900">PKR 200</p>
+                    <p className="text-sm text-green-600">Paid</p>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </Card>
+          </div>
+        )}
         
-        {/* Recent Activity */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-          {recentActivity.length === 0 ? (
-            <p className="text-gray-600">No recent activity</p>
-          ) : (
-            <div className="space-y-3">
-              {recentActivity.slice(0, 10).map((activity) => (
-                <div key={activity.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <Activity className="w-4 h-4 text-gray-500" />
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">{activity.action}</p>
-                    <p className="text-xs text-gray-600">
-                      {new Date(activity.timestamp).toLocaleString()}
-                    </p>
-                  </div>
+        {activeTab === 'messages' && (
+          <div className="space-y-6">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">Message History</h4>
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-medium text-gray-900">Support Ticket #1234</p>
+                  <span className="text-sm text-gray-600">2 hours ago</span>
                 </div>
-              ))}
+                <p className="text-sm text-gray-700">"I need help with my booking cancellation"</p>
+              </div>
+              
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-medium text-gray-900">General Inquiry</p>
+                  <span className="text-sm text-gray-600">1 day ago</span>
+                </div>
+                <p className="text-sm text-gray-700">"What are your cancellation policies?"</p>
+              </div>
             </div>
-          )}
-        </Card>
-      </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
