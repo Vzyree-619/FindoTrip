@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { Outlet, useLoaderData, useLocation } from "@remix-run/react";
+import { Outlet, useLoaderData, useLocation, Form } from "@remix-run/react";
 import { requireAdmin, getAdminNavigation, type AdminUser } from "~/lib/admin.server";
 import { useState } from "react";
 import { 
@@ -16,14 +16,164 @@ import {
   LogOut,
   Bell,
   Search,
-  Shield
+  Shield,
+  Building,
+  Car,
+  MapPin,
+  Star,
+  DollarSign,
+  TrendingUp,
+  AlertTriangle,
+  Eye,
+  Database,
+  Wrench,
+  UserCheck,
+  Building2,
+  MessageSquare as SupportIcon,
+  Flag,
+  CreditCard,
+  Image,
+  Tag,
+  Activity,
+  Server,
+  AlertCircle,
+  ChevronDown,
+  Clock
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const admin = await requireAdmin(request);
-  const navigation = getAdminNavigation(admin);
+  
+  // Get comprehensive navigation with all admin features
+  const navigation = [
+    {
+      name: 'Dashboard',
+      href: '/admin/dashboard',
+      icon: Home,
+      current: false
+    },
+    {
+      name: 'Approvals',
+      icon: CheckCircle,
+      current: false,
+      children: [
+        { name: 'Pending Providers', href: '/admin/approvals/providers', icon: UserCheck },
+        { name: 'Pending Services', href: '/admin/approvals/services', icon: Building2 },
+        { name: 'Approved Items', href: '/admin/approvals/approved', icon: CheckCircle },
+        { name: 'Rejected Items', href: '/admin/approvals/rejected', icon: X }
+      ]
+    },
+    {
+      name: 'User Management',
+      icon: Users,
+      current: false,
+      children: [
+        { name: 'All Users', href: '/admin/users/all', icon: Users },
+        { name: 'Property Owners', href: '/admin/users/property-owners', icon: Building },
+        { name: 'Vehicle Owners', href: '/admin/users/vehicle-owners', icon: Car },
+        { name: 'Tour Guides', href: '/admin/users/tour-guides', icon: MapPin },
+        { name: 'Customers', href: '/admin/users/customers', icon: UserCheck },
+        { name: 'Admins', href: '/admin/users/admins', icon: Shield }
+      ]
+    },
+    {
+      name: 'Service Management',
+      icon: Building2,
+      current: false,
+      children: [
+        { name: 'Properties', href: '/admin/services/properties', icon: Building },
+        { name: 'Vehicles', href: '/admin/services/vehicles', icon: Car },
+        { name: 'Tours', href: '/admin/services/tours', icon: MapPin }
+      ]
+    },
+    {
+      name: 'Bookings',
+      icon: Calendar,
+      current: false,
+      children: [
+        { name: 'All Bookings', href: '/admin/bookings/all', icon: Calendar },
+        { name: 'Confirmed', href: '/admin/bookings/confirmed', icon: CheckCircle },
+        { name: 'Pending', href: '/admin/bookings/pending', icon: Clock },
+        { name: 'Cancelled', href: '/admin/bookings/cancelled', icon: X },
+        { name: 'Completed', href: '/admin/bookings/completed', icon: CheckCircle }
+      ]
+    },
+    {
+      name: 'Support',
+      icon: SupportIcon,
+      current: false,
+      children: [
+        { name: 'Support Tickets', href: '/admin/support/tickets', icon: MessageSquare },
+        { name: 'All Conversations', href: '/admin/support/conversations', icon: MessageSquare },
+        { name: 'Escalated Issues', href: '/admin/support/escalated', icon: AlertTriangle }
+      ]
+    },
+    {
+      name: 'Reviews & Ratings',
+      icon: Star,
+      current: false,
+      children: [
+        { name: 'All Reviews', href: '/admin/reviews/all', icon: Star },
+        { name: 'Flagged Reviews', href: '/admin/reviews/flagged', icon: Flag },
+        { name: 'Review Moderation', href: '/admin/reviews/moderation', icon: Eye }
+      ]
+    },
+    {
+      name: 'Financial',
+      icon: DollarSign,
+      current: false,
+      children: [
+        { name: 'Revenue Overview', href: '/admin/financial/revenue', icon: TrendingUp },
+        { name: 'Commission Tracking', href: '/admin/financial/commissions', icon: CreditCard },
+        { name: 'Payouts', href: '/admin/financial/payouts', icon: DollarSign },
+        { name: 'Financial Reports', href: '/admin/financial/reports', icon: BarChart }
+      ]
+    },
+    {
+      name: 'Content',
+      icon: FileText,
+      current: false,
+      children: [
+        { name: 'Content Moderation', href: '/admin/content/moderation', icon: Eye },
+        { name: 'Media Management', href: '/admin/content/media', icon: Image },
+        { name: 'Categories & Tags', href: '/admin/content/categories', icon: Tag }
+      ]
+    },
+    {
+      name: 'Settings',
+      icon: Settings,
+      current: false,
+      children: [
+        { name: 'Platform Settings', href: '/admin/settings/platform', icon: Settings },
+        { name: 'Email Templates', href: '/admin/settings/email', icon: MessageSquare },
+        { name: 'Notification Settings', href: '/admin/settings/notifications', icon: Bell },
+        { name: 'Security Settings', href: '/admin/settings/security', icon: Shield }
+      ]
+    },
+    {
+      name: 'Analytics',
+      icon: BarChart,
+      current: false,
+      children: [
+        { name: 'Platform Statistics', href: '/admin/analytics/platform', icon: BarChart },
+        { name: 'Growth Metrics', href: '/admin/analytics/growth', icon: TrendingUp },
+        { name: 'Activity Logs', href: '/admin/analytics/activity', icon: Activity },
+        { name: 'Audit Logs', href: '/admin/analytics/audit', icon: FileText }
+      ]
+    },
+    {
+      name: 'System',
+      icon: Server,
+      current: false,
+      children: [
+        { name: 'System Health', href: '/admin/system/health', icon: Server },
+        { name: 'Error Logs', href: '/admin/system/errors', icon: AlertCircle },
+        { name: 'Database Status', href: '/admin/system/database', icon: Database }
+      ]
+    }
+  ];
   
   return json({ admin, navigation });
 }
@@ -32,16 +182,20 @@ export default function AdminLayout() {
   const { admin, navigation } = useLoaderData<typeof loader>();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Dashboard']));
   
-  const iconMap = {
-    Home,
-    Users,
-    CheckCircle,
-    Calendar,
-    MessageSquare,
-    BarChart,
-    Settings,
-    FileText
+  const toggleSection = (sectionName: string) => {
+    const newExpanded = new Set(expandedSections);
+    if (newExpanded.has(sectionName)) {
+      newExpanded.delete(sectionName);
+    } else {
+      newExpanded.add(sectionName);
+    }
+    setExpandedSections(newExpanded);
+  };
+  
+  const isCurrentPath = (href: string) => {
+    return location.pathname === href || location.pathname.startsWith(href + '/');
   };
   
   const isActive = (href: string) => {
@@ -87,45 +241,71 @@ export default function AdminLayout() {
           
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {navigation.map((item) => {
-              const Icon = iconMap[item.icon as keyof typeof iconMap];
-              const active = isActive(item.href);
+            {navigation.map((item: any) => {
+              const Icon = item.icon;
+              const active = item.href ? isActive(item.href) : false;
+              const isExpanded = expandedSections.has(item.name);
+              
+              if (item.children) {
+                return (
+                  <div key={item.name} className="mb-2">
+                    <button
+                      onClick={() => toggleSection(item.name)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        active
+                          ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <Icon className="w-5 h-5 mr-3" />
+                        <span>{item.name}</span>
+                      </div>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {isExpanded && (
+                      <div className="ml-8 mt-2 space-y-1">
+                        {item.children.map((child: any) => {
+                          const ChildIcon = child.icon;
+                          const isChildActive = isCurrentPath(child.href);
+                          
+                          return (
+                            <a
+                              key={child.name}
+                              href={child.href}
+                              className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
+                                isChildActive
+                                  ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
+                                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                              }`}
+                              onClick={() => setSidebarOpen(false)}
+                            >
+                              <ChildIcon className="w-4 h-4 mr-3" />
+                              {child.name}
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
               
               return (
-                <div key={item.name}>
-                  <a
-                    href={item.href}
-                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      active
-                        ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                    }`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.name}</span>
-                  </a>
-                  
-                  {/* Submenu */}
-                  {item.children && active && (
-                    <div className="ml-8 mt-2 space-y-1">
-                      {item.children.map((child) => (
-                        <a
-                          key={child.name}
-                          href={child.href}
-                          className={`block px-3 py-2 text-sm rounded-md transition-colors ${
-                            location.pathname === child.href
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                          }`}
-                          onClick={() => setSidebarOpen(false)}
-                        >
-                          {child.name}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    active
+                      ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{item.name}</span>
+                </a>
               );
             })}
           </nav>
@@ -175,7 +355,7 @@ export default function AdminLayout() {
               
               <div className="hidden lg:block">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  {navigation.find(item => isActive(item.href))?.name || 'Dashboard'}
+                  {navigation.find((item: any) => item.href && isActive(item.href))?.name || 'Dashboard'}
                 </h2>
               </div>
             </div>

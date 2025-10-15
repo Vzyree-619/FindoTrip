@@ -1,6 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
-import { requireAdmin, getAdminStats, logAdminAction } from "~/lib/admin.server";
+import { useLoaderData, Link } from "@remix-run/react";
+import { requireAdmin, logAdminAction } from "~/lib/admin.server";
+import { prisma } from "~/lib/db/db.server";
 import { Card } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { 
@@ -18,101 +19,392 @@ import {
   UserCheck,
   Building2,
   Car,
-  MapPin
+  MapPin,
+  Star,
+  Eye,
+  Flag,
+  CreditCard,
+  BarChart3,
+  Server,
+  Database,
+  Mail,
+  Bell,
+  Shield,
+  FileText,
+  Settings,
+  X,
+  Plus
 } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const admin = await requireAdmin(request);
-  const stats = await getAdminStats();
+  
+  // Get comprehensive platform statistics
+  const [
+    // User statistics
+    totalUsers,
+    customers,
+    propertyOwners,
+    vehicleOwners,
+    tourGuides,
+    admins,
+    
+    // Service statistics
+    totalProperties,
+    totalVehicles,
+    totalTours,
+    activeProperties,
+    activeVehicles,
+    activeTours,
+    
+    // Booking statistics
+    totalBookings,
+    propertyBookings,
+    vehicleBookings,
+    tourBookings,
+    confirmedBookings,
+    pendingBookings,
+    cancelledBookings,
+    
+    // Revenue statistics
+    totalRevenue,
+    monthlyRevenue,
+    platformCommission,
+    
+    // Approval statistics
+    pendingProviderApprovals,
+    pendingPropertyApprovals,
+    pendingVehicleApprovals,
+    pendingTourApprovals,
+    
+    // Support statistics
+    activeSupportTickets,
+    escalatedTickets,
+    resolvedTickets,
+    
+    // Review statistics
+    totalReviews,
+    flaggedReviews,
+    averageRating,
+    
+    // Recent data
+    recentUsers,
+    recentBookings,
+    recentActivity,
+    recentSupportTickets,
+    
+    // Platform health
+    systemHealth,
+    errorCount,
+    databaseStatus
+  ] = await Promise.all([
+    // User counts by role
+    prisma.user.count({ where: { role: { not: 'SUPER_ADMIN' } } }),
+    prisma.user.count({ where: { role: 'CUSTOMER' } }),
+    prisma.user.count({ where: { role: 'PROPERTY_OWNER' } }),
+    prisma.user.count({ where: { role: 'VEHICLE_OWNER' } }),
+    prisma.user.count({ where: { role: 'TOUR_GUIDE' } }),
+    prisma.user.count({ where: { role: 'SUPER_ADMIN' } }),
+    
+    // Service counts
+    prisma.property.count(),
+    prisma.vehicle.count(),
+    prisma.tour.count(),
+    prisma.property.count({ where: { available: true } }),
+    prisma.vehicle.count({ where: { available: true } }),
+    prisma.tour.count({ where: { available: true } }),
+    
+    // Booking counts
+    Promise.all([
+      prisma.propertyBooking.count(),
+      prisma.vehicleBooking.count(),
+      prisma.tourBooking.count()
+    ]).then(counts => counts.reduce((sum, count) => sum + count, 0)),
+    prisma.propertyBooking.count(),
+    prisma.vehicleBooking.count(),
+    prisma.tourBooking.count(),
+    Promise.all([
+      prisma.propertyBooking.count({ where: { status: 'CONFIRMED' } }),
+      prisma.vehicleBooking.count({ where: { status: 'CONFIRMED' } }),
+      prisma.tourBooking.count({ where: { status: 'CONFIRMED' } })
+    ]).then(counts => counts.reduce((sum, count) => sum + count, 0)),
+    Promise.all([
+      prisma.propertyBooking.count({ where: { status: 'PENDING' } }),
+      prisma.vehicleBooking.count({ where: { status: 'PENDING' } }),
+      prisma.tourBooking.count({ where: { status: 'PENDING' } })
+    ]).then(counts => counts.reduce((sum, count) => sum + count, 0)),
+    Promise.all([
+      prisma.propertyBooking.count({ where: { status: 'CANCELLED' } }),
+      prisma.vehicleBooking.count({ where: { status: 'CANCELLED' } }),
+      prisma.tourBooking.count({ where: { status: 'CANCELLED' } })
+    ]).then(counts => counts.reduce((sum, count) => sum + count, 0)),
+    
+    // Revenue calculations
+    Promise.all([
+      prisma.propertyBooking.aggregate({ _sum: { totalPrice: true } }),
+      prisma.vehicleBooking.aggregate({ _sum: { totalPrice: true } }),
+      prisma.tourBooking.aggregate({ _sum: { totalPrice: true } })
+    ]).then(results => {
+      const total = results.reduce((sum, result) => sum + (result._sum.totalPrice || 0), 0);
+      return total;
+    }),
+    Promise.all([
+      prisma.propertyBooking.aggregate({ 
+        _sum: { totalPrice: true },
+        where: { 
+          createdAt: { 
+            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) 
+          } 
+        } 
+      }),
+      prisma.vehicleBooking.aggregate({ 
+        _sum: { totalPrice: true },
+        where: { 
+          createdAt: { 
+            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) 
+          } 
+        } 
+      }),
+      prisma.tourBooking.aggregate({ 
+        _sum: { totalPrice: true },
+        where: { 
+          createdAt: { 
+            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) 
+          } 
+        } 
+      })
+    ]).then(results => {
+      const total = results.reduce((sum, result) => sum + (result._sum.totalPrice || 0), 0);
+      return total;
+    }),
+    // Platform commission (assuming 10% commission)
+    Promise.all([
+      prisma.propertyBooking.aggregate({ _sum: { totalPrice: true } }),
+      prisma.vehicleBooking.aggregate({ _sum: { totalPrice: true } }),
+      prisma.tourBooking.aggregate({ _sum: { totalPrice: true } })
+    ]).then(results => {
+      const total = results.reduce((sum, result) => sum + (result._sum.totalPrice || 0), 0);
+      return total * 0.1; // 10% commission
+    }),
+    
+    // Pending approvals
+    prisma.user.count({ 
+      where: { 
+        role: { in: ['PROPERTY_OWNER', 'VEHICLE_OWNER', 'TOUR_GUIDE'] },
+        verified: false 
+      } 
+    }),
+    prisma.property.count({ where: { approvalStatus: 'PENDING' } }),
+    prisma.vehicle.count({ where: { approvalStatus: 'PENDING' } }),
+    prisma.tour.count({ where: { approvalStatus: 'PENDING' } }),
+    
+    // Support tickets
+    prisma.supportTicket.count({ where: { status: { in: ['NEW', 'IN_PROGRESS'] } } }),
+    prisma.supportTicket.count({ where: { escalated: true } }),
+    prisma.supportTicket.count({ where: { status: 'RESOLVED' } }),
+    
+    // Reviews
+    prisma.review.count(),
+    prisma.review.count({ where: { flagged: true } }),
+    prisma.review.aggregate({ _avg: { rating: true } }).then(result => result._avg.rating || 0),
+    
+    // Recent data
+    prisma.user.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true
+      }
+    }),
+    Promise.all([
+      prisma.propertyBooking.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: { property: { select: { name: true } }, user: { select: { name: true } } }
+      }),
+      prisma.vehicleBooking.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: { vehicle: { select: { name: true } }, user: { select: { name: true } } }
+      }),
+      prisma.tourBooking.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: { tour: { select: { title: true } }, user: { select: { name: true } } }
+      })
+    ]).then(results => results.flat()),
+    prisma.auditLog.findMany({
+      take: 10,
+      orderBy: { timestamp: 'desc' },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    }),
+    prisma.supportTicket.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        provider: {
+          select: {
+            name: true,
+            email: true
+          }
+        }
+      }
+    }),
+    
+    // System health (mock data for now)
+    Promise.resolve({ status: 'healthy', uptime: '99.9%' }),
+    Promise.resolve(0), // error count
+    Promise.resolve({ status: 'connected', responseTime: '12ms' })
+  ]);
+  
+  // Calculate totals
+  const totalPendingApprovals = pendingProviderApprovals + pendingPropertyApprovals + pendingVehicleApprovals + pendingTourApprovals;
+  const totalActiveListings = activeProperties + activeVehicles + activeTours;
   
   // Log dashboard access
-  await logAdminAction(admin.id, 'DASHBOARD_ACCESS', 'Viewed admin dashboard', request);
+  await logAdminAction(admin.id, 'DASHBOARD_ACCESS', 'Viewed comprehensive admin dashboard', request);
   
-  return json({ admin, stats });
+  return json({
+    admin,
+    stats: {
+      // User statistics
+      totalUsers,
+      customers,
+      propertyOwners,
+      vehicleOwners,
+      tourGuides,
+      admins,
+      
+      // Service statistics
+      totalProperties,
+      totalVehicles,
+      totalTours,
+      totalActiveListings,
+      activeProperties,
+      activeVehicles,
+      activeTours,
+      
+      // Booking statistics
+      totalBookings,
+      propertyBookings,
+      vehicleBookings,
+      tourBookings,
+      confirmedBookings,
+      pendingBookings,
+      cancelledBookings,
+      
+      // Revenue statistics
+      totalRevenue,
+      monthlyRevenue,
+      platformCommission,
+      
+      // Approval statistics
+      totalPendingApprovals,
+      pendingProviderApprovals,
+      pendingPropertyApprovals,
+      pendingVehicleApprovals,
+      pendingTourApprovals,
+      
+      // Support statistics
+      activeSupportTickets,
+      escalatedTickets,
+      resolvedTickets,
+      
+      // Review statistics
+      totalReviews,
+      flaggedReviews,
+      averageRating,
+      
+      // System health
+      systemHealth,
+      errorCount,
+      databaseStatus
+    },
+    recentUsers,
+    recentBookings,
+    recentActivity,
+    recentSupportTickets
+  });
 }
 
 export default function AdminDashboard() {
-  const { admin, stats } = useLoaderData<typeof loader>();
+  const { admin, stats, recentUsers, recentBookings, recentActivity, recentSupportTickets } = useLoaderData<typeof loader>();
   
   const statCards = [
     {
-      title: 'Total Users',
-      value: stats.totalUsers.toLocaleString(),
-      icon: Users,
-      color: 'blue',
-      change: '+12%',
-      changeType: 'positive' as const
-    },
-    {
-      title: 'Providers',
-      value: stats.totalProviders.toLocaleString(),
-      icon: Building,
-      color: 'green',
-      change: '+8%',
-      changeType: 'positive' as const
+      title: 'Pending Approvals',
+      value: stats.totalPendingApprovals.toLocaleString(),
+      icon: CheckCircle,
+      color: 'orange',
+      change: '+3 today',
+      changeType: 'neutral' as const,
+      href: '/admin/approvals/providers'
     },
     {
       title: 'Total Bookings',
       value: stats.totalBookings.toLocaleString(),
       icon: Calendar,
-      color: 'purple',
-      change: '+23%',
-      changeType: 'positive' as const
+      color: 'blue',
+      change: '+12 today',
+      changeType: 'positive' as const,
+      href: '/admin/bookings/all'
     },
     {
-      title: 'Total Revenue',
-      value: `PKR ${stats.totalRevenue.toLocaleString()}`,
+      title: 'Revenue This Month',
+      value: `PKR ${stats.monthlyRevenue.toLocaleString()}`,
       icon: DollarSign,
-      color: 'yellow',
-      change: '+15%',
-      changeType: 'positive' as const
+      color: 'green',
+      change: '+$2,340',
+      changeType: 'positive' as const,
+      href: '/admin/financial/revenue'
     },
     {
-      title: 'Pending Approvals',
-      value: stats.pendingApprovals.toLocaleString(),
-      icon: CheckCircle,
-      color: 'orange',
-      change: '-5%',
-      changeType: 'negative' as const
-    },
-    {
-      title: 'Active Support',
-      value: stats.activeSupportTickets.toLocaleString(),
-      icon: MessageSquare,
-      color: 'red',
-      change: '+3%',
-      changeType: 'negative' as const
+      title: 'Active Listings',
+      value: stats.totalActiveListings.toLocaleString(),
+      icon: Building2,
+      color: 'purple',
+      change: '+8 today',
+      changeType: 'positive' as const,
+      href: '/admin/services/properties'
     }
   ];
   
-  const quickActions = [
+  const pendingActions = [
     {
-      title: 'Review Provider Applications',
-      description: 'Approve or reject new provider registrations',
+      title: `${stats.pendingProviderApprovals} Provider Registrations Pending`,
       href: '/admin/approvals/providers',
       icon: UserCheck,
       color: 'blue'
     },
     {
-      title: 'Moderate Service Listings',
-      description: 'Review and approve property, vehicle, and tour listings',
+      title: `${stats.pendingPropertyApprovals + stats.pendingVehicleApprovals + stats.pendingTourApprovals} Service Listings Awaiting Approval`,
       href: '/admin/approvals/services',
       icon: Building2,
       color: 'green'
     },
     {
-      title: 'Handle Support Tickets',
-      description: 'Respond to user and provider support requests',
-      href: '/admin/support',
+      title: `${stats.activeSupportTickets} Support Tickets Unassigned`,
+      href: '/admin/support/tickets',
       icon: MessageSquare,
       color: 'purple'
     },
     {
-      title: 'View Financial Reports',
-      description: 'Analyze revenue, commissions, and financial data',
-      href: '/admin/reports/financial',
-      icon: TrendingUp,
-      color: 'yellow'
+      title: `${stats.flaggedReviews} Reviews Flagged for Moderation`,
+      href: '/admin/reviews/flagged',
+      icon: Flag,
+      color: 'red'
     }
   ];
   
@@ -121,8 +413,8 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600">Welcome back, {admin.email}</p>
+          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <p className="text-gray-600">Welcome back, {admin.name || admin.email}!</p>
         </div>
         <div className="flex items-center space-x-4">
           <Button variant="outline" size="sm">
@@ -132,8 +424,8 @@ export default function AdminDashboard() {
         </div>
       </div>
       
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat) => {
           const Icon = stat.icon;
           const colorClasses = {
@@ -146,81 +438,79 @@ export default function AdminDashboard() {
           };
           
           return (
-            <Card key={stat.title} className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  <div className="flex items-center mt-2">
-                    {stat.changeType === 'positive' ? (
-                      <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-                    ) : (
-                      <TrendingDown className="w-4 h-4 text-red-500 mr-1" />
-                    )}
-                    <span className={`text-sm font-medium ${
-                      stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {stat.change}
-                    </span>
-                    <span className="text-sm text-gray-500 ml-1">from last month</span>
+            <Link key={stat.title} to={stat.href}>
+              <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                    <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                    <div className="flex items-center mt-2">
+                      <span className={`text-sm font-medium ${
+                        stat.changeType === 'positive' ? 'text-green-600' : 
+                        stat.changeType === 'negative' ? 'text-red-600' : 'text-gray-600'
+                      }`}>
+                        {stat.change}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`p-3 rounded-lg ${colorClasses[stat.color]}`}>
+                    <Icon className="w-8 h-8" />
                   </div>
                 </div>
-                <div className={`p-3 rounded-lg ${colorClasses[stat.color]}`}>
-                  <Icon className="w-6 h-6" />
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </Link>
           );
         })}
       </div>
       
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {quickActions.map((action) => {
+      {/* Pending Actions */}
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Pending Actions</h2>
+        <div className="space-y-3">
+          {pendingActions.map((action, index) => {
             const Icon = action.icon;
             const colorClasses = {
-              blue: 'bg-blue-50 text-blue-600 hover:bg-blue-100',
-              green: 'bg-green-50 text-green-600 hover:bg-green-100',
-              purple: 'bg-purple-50 text-purple-600 hover:bg-purple-100',
-              yellow: 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100'
+              blue: 'bg-blue-100 text-blue-600',
+              green: 'bg-green-100 text-green-600',
+              purple: 'bg-purple-100 text-purple-600',
+              red: 'bg-red-100 text-red-600'
             };
             
             return (
-              <Card key={action.title} className="p-4 hover:shadow-md transition-shadow">
-                <a href={action.href} className="block">
-                  <div className="flex items-start space-x-3">
-                    <div className={`p-2 rounded-lg ${colorClasses[action.color]}`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{action.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{action.description}</p>
-                    </div>
+              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className={`p-2 rounded-lg ${colorClasses[action.color]}`}>
+                    <Icon className="w-5 h-5" />
                   </div>
-                </a>
-              </Card>
+                  <span className="text-sm font-medium text-gray-900">{action.title}</span>
+                </div>
+                <Link to={action.href}>
+                  <Button size="sm" variant="outline">
+                    Review
+                  </Button>
+                </Link>
+              </div>
             );
           })}
         </div>
-      </div>
+      </Card>
       
-      {/* Recent Activity */}
+      {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Activity */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
           <div className="space-y-4">
-            {stats.recentActivity.slice(0, 5).map((activity, index) => (
+            {recentActivity.slice(0, 8).map((activity, index) => (
               <div key={index} className="flex items-start space-x-3">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
                 <div className="flex-1">
                   <p className="text-sm text-gray-900">{activity.details}</p>
                   <div className="flex items-center space-x-2 mt-1">
-                    <span className="text-xs text-gray-500">{activity.user?.email}</span>
+                    <span className="text-xs text-gray-500">{activity.user?.name || activity.user?.email}</span>
                     <span className="text-xs text-gray-400">•</span>
                     <span className="text-xs text-gray-500">
-                      {new Date(activity.createdAt).toLocaleDateString()}
+                      {new Date(activity.timestamp).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
@@ -228,81 +518,140 @@ export default function AdminDashboard() {
             ))}
           </div>
           <div className="mt-4 pt-4 border-t">
-            <a 
-              href="/admin/audit" 
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-              View all activity →
-            </a>
+            <Link to="/admin/analytics/activity" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+              View All Activity →
+            </Link>
           </div>
         </Card>
         
+        {/* Platform Statistics */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">System Status</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Platform Statistics</h3>
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-900">Database</span>
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Users by Role:</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Customers:</span>
+                  <span className="text-sm font-medium">{stats.customers.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Property Owners:</span>
+                  <span className="text-sm font-medium">{stats.propertyOwners.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Vehicle Owners:</span>
+                  <span className="text-sm font-medium">{stats.vehicleOwners.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Tour Guides:</span>
+                  <span className="text-sm font-medium">{stats.tourGuides.toLocaleString()}</span>
+                </div>
               </div>
-              <span className="text-sm text-green-600 font-medium">Healthy</span>
             </div>
             
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-900">API Services</span>
+            <div className="pt-4 border-t">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Bookings by Type:</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Properties:</span>
+                  <span className="text-sm font-medium">{stats.propertyBookings.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Vehicles:</span>
+                  <span className="text-sm font-medium">{stats.vehicleBookings.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Tours:</span>
+                  <span className="text-sm font-medium">{stats.tourBookings.toLocaleString()}</span>
+                </div>
               </div>
-              <span className="text-sm text-green-600 font-medium">Operational</span>
             </div>
             
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <span className="text-sm text-gray-900">Payment Gateway</span>
-              </div>
-              <span className="text-sm text-yellow-600 font-medium">Monitoring</span>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-900">Email Service</span>
-              </div>
-              <span className="text-sm text-green-600 font-medium">Active</span>
-            </div>
-          </div>
-          
-          <div className="mt-4 pt-4 border-t">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Last updated</span>
-              <span className="text-sm text-gray-900">
-                {new Date().toLocaleTimeString()}
-              </span>
+            <div className="pt-4 border-t">
+              <Link to="/admin/analytics/platform" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                View Detailed Stats →
+              </Link>
             </div>
           </div>
         </Card>
       </div>
       
-      {/* Alerts */}
-      {stats.pendingApprovals > 0 && (
-        <Card className="p-4 bg-orange-50 border-orange-200">
-          <div className="flex items-center space-x-3">
-            <AlertTriangle className="w-5 h-5 text-orange-600" />
-            <div>
-              <p className="text-sm font-medium text-orange-800">
-                {stats.pendingApprovals} items require your attention
-              </p>
-              <p className="text-sm text-orange-700">
-                Review pending approvals to keep the platform running smoothly
-              </p>
+      {/* Revenue Chart Placeholder */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue Chart (Last 30 Days)</h3>
+        <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+          <div className="text-center">
+            <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-500">Revenue chart will be displayed here</p>
+            <p className="text-sm text-gray-400">Integration with charting library needed</p>
+          </div>
+        </div>
+      </Card>
+      
+      {/* Bottom Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Performing Services */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Services</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">Luxury Villa (#123)</p>
+                <p className="text-sm text-gray-600">45 bookings</p>
+              </div>
+              <Building className="w-8 h-8 text-blue-600" />
             </div>
-            <Button size="sm" className="ml-auto">
-              Review Now
-            </Button>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">Sports Car (#456)</p>
+                <p className="text-sm text-gray-600">38 rentals</p>
+              </div>
+              <Car className="w-8 h-8 text-green-600" />
+            </div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">City Tour (#789)</p>
+                <p className="text-sm text-gray-600">32 bookings</p>
+              </div>
+              <MapPin className="w-8 h-8 text-purple-600" />
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t">
+            <Link to="/admin/analytics/services" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+              View All →
+            </Link>
           </div>
         </Card>
-      )}
+        
+        {/* Recent Registrations */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Registrations</h3>
+          <div className="space-y-3">
+            {recentUsers.slice(0, 5).map((user, index) => (
+              <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-sm font-medium text-blue-600">
+                    {user.name?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">{user.name || user.email}</p>
+                  <p className="text-sm text-gray-600">{user.role.replace('_', ' ')}</p>
+                </div>
+                <span className="text-xs text-gray-500">
+                  {new Date(user.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 pt-4 border-t">
+            <Link to="/admin/users/all" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+              View All →
+            </Link>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
