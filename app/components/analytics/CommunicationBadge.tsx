@@ -167,7 +167,7 @@ export function ProviderCommunicationCard({
     if (!rank) return null;
     if (rank === 1) return <Trophy className="h-4 w-4 text-yellow-600" />;
     if (rank <= 3) return <Award className="h-4 w-4 text-orange-600" />;
-    if (rank <= 10) return <Medal className="h-4 w-4 text-blue-600" />;
+    if (rank <= 10) return <Medal className="h-4 w-4 text-[#01502E]" />;
     return <Star className="h-4 w-4 text-gray-600" />;
   };
 
@@ -175,8 +175,8 @@ export function ProviderCommunicationCard({
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-blue-600">
+          <div className="w-10 h-10 bg-[#01502E]/10 rounded-full flex items-center justify-center">
+            <span className="text-sm font-medium text-[#01502E]">
               {providerName.charAt(0)}
             </span>
           </div>

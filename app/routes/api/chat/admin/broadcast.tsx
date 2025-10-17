@@ -54,11 +54,10 @@ export async function action({ request }: ActionFunctionArgs) {
     // Rate limiting for broadcasts
     const rateLimitResult = await checkRateLimit(
       userId,
-      
-      'chat-broadcast-${userId}',
-      '5', // 5 broadcasts per hour
-      '3600' * 1000
-    });
+      `chat-broadcast-${userId}`,
+      5, // 5 broadcasts per hour
+      3600 * 1000
+    );
     
     if (!rateLimitResult.allowed) {
       return json(

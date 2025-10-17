@@ -8,6 +8,7 @@ interface PropertyCardProps {
   country: string;
   type: string;
   pricePerNight: number;
+  nights?: number;
   maxGuests: number;
   bedrooms: number;
   bathrooms: number;
@@ -24,6 +25,7 @@ export default function PropertyCard({
   country,
   type,
   pricePerNight,
+  nights,
   maxGuests,
   bedrooms,
   bathrooms,
@@ -35,11 +37,9 @@ export default function PropertyCard({
   const mainImage = images[0] || "/placeholder-hotel.jpg";
   
   // Format price
-  const formattedPrice = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(pricePerNight);
+  const formattedPrice = `PKR ${pricePerNight.toLocaleString()}`;
+  const perNightPrice = nights && nights > 0 ? Math.round(pricePerNight / nights) : pricePerNight;
+  const formattedPerNight = `PKR ${perNightPrice.toLocaleString()}`;
 
   // Get rating color
   const getRatingColor = (rating: number) => {
@@ -120,7 +120,16 @@ export default function PropertyCard({
             <span className="text-xl font-bold text-[#01502E]">
               {formattedPrice}
             </span>
-            <span className="text-sm text-gray-600"> /night</span>
+            {nights && nights > 0 ? (
+              <span className="text-sm text-gray-600"> total · {nights} night{nights > 1 ? 's' : ''}</span>
+            ) : (
+              <span className="text-sm text-gray-600"> /night</span>
+            )}
+            {nights && nights > 0 && (
+              <div className="text-xs text-gray-500">
+                {formattedPerNight} /night
+              </div>
+            )}
           </div>
           
           {reviewCount > 0 && (

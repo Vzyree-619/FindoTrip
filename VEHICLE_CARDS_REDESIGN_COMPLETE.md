@@ -41,7 +41,7 @@ I have successfully redesigned the vehicle rental cards to be modern and feature
   - Shows 3-4 features with "+X more" indicator
 
 - **Bottom Section**:
-  - Rental price: "From $XX/day" with large font
+  - Rental price: "From PKR XX/day" with large font
   - Price breakdown tooltip (daily/weekly/monthly rates)
   - Discount badge for weekly/monthly deals
   - Insurance options available icon

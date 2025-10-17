@@ -7,7 +7,7 @@ import {
 import { useLoaderData, Form, useActionData } from "@remix-run/react";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma, createBooking } from "~/lib/db/db.server";
-import { Calendar, Users, DollarSign } from "lucide-react";
+import { Calendar, Users } from "lucide-react";
 import { differenceInDays, parseISO } from "date-fns";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -114,7 +114,7 @@ export default function BookStay() {
                 {accommodation.city}, {accommodation.country}
               </p>
               <p className="text-blue-600 font-semibold mt-2">
-                ${accommodation.pricePerNight} / night
+                PKR {accommodation.pricePerNight.toLocaleString()} / night
               </p>
             </div>
           </div>
@@ -157,7 +157,7 @@ export default function BookStay() {
                 name="guests"
                 min="1"
                 defaultValue="2"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 required
               />
             </div>
@@ -169,7 +169,7 @@ export default function BookStay() {
               <textarea
                 name="specialRequests"
                 rows={4}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="Any special requirements or requests..."
               />
             </div>
@@ -182,9 +182,9 @@ export default function BookStay() {
 
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-[#01502E] hover:bg-[#013d23] text-white font-bold py-4 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
-              <DollarSign className="w-5 h-5" />
+              <span className="font-bold">PKR</span>
               Confirm and Pay
             </button>
           </Form>

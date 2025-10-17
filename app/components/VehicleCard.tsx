@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "@remix-run/react";
 import { 
   Star, 
@@ -84,29 +84,8 @@ interface VehicleCardProps {
 // UTILITY FUNCTIONS
 // ========================================
 
-const getCategoryColor = (category: string) => {
-  const colors = {
-    Economy: 'bg-gray-500',
-    SUV: 'bg-blue-500',
-    Luxury: 'bg-purple-500',
-    Van: 'bg-orange-500',
-    Sports: 'bg-red-500',
-    Electric: 'bg-green-500'
-  };
-  return colors[category as keyof typeof colors] || 'bg-gray-500';
-};
-
-const getCategoryGradient = (category: string) => {
-  const gradients = {
-    Economy: 'from-gray-500 to-gray-600',
-    SUV: 'from-blue-500 to-blue-600',
-    Luxury: 'from-purple-500 to-purple-600',
-    Van: 'from-orange-500 to-orange-600',
-    Sports: 'from-red-500 to-red-600',
-    Electric: 'from-green-500 to-green-600'
-  };
-  return gradients[category as keyof typeof gradients] || 'from-gray-500 to-gray-600';
-};
+const getCategoryColor = (_category: string) => 'bg-orange-500';
+const getCategoryGradient = (_category: string) => 'from-[#01502E] to-orange-500';
 
 const getFuelIcon = (fuelType: string) => {
   const icons = {
@@ -131,7 +110,7 @@ const getTransmissionIcon = (transmission: string) => {
 export default function VehicleCard({ vehicle, showCompare = false, selectedDates }: VehicleCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(vehicle.isFavorite || false);
+  const [isFavorite, setIsFavorite] = useState(vehicle.isFavorite ?? false);
   const [isInCompare, setIsInCompare] = useState(false);
   const [showPriceBreakdown, setShowPriceBreakdown] = useState(false);
 
@@ -149,38 +128,36 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
     vehicle.onCompare?.(vehicle.id);
   };
 
-  const handleImageClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % vehicle.images.length);
-  };
+  // Removed image click interception to allow navigation when clicking the image
 
   const calculatePrice = () => {
+    const price = vehicle.price || 0;
     if (selectedDates) {
       const start = new Date(selectedDates.start);
       const end = new Date(selectedDates.end);
       const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-      return vehicle.price * days;
+      return price * days;
     }
-    return vehicle.price;
+    return price;
   };
 
   const getAvailabilityColor = (availability: string) => {
     const colors = {
-      Available: 'bg-green-500',
-      Limited: 'bg-yellow-500',
-      'Fully Booked': 'bg-red-500'
+      Available: 'bg-[#01502E]',
+      Limited: 'bg-orange-500',
+      'Fully Booked': 'bg-orange-700'
     };
-    return colors[availability as keyof typeof colors] || 'bg-gray-500';
+    return colors[availability as keyof typeof colors] || 'bg-[#01502E]';
   };
 
-  const visibleFeatures = vehicle.features.slice(0, 3);
-  const hiddenFeaturesCount = vehicle.features.length - 3;
+  const features = Array.isArray(vehicle.features) ? vehicle.features : [];
+  const visibleFeatures = features.slice(0, 3);
+  const hiddenFeaturesCount = Math.max(0, features.length - 3);
 
   return (
     <div
       className={`group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 overflow-hidden cursor-pointer ${
-        isHovered ? 'ring-2 ring-blue-500/20' : ''
+        isHovered ? 'ring-2 ring-[#01502E]/20' : ''
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -189,15 +166,14 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
       }}
     >
-      <Link to={`/vehicles/${vehicle.id}`} className="block">
+      <Link to={`/vehicle/${vehicle.id}`} className="block">
         {/* Image Section */}
         <div className="relative h-64 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
           {/* Main Image */}
           <img
-            src={vehicle.images[currentImageIndex] || '/placeholder-vehicle.jpg'}
+            src={vehicle.images?.[currentImageIndex] || '/placeholder-vehicle.jpg'}
             alt={`${vehicle.name} ${vehicle.model}`}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            onClick={handleImageClick}
           />
           
           {/* Glass-morphism Overlay */}
@@ -212,14 +188,14 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
             
             {/* Electric Badge */}
             {vehicle.isElectric && (
-              <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg backdrop-blur-sm">
+              <span className="bg-gradient-to-r from-[#01502E] to-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg backdrop-blur-sm">
                 ⚡ Electric
               </span>
             )}
             
             {/* Special Offer Badge */}
             {vehicle.isSpecialOffer && (
-              <span className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg backdrop-blur-sm">
+              <span className="bg-gradient-to-r from-orange-500 to-orange-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg backdrop-blur-sm">
                 🔥 Special Offer
               </span>
             )}
@@ -248,7 +224,7 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
           </div>
 
           {/* Image Indicators */}
-          {vehicle.images.length > 1 && (
+          {vehicle.images && vehicle.images.length > 1 && (
             <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1">
               {vehicle.images.map((_, index) => (
                 <div
@@ -290,7 +266,7 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
         <div className="p-6 space-y-4">
           {/* Vehicle Name & Model */}
           <div>
-            <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+            <h3 className="text-xl font-bold text-gray-900 group-hover:text-[#01502E] transition-colors">
               {vehicle.name} {vehicle.model}
             </h3>
             <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -298,7 +274,7 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
               {vehicle.mileage && (
                 <>
                   <span>•</span>
-                  <span>{vehicle.mileage.toLocaleString()} km</span>
+                  <span>{(vehicle.mileage || 0).toLocaleString()} km</span>
                 </>
               )}
             </div>
@@ -309,20 +285,20 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
             <div className="flex items-center space-x-1">
               <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
                 <span className="text-xs font-medium text-gray-700">
-                  {vehicle.owner.name.charAt(0)}
+                  {vehicle.owner?.name?.charAt(0) || '?'}
                 </span>
               </div>
-              <span className="text-sm font-medium text-gray-700">{vehicle.owner.name}</span>
-              {vehicle.owner.isVerified && (
-                <Shield className="w-4 h-4 text-blue-500" />
+              <span className="text-sm font-medium text-gray-700">{vehicle.owner?.name || 'Unknown Owner'}</span>
+              {vehicle.owner?.isVerified && (
+                <Shield className="w-4 h-4 text-[#01502E]" />
               )}
             </div>
             <div className="flex items-center space-x-1">
               <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
               <span className="text-sm font-medium text-gray-700">
-                {vehicle.rating.toFixed(1)}
+                {(vehicle.rating || 0).toFixed(1)}
               </span>
-              <span className="text-xs text-gray-500">({vehicle.reviewCount})</span>
+              <span className="text-xs text-gray-500">({vehicle.reviewCount || 0})</span>
             </div>
           </div>
 
@@ -330,19 +306,19 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Users className="w-4 h-4 text-gray-500" />
-              <span>{vehicle.specs.passengers} passengers</span>
+              <span>{vehicle.specs?.passengers || 0} passengers</span>
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Luggage className="w-4 h-4 text-gray-500" />
-              <span>{vehicle.specs.luggage} bags</span>
+              <span>{vehicle.specs?.luggage || 0} bags</span>
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Fuel className="w-4 h-4 text-gray-500" />
-              <span>{vehicle.specs.fuelEfficiency} MPG</span>
+              <span>{vehicle.specs?.fuelEfficiency || 0} MPG</span>
             </div>
             <div className="flex items-center space-x-2 text-sm text-gray-600">
-              {getTransmissionIcon(vehicle.specs.transmission)}
-              <span>{vehicle.specs.transmission}</span>
+              {getTransmissionIcon(vehicle.specs?.transmission || 'Automatic')}
+              <span>{vehicle.specs?.transmission || 'Automatic'}</span>
             </div>
           </div>
 
@@ -351,7 +327,7 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
             {visibleFeatures.map((feature, index) => (
               <span
                 key={index}
-                className="bg-blue-50 text-blue-700 text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap"
+                className="bg-[#01502E]/10 text-[#01502E] text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap"
               >
                 {feature}
               </span>
@@ -383,13 +359,13 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
               </div>
             )}
             {vehicle.hasDelivery && (
-              <div className="flex items-center space-x-1 text-blue-600">
+            <div className="flex items-center space-x-1 text-[#01502E]">
                 <Navigation className="w-4 h-4" />
                 <span>Delivery available</span>
               </div>
             )}
             {vehicle.insuranceOptions && (
-              <div className="flex items-center space-x-1 text-purple-600">
+            <div className="flex items-center space-x-1 text-orange-600">
                 <Shield className="w-4 h-4" />
                 <span>Insurance options</span>
               </div>
@@ -401,19 +377,19 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <span className="text-2xl font-bold text-gray-900">
-                  ${calculatePrice()}
+                  PKR {(calculatePrice() || 0).toLocaleString()}
                 </span>
                 <span className="text-sm text-gray-500">
-                  {selectedDates ? 'total' : 'per day'}
+                  {selectedDates ? 'total (with driver)' : 'per day (with driver)'}
                 </span>
               </div>
               {vehicle.originalPrice && vehicle.originalPrice > vehicle.price && (
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500 line-through">
-                    ${vehicle.originalPrice}
+                    PKR {(vehicle.originalPrice || 0).toLocaleString()}
                   </span>
                   <span className="text-xs text-green-600 font-medium">
-                    Save ${vehicle.originalPrice - vehicle.price}
+                    Save PKR {((vehicle.originalPrice || 0) - (vehicle.price || 0)).toLocaleString()}
                   </span>
                 </div>
               )}
@@ -425,14 +401,14 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
                   onClick={handleCompareToggle}
                   className={`p-2 rounded-full transition-colors ${
                     isInCompare 
-                      ? 'bg-blue-100 text-blue-600' 
+                      ? 'bg-[#01502E]/10 text-[#01502E]'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
                   <GitCompare className="w-4 h-4" />
                 </button>
               )}
-              <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+              <button className="bg-[#01502E] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#013d23] transition-all duration-200 transform hover:scale-105 shadow-lg">
                 Book Now
               </button>
             </div>
@@ -441,7 +417,7 @@ export default function VehicleCard({ vehicle, showCompare = false, selectedDate
 
         {/* Hover Glow Effect */}
         {isHovered && (
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 pointer-events-none" />
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-[#01502E]/10 to-orange-500/10 pointer-events-none" />
         )}
       </Link>
     </div>
@@ -567,7 +543,7 @@ export function VehicleComparison({ vehicles, onRemove, onClear }: VehicleCompar
         </div>
         <button
           onClick={onClear}
-          className="text-blue-600 hover:text-blue-800 font-medium"
+          className="text-[#01502E] hover:text-orange-600 font-medium"
         >
           Clear All
         </button>
@@ -575,3 +551,4 @@ export function VehicleComparison({ vehicles, onRemove, onClear }: VehicleCompar
     </div>
   );
 }
+import React from 'react';

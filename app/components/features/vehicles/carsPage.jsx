@@ -72,10 +72,10 @@ export default function CarsPage({ onBookCar, onViewDetails }) {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-auto">
                 <p className="text-green-600 font-bold text-lg">{car.price}</p>
                 <div className="flex flex-col gap-2 w-full sm:flex-row sm:w-auto">
-                  <button className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition w-full sm:w-auto" onClick={() => onBookCar && onBookCar(car)}>
+                  <button className="px-4 py-2 bg-[#01502E] text-white rounded hover:bg-[#013d23] transition w-full sm:w-auto" onClick={() => onBookCar && onBookCar(car)}>
                     Book Now
                   </button>
-                  <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition w-full sm:w-auto" onClick={() => onViewDetails && onViewDetails(car)}>
+                  <button className="px-4 py-2 border border-[#01502E] text-[#01502E] rounded hover:bg-[#01502E]/10 transition w-full sm:w-auto" onClick={() => onViewDetails && onViewDetails(car)}>
                     View Details
                   </button>
                 </div>

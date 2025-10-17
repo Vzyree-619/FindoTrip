@@ -4,8 +4,8 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "@remix-run/node";
-import { Form, Link, useActionData, useNavigation, useNavigate } from "@remix-run/react";
-import { useState } from "react";
+import { Form, Link, useActionData, useNavigation, useNavigate, useLoaderData } from "@remix-run/react";
+import { useEffect, useRef, useState } from "react";
 import { register, createUserSession, getUserId } from "~/lib/auth/auth.server";
 import { sendWelcomeEmail } from "~/lib/email/email.server";
 import { 
@@ -26,11 +26,18 @@ import {
   Camera,
   Globe
 } from "lucide-react";
+import TermsContent from "~/components/legal/TermsContent";
+import PrivacyContent from "~/components/legal/PrivacyContent";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await getUserId(request);
   if (userId) return redirect("/");
-  return json({});
+  
+  const url = new URL(request.url);
+  const redirectTo = url.searchParams.get("redirectTo");
+  const fromBooking = redirectTo?.includes("/accommodations/") || redirectTo?.includes("/vehicles/") || redirectTo?.includes("/tours/");
+  
+  return json({ redirectTo, fromBooking });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -45,6 +52,7 @@ export async function action({ request }: ActionFunctionArgs) {
     | "PROPERTY_OWNER"
     | "VEHICLE_OWNER"
     | "TOUR_GUIDE";
+  const redirectTo = formData.get("redirectTo") as string;
 
   if (
     typeof email !== "string" ||
@@ -70,39 +78,87 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
-  const result = await register(email, password, name, role, phone as string);
-
-  if ("error" in result) {
-    return json({ error: result.error }, { status: 400 });
-  }
-
-  // Send welcome email (don't block registration if email fails)
   try {
-    await sendWelcomeEmail(result.user.email, result.user.name, result.user.role);
-  } catch (error) {
-    console.error('Failed to send welcome email:', error);
+    const result = await register(email, password, name, role, phone as string);
+
+    if ("error" in result) {
+      return json({ error: result.error }, { status: 400 });
+    }
+
+    // Send welcome email (don't block registration if email fails)
+    try {
+      await sendWelcomeEmail(result.user.email, result.user.name, result.user.role);
+    } catch (error) {
+      console.error('Failed to send welcome email:', error);
+    }
+
+    // Redirect to role-specific onboarding or back to booking
+    const onboardingRoutes = {
+      CUSTOMER: redirectTo || "/dashboard",
+      PROPERTY_OWNER: "/onboarding/property-owner",
+      VEHICLE_OWNER: "/onboarding/vehicle-owner",
+      TOUR_GUIDE: "/onboarding/tour-guide"
+    } as const;
+
+    return createUserSession(result.user.id, onboardingRoutes[role]);
+  } catch (e) {
+    console.error('Registration failed:', e);
+    return json({ error: "Registration failed due to a server/database issue. Please verify DATABASE_URL and Prisma setup." }, { status: 500 });
   }
-
-  // Redirect to role-specific onboarding
-  const onboardingRoutes = {
-    CUSTOMER: "/dashboard",
-    PROPERTY_OWNER: "/onboarding/property-owner",
-    VEHICLE_OWNER: "/onboarding/vehicle-owner",
-    TOUR_GUIDE: "/onboarding/tour-guide"
-  };
-
-  return createUserSession(result.user.id, onboardingRoutes[role]);
 }
 
 export default function Register() {
   const actionData = useActionData<typeof action>();
+  const { redirectTo, fromBooking } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const navigate = useNavigate();
   const isSubmitting = navigation.state === "submitting";
-  const [step, setStep] = useState<'role' | 'details'>('role');
-  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [step, setStep] = useState<'role' | 'details'>(fromBooking ? 'details' : 'role');
+  const [selectedRole, setSelectedRole] = useState<string>(fromBooking ? 'CUSTOMER' : '');
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [modalAgree, setModalAgree] = useState(false);
+  const [reachedEnd, setReachedEnd] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [modalScrollPos, setModalScrollPos] = useState(0);
+  const termsContentRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!showTerms) return;
+    setModalAgree(false);
+    setReachedEnd(false);
+
+    const el = termsContentRef.current;
+    if (!el) return;
+
+    // Restore previous scroll position if any
+    if (modalScrollPos > 0) {
+      el.scrollTop = modalScrollPos;
+    }
+
+    const onScroll = () => {
+      const visible = el.scrollTop + el.clientHeight;
+      const percent = Math.min(100, Math.max(0, (visible / el.scrollHeight) * 100));
+      setScrollProgress(percent);
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      if (distanceFromBottom <= 8) {
+        setReachedEnd(true);
+        setModalAgree(true); // auto-check agree when scrolled to bottom
+      }
+    };
+
+    el.addEventListener('scroll', onScroll);
+    // Initial check in case content fits without scroll
+    onScroll();
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [showTerms, modalScrollPos]);
+
+  const closeTermsModal = () => {
+    const el = termsContentRef.current;
+    if (el) setModalScrollPos(el.scrollTop);
+    setShowTerms(false);
+  };
 
   // Password strength calculation
   const getPasswordStrength = (pwd: string) => {
@@ -283,6 +339,7 @@ export default function Register() {
           <Form method="post" className="space-y-5">
             {/* Hidden role field */}
             <input type="hidden" name="role" value={selectedRole} />
+            {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
             
             {/* Full Name */}
             <div>
@@ -426,7 +483,7 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Terms and Conditions */}
+            {/* Terms and Conditions (Modal-trigger) */}
             <div className="flex items-start">
               <input
                 id="terms"
@@ -439,13 +496,13 @@ export default function Register() {
               />
               <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
                 I agree to the{" "}
-                <Link to="/terms" className="text-[#01502E] hover:text-[#013d23] font-medium">
+                <button type="button" onClick={() => setShowTerms(true)} className="text-[#01502E] hover:text-[#013d23] font-medium underline">
                   Terms of Service
-                </Link>{" "}
+                </button>{" "}
                 and{" "}
-                <Link to="/privacy" className="text-[#01502E] hover:text-[#013d23] font-medium">
+                <button type="button" onClick={() => setShowTerms(true)} className="text-[#01502E] hover:text-[#013d23] font-medium underline">
                   Privacy Policy
-                </Link>
+                </button>
               </label>
             </div>
 
@@ -474,6 +531,82 @@ export default function Register() {
                 "Create Account"
               )}
             </button>
+
+            {/* Terms Modal */}
+            {showTerms && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 relative">
+                  <button
+                    type="button"
+                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+                    onClick={() => setShowTerms(false)}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                  <h3 className="text-lg font-semibold mb-2">Terms & Privacy</h3>
+                  {/* Progress bar */}
+                  <div className="mb-2">
+                    <div className="h-2 bg-gray-200 rounded">
+                      <div
+                        className="h-2 bg-[#01502E] rounded"
+                        style={{ width: `${scrollProgress}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-xs text-gray-600 flex items-center justify-between">
+                      <span>Read progress: {Math.round(scrollProgress)}%</span>
+                      <span className="space-x-2">
+                        <button type="button" className="underline" onClick={() => { const el = termsContentRef.current; if (el) el.scrollTop = 0; }}>Jump to top</button>
+                        <button type="button" className="underline" onClick={() => { const el = termsContentRef.current; if (el) el.scrollTop = el.scrollHeight; }}>Jump to bottom</button>
+                      </span>
+                    </div>
+                  </div>
+                  {/* Condensed summary */}
+                  <div className="mb-3 text-sm text-gray-700">
+                    Please review our key points below. Scroll to the bottom or check the box to enable Accept.
+                    <ul className="list-disc ml-5 mt-2">
+                      <li>Bookings are contracts with providers; policies vary.</li>
+                      <li>Your data is collected to provide/improve services and is protected.</li>
+                      <li>You can request access or deletion of your data anytime.</li>
+                    </ul>
+                  </div>
+                  <div ref={termsContentRef} className="prose max-h-[50vh] overflow-y-auto space-y-8 border rounded p-3">
+                    <TermsContent />
+                    <PrivacyContent />
+                  </div>
+                  {reachedEnd && (
+                    <div className="mt-3 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-block">
+                      You’ve reviewed all sections
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-start gap-2">
+                    <input
+                      id="modalAgree"
+                      type="checkbox"
+                      className="h-4 w-4 mt-1 text-[#01502E] border-gray-300 rounded"
+                      checked={modalAgree}
+                      onChange={(e) => setModalAgree(e.target.checked)}
+                    />
+                    <label htmlFor="modalAgree" className="text-sm text-gray-700">
+                      I have read and agree to the Terms of Service and Privacy Policy
+                    </label>
+                  </div>
+                  <div className="mt-4 flex justify-between gap-2">
+                    <button type="button" className="px-4 py-2 rounded border" onClick={closeTermsModal}>Back to Form</button>
+                    <div className="flex gap-2">
+                      <button type="button" className="px-4 py-2 rounded border" onClick={closeTermsModal}>Close</button>
+                      <button
+                        type="button"
+                        className={`px-4 py-2 rounded text-white ${modalAgree ? 'bg-[#01502E] hover:bg-[#013d23]' : 'bg-gray-300 cursor-not-allowed'}`}
+                        disabled={!modalAgree}
+                        onClick={() => { setAcceptedTerms(true); setShowTerms(false); }}
+                      >
+                        Accept
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </Form>
 
           {/* Divider */}

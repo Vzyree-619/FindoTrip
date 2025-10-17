@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { requireUserId } from "~/lib/auth/auth.server";
+import { getUserId } from "~/lib/auth/auth.server";
 import { 
   getUserConversations, 
   getOrCreateConversation, 
@@ -46,7 +46,19 @@ interface ConversationsListResponse {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const userId = await requireUserId(request);
+    const userId = await getUserId(request);
+    
+    // If no user is logged in, return empty data instead of redirecting
+    if (!userId) {
+      return json({
+        success: true,
+        data: {
+          conversations: [],
+          total: 0,
+          hasMore: false
+        }
+      });
+    }
     const url = new URL(request.url);
     
     // Parse query parameters
@@ -125,7 +137,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    const userId = await requireUserId(request);
+    const userId = await getUserId(request);
+    
+    // If no user is logged in, return error
+    if (!userId) {
+      return json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
     
     if (request.method !== "POST") {
       return json(

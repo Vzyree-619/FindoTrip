@@ -31,7 +31,7 @@ function DatePicker({ field }) {
             : field.label || "Pick a date"}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
+      <PopoverContent className="w-auto p-0 bg-white">
         <Calendar
           mode="single"
           selected={dates[field.name]}
@@ -39,6 +39,12 @@ function DatePicker({ field }) {
           initialFocus
         />
       </PopoverContent>
+      {/* Hidden input to submit selected date */}
+      <input
+        type="hidden"
+        name={field.name}
+        value={dates[field.name] ? format(dates[field.name], "yyyy-MM-dd") : ""}
+      />
     </Popover>
   );
 }

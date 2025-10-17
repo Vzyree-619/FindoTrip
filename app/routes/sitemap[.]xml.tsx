@@ -7,7 +7,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Static pages
   const staticPages = [
     { url: '', priority: '1.0', changefreq: 'daily' },
-    { url: '/accommodations/search', priority: '0.9', changefreq: 'daily' },
+    { url: '/accommodations', priority: '0.9', changefreq: 'daily' },
     { url: '/car_rentals', priority: '0.8', changefreq: 'weekly' },
     { url: '/tour_guides', priority: '0.8', changefreq: 'weekly' },
     { url: '/about', priority: '0.6', changefreq: 'monthly' },

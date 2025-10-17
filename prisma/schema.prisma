@@ -301,6 +301,10 @@ model User {
   hasUnreadMessages Boolean @default(false)
   lastActiveAt DateTime?
 
+  // Chat settings (JSON strings for flexibility)
+  chatSettings    String?
+  privacySettings String?
+
   // ========================================
   // SECURITY & PRIVACY RELATIONSHIPS
   // ========================================
@@ -321,6 +325,12 @@ model User {
   // Audit logging
   chatAuditLogs    ChatAuditLog[] @relation("AuditLogUser")
   generalAuditLogs AuditLog[] @relation("GeneralAuditLogUser")
+  
+  // Admin system relationships
+  errorLogs        ErrorLog[] @relation("ErrorLogUser")
+  activityLogs     ActivityLog[] @relation("ActivityLogUser")
+  emailTemplates   EmailTemplate[] @relation("EmailTemplateCreator")
+  auditLogs        AuditLog[] @relation("AuditLogUser")
 
   @@index([role])
   @@index([verified])
@@ -2528,4 +2538,230 @@ model ChatInsight {
   @@index([isRead])
   @@index([createdAt])
   @@index([expiresAt])
+}
+
+// ========================================
+// ADMIN SYSTEM MODELS
+// ========================================
+
+// Error Logs
+model ErrorLog {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  message         String
+  details         String?
+  errorCode       String?
+  stackTrace      String?
+  severity        String   // "CRITICAL", "WARNING", "INFO"
+  type            String   // "database", "payment", "email", "api", "system"
+  status          String   @default("OPEN") // "OPEN", "ASSIGNED", "RESOLVED"
+  
+  // User context
+  userId          String?  @db.ObjectId
+  user            User?    @relation("ErrorLogUser", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Request context
+  page            String?
+  browser         String?
+  ipAddress       String?
+  userAgent       String?
+  
+  // Resolution
+  resolution      String?
+  resolvedAt      DateTime?
+  resolvedBy      String?  @db.ObjectId
+  assignedTo      String?  @db.ObjectId
+  
+  // Reopening
+  reopenedAt      DateTime?
+  reopenedBy      String?  @db.ObjectId
+  reopenReason    String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([severity])
+  @@index([type])
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Activity Logs
+model ActivityLog {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  type            String   // "USER_LOGIN", "USER_REGISTRATION", "BOOKING_CREATED", etc.
+  description     String
+  userId          String?  @db.ObjectId
+  user            User?    @relation("ActivityLogUser", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Context
+  ipAddress       String?
+  userAgent       String?
+  location        String?
+  metadata        Json?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([type])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Platform Settings
+model PlatformSetting {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  key             String   @unique
+  value           String
+  description     String?
+  category        String   // "general", "payment", "email", "security"
+  isPublic        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([category])
+  @@index([isPublic])
+}
+
+// Email Templates
+model EmailTemplate {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  subject         String
+  fromName        String
+  fromEmail       String
+  body            String
+  category        String   // "customer", "provider", "admin"
+  description     String?
+  isEnabled       Boolean  @default(true)
+  
+  // Creator
+  createdById     String   @db.ObjectId
+  createdBy       User     @relation("EmailTemplateCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  
+  // Usage tracking
+  usageCount      Int @default(0)
+  lastUsedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([category])
+  @@index([isEnabled])
+  @@index([createdById])
+}
+
+// Notification Settings
+model NotificationSetting {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  type            String   // "admin", "user", "push", "sms"
+  settings        Json     // Configuration settings
+  isEnabled       Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([type])
+  @@index([isEnabled])
+}
+
+// Security Settings
+model SecuritySetting {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  category        String   // "authentication", "rate_limiting", "encryption", "backup"
+  settings        Json     // Configuration settings
+  isEnabled       Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([category])
+  @@index([isEnabled])
+}
+
+// Platform Analytics
+model PlatformAnalytics {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  date            DateTime @default(now())
+  
+  // User metrics
+  totalUsers      Int @default(0)
+  activeUsers     Int @default(0)
+  newUsers        Int @default(0)
+  
+  // Booking metrics
+  totalBookings   Int @default(0)
+  totalRevenue    Float @default(0)
+  conversionRate  Float @default(0)
+  avgBookingValue Float @default(0)
+  
+  // Platform metrics
+  totalProperties Int @default(0)
+  totalVehicles   Int @default(0)
+  totalTours      Int @default(0)
+  
+  // Traffic metrics
+  pageViews       Int @default(0)
+  uniqueVisitors  Int @default(0)
+  bounceRate      Float @default(0)
+  
+  // Additional metrics
+  metadata        Json?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([date])
+}
+
+// Growth Metrics
+model GrowthMetric {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  date            DateTime @default(now())
+  period          String   // "daily", "weekly", "monthly", "yearly"
+  
+  // Growth metrics
+  userGrowth      Float @default(0)
+  revenueGrowth   Float @default(0)
+  bookingGrowth   Float @default(0)
+  
+  // Acquisition metrics
+  acquisitionCost Float @default(0)
+  lifetimeValue   Float @default(0)
+  churnRate       Float @default(0)
+  retentionRate   Float @default(0)
+  
+  // Forecasting
+  forecastedUsers Int @default(0)
+  forecastedRevenue Float @default(0)
+  
+  createdAt       DateTime @default(now())
+
+  @@index([date])
+  @@index([period])
+}
+
+// Audit Logs
+model AuditLog {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  action          String
+  resourceType    String
+  resourceId      String
+  details         Json?
+  
+  // User context
+  userId          String   @db.ObjectId
+  user            User     @relation("AuditLogUser", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Security metadata
+  ipAddress       String?
+  userAgent       String?
+  severity        String   @default("LOW") // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+  
+  timestamp       DateTime @default(now())
+
+  @@index([action])
+  @@index([resourceType])
+  @@index([userId])
+  @@index([severity])
+  @@index([timestamp])
 }

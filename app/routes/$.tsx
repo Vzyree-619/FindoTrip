@@ -12,6 +12,11 @@ export const meta = () => generateMeta({
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   
+  // Skip API routes - let them be handled by their specific routes
+  if (url.pathname.startsWith('/api/')) {
+    throw new Response("API route not found", { status: 404 });
+  }
+  
   // Log 404s for analytics
   console.log(`404 Error: ${url.pathname} - Referrer: ${request.headers.get('referer') || 'Direct'}`);
   
@@ -33,7 +38,7 @@ export default function NotFound() {
       icon: Search,
       title: "Search Accommodations",
       description: "Find your perfect stay",
-      to: "/accommodations/search",
+      to: "/accommodations",
       color: "bg-green-500 hover:bg-green-600"
     },
     {

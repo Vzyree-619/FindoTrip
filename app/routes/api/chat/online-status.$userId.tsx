@@ -34,12 +34,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     // Rate limiting
     const rateLimitResult = await checkRateLimit(
-      userId,
-      
-      'chat-status-${requestingUserId}',
-      '100', // 100 requests per minute
-      '60' * 1000
-    });
+      requestingUserId,
+      `chat-status-${requestingUserId}`,
+      100, // 100 requests per minute
+      60 * 1000
+    );
     
     if (!rateLimitResult.allowed) {
       return json(

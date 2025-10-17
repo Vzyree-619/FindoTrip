@@ -174,7 +174,7 @@ export const createReviewSchema = z.object({
 
 export const createPaymentSchema = z.object({
   amount: z.number().positive("Amount must be greater than 0"),
-  currency: z.string().length(3, "Currency must be a 3-letter code").default("USD"),
+  currency: z.string().length(3, "Currency must be a 3-letter code").default("PKR"),
   method: z.enum(["CARD", "PAYPAL", "BANK_TRANSFER", "CASH"]),
   transactionId: z.string().min(5, "Transaction ID is required"),
 });

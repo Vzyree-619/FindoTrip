@@ -35,11 +35,10 @@ export async function action({ request }: ActionFunctionArgs) {
     // Rate limiting for file uploads
     const rateLimitResult = await checkRateLimit(
       userId,
-      
-      'chat-upload-${userId}',
-      '20', // 20 uploads per minute
-      '60' * 1000
-    });
+      `chat-upload-${userId}`,
+      20, // 20 uploads per minute
+      60 * 1000
+    );
     
     if (!rateLimitResult.allowed) {
       return json(

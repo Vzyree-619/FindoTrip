@@ -43,7 +43,7 @@ export function MobileConversationList({
   };
 
   return (
-    <div className={clsx("h-full flex flex-col bg-white dark:bg-gray-900", className)}>
+    <div className={clsx("h-full flex flex-col bg-white", className)}>
       {/* Header */}
       <div className="px-4 py-3 border-b bg-[#01502E] text-white">
         <div className="flex items-center justify-between mb-3">
@@ -71,7 +71,7 @@ export function MobileConversationList({
         {loading ? (
           <div className="p-4 space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-16 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
+              <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -110,7 +110,7 @@ export function MobileConversationList({
                   onClick={() => onSelect?.(conv.id)}
                   className={clsx(
                     "w-full text-left p-4 border-b border-gray-100 dark:border-gray-800",
-                    "hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100",
+                    "hover:bg-gray-50 active:bg-gray-100",
                     "transition-transform duration-200",
                     isSwipped && "transform -translate-x-24"
                   )}

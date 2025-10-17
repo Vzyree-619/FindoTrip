@@ -5,7 +5,7 @@ import { clsx } from "./utils";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
 import AttachmentPreview from "./AttachmentPreview";
-import { useNotificationsStream } from "~/hooks/useNotificationsStream";
+import { useTheme } from "~/contexts/ThemeContext";
 
 export type ChatInterfaceProps = {
   isOpen: boolean;
@@ -18,6 +18,7 @@ export type ChatInterfaceProps = {
   onSendMessage?: (args: { conversationId?: string; targetUserId?: string; text: string; files?: File[] }) => Promise<Message | void>;
   onLoadMore?: (args: { conversationId: string; before?: string }) => Promise<Message[]>;
   className?: string;
+  variant?: 'modal' | 'inline';
 };
 
 export function ChatInterface({
@@ -31,7 +32,9 @@ export function ChatInterface({
   onSendMessage,
   onLoadMore,
   className,
+  variant = 'modal',
 }: ChatInterfaceProps) {
+  const { resolvedTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -42,54 +45,22 @@ export function ChatInterface({
   const lastTypingSentRef = useRef<number>(0);
   const stopTypingTimerRef = useRef<number | null>(null);
 
-  // SSE for chat events (optional)
-  useNotificationsStream(
-    (notif) => {
-      // noop for notification events
-    },
-    (msg) => {
-      // Expecting events of type { type: 'chat_message', conversationId, message }
-      if (msg?.type === "chat_message" && msg.conversationId === conversation?.id && msg.message) {
-        setMessages((prev) => {
-          const idx = prev.findIndex((m) => m.id === msg.message.id);
-          if (idx >= 0) {
-            const copy = [...prev];
-            // If I'm the sender, upgrade status to delivered
-            if (msg.message.senderId === currentUserId) {
-              copy[idx] = { ...copy[idx], status: "delivered" } as any;
-            }
-            return copy;
-          }
-          return [...prev, msg.message];
-        });
-        scrollToBottomSmooth();
-      }
-      if (msg?.type === "typing" && msg.conversationId === conversation?.id) {
-        setIsTyping(Boolean(msg.typing));
-      }
-      if (msg?.type === "read_receipt" && msg.conversationId === conversation?.id) {
-        // Mark all my sent messages as read
-        setMessages((prev) => prev.map((m) => (m.senderId === currentUserId ? { ...m, status: "read" } : m)));
-      }
-    }
-  );
+  // Real-time chat events would be handled here in a production app
+  // For now, we'll use a simple implementation without SSE
 
   const load = async () => {
     // Default fetch via API if not provided
     const defaultFetch = async ({ conversationId, targetUserId }: { conversationId?: string; targetUserId?: string }): Promise<FetchConversationResult> => {
-      let cid = conversationId;
-      if (!cid && targetUserId) {
-        const res = await fetch('/api/chat/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetUserId, type: 'CUSTOMER_PROVIDER' }) });
+      if (targetUserId) {
+        // Use the chat conversation API
+        const res = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
         const json = await res.json();
-        cid = json?.data?.id;
+        return { 
+          conversation: json.data?.conversation, 
+          messages: json.data?.messages || [] 
+        } as FetchConversationResult;
       }
-      const convRes = await fetch(`/api/chat/conversations/${cid}`);
-      const convJson = await convRes.json();
-      const conversation = convJson?.data;
-      const msgsRes = await fetch(`/api/chat/conversations/${cid}/messages?limit=50`);
-      const msgsJson = await msgsRes.json();
-      const messages = msgsJson?.data?.messages || [];
-      return { conversation, messages } as FetchConversationResult;
+      return { conversation: null, messages: [] };
     };
     setLoading(true);
     try {
@@ -100,16 +71,16 @@ export function ChatInterface({
         try {
           const sendFn =
             onSendMessage ||
-            (async ({ conversationId, text }: { conversationId?: string; text: string; files?: File[] }) => {
-              const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
+            (async ({ targetUserId, text }: { targetUserId?: string; text: string; files?: File[] }) => {
+              const res = await fetch('/api/chat.send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: text }),
+                body: JSON.stringify({ targetUserId, text }),
               });
               const json = await res.json();
               return json?.data as Message;
             });
-          const sent = await sendFn({ conversationId: res.conversation.id, text: initialMessage, files: [] });
+          const sent = await sendFn({ targetUserId, text: initialMessage, files: [] });
           if (sent) setMessages((prev) => [...prev, sent]);
         } catch {}
       }
@@ -143,7 +114,7 @@ export function ChatInterface({
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || variant === 'inline') {
       load();
       // mark messages as read on open
       const cid = conversation?.id || conversationId;
@@ -161,11 +132,11 @@ export function ChatInterface({
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, conversationId, targetUserId]);
+  }, [isOpen, variant, conversationId, targetUserId]);
 
   const onSend = async (text: string, files?: File[]) => {
-    const defaultSend = async ({ conversationId, text, files }: { conversationId?: string; text: string; files?: File[] }) => {
-      const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: text }) });
+    const defaultSend = async ({ targetUserId, text, files }: { targetUserId?: string; text: string; files?: File[] }) => {
+      const res = await fetch('/api/chat.send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetUserId, text }) });
       const json = await res.json();
       return json?.data as Message;
     };
@@ -181,7 +152,7 @@ export function ChatInterface({
     };
     setMessages((prev) => [...prev, temp]);
     scrollToBottomSmooth();
-    const result = await (onSendMessage || defaultSend)({ conversationId: conversation?.id, targetUserId, text, files });
+    const result = await (onSendMessage || defaultSend)({ targetUserId, text, files });
     if (result) {
       setMessages((prev) => prev.map((m) => (m.id === temp.id ? result : m)));
     } else {
@@ -218,35 +189,46 @@ export function ChatInterface({
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }
 
-  if (!isOpen) return null;
+  if (variant === 'modal' && !isOpen) return null;
 
   return (
     <div
       className={clsx(
-        "fixed inset-0 z-[60] flex items-end sm:items-center justify-center",
-        "bg-black/30",
+        variant === 'modal'
+          ? "fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/30"
+          : "w-full h-full",
         className
       )}
       role="dialog"
-      aria-modal="true"
+      aria-modal={variant === 'modal' ? "true" : undefined}
     >
-      <div className="w-full sm:w-[720px] h-[80vh] sm:h-[600px] bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out]">
+      <div
+        className={clsx(
+          variant === 'modal'
+            ? "w-full sm:w-[720px] h-[80vh] sm:h-[600px] bg-white rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out]"
+            : "h-full bg-white border rounded-lg shadow-sm flex flex-col overflow-hidden"
+        )}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-[#01502E] to-[#013d23] text-white">
           <div className="flex items-center gap-3">
-            <img src={conversation?.participants?.[0]?.avatar || "/avatar.png"} className="w-8 h-8 rounded-full" alt="avatar" />
+            <img src={conversation?.participants?.[0]?.avatar || "/avatar.png"} className="w-8 h-8 rounded-full border-2 border-white/20" alt="avatar" />
             <div>
-              <div className="font-medium">{conversation?.participants?.[0]?.name || "Chat"}</div>
-              <div className="text-xs text-gray-500">{isTyping ? "typing…" : conversation?.participants?.[0]?.online ? "online" : "offline"}</div>
+              <div className="font-semibold text-white">{conversation?.participants?.[0]?.name || "Chat"}</div>
+              <div className="text-xs text-white/70">{isTyping ? "typing…" : conversation?.participants?.[0]?.online ? "online" : "offline"}</div>
             </div>
           </div>
-          <button className="p-2 rounded hover:bg-gray-100" onClick={onClose} aria-label="Close chat">
-            <X className="w-5 h-5" />
-          </button>
+          {variant === 'modal' && (
+            <button className="p-2 rounded-lg hover:bg-white/10 transition-colors" onClick={onClose} aria-label="Close chat">
+              <X className="w-5 h-5 text-white" />
+            </button>
+          )}
         </div>
 
         {/* Messages */}
-        <div ref={listRef} onScroll={onScrollTop} className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50 dark:bg-gray-950">
+        <div ref={listRef} onScroll={onScrollTop} className={`flex-1 overflow-y-auto p-3 space-y-2 min-h-0 ${
+          resolvedTheme === 'dark' ? 'bg-gray-950' : 'bg-gray-50'
+        }`}>
           {loading ? (
             <div className="h-full flex items-center justify-center text-gray-500">
               <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading chat…

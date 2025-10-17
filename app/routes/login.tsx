@@ -4,15 +4,28 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "@remix-run/node";
-import { Form, Link, useActionData, useSearchParams, useNavigation } from "@remix-run/react";
-import { login, createUserSession, getUserId } from "~/lib/auth/auth.server";
-import { prisma } from "~/lib/db/db.server";
+import { Form, Link, useActionData, useSearchParams, useNavigation, useLoaderData } from "@remix-run/react";
+import { login, createUserSession, getUserId, getUser } from "~/lib/auth/auth.server";
 import { Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const userId = await getUserId(request);
-  if (userId) return redirect("/");
-  return json({});
+  const user = await getUser(request);
+  if (user) {
+    const redirectRoutes = {
+      CUSTOMER: "/dashboard",
+      PROPERTY_OWNER: "/dashboard/provider",
+      VEHICLE_OWNER: "/dashboard/vehicle-owner",
+      TOUR_GUIDE: "/dashboard/guide",
+      SUPER_ADMIN: "/dashboard/admin",
+    } as const;
+    return redirect((redirectRoutes as any)[user.role] || "/dashboard");
+  }
+  
+  const url = new URL(request.url);
+  const redirectTo = url.searchParams.get("redirectTo");
+  const fromBooking = redirectTo?.includes("/book/tour/") || redirectTo?.includes("/book/stay/") || redirectTo?.includes("/book/vehicle/");
+  
+  return json({ redirectTo, fromBooking });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -33,27 +46,34 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: "Email and password are required" }, { status: 400 });
   }
 
-  const result = await login(email, password);
+  try {
+    const result = await login(email, password);
 
-  if ("error" in result) {
-    return json({ error: result.error }, { status: 400 });
+    if ("error" in result) {
+      return json({ error: result.error }, { status: 400 });
+    }
+
+    // If there's a redirectTo parameter, use it; otherwise redirect to role-specific dashboard
+    const role = result.user.role;
+    const redirectRoutes = {
+      CUSTOMER: "/dashboard",
+      PROPERTY_OWNER: "/dashboard/provider",
+      VEHICLE_OWNER: "/dashboard/vehicle-owner",
+      TOUR_GUIDE: "/dashboard/guide",
+      SUPER_ADMIN: "/dashboard/admin"
+    } as const;
+
+    // Use redirectTo if provided, otherwise use role-based redirect
+    const finalRedirectTo = redirectTo !== "/" ? redirectTo : ((redirectRoutes as any)[role] || "/dashboard");
+
+    return createUserSession(
+      result.user.id,
+      finalRedirectTo
+    );
+  } catch (e) {
+    console.error("Login action failed:", e);
+    return json({ error: "Login failed due to a server/database issue. Please check DATABASE_URL and try again." }, { status: 500 });
   }
-
-  // Get user role and redirect to appropriate dashboard
-  const user = await prisma.user.findUnique({
-    where: { id: result.user.id },
-    select: { role: true }
-  });
-
-  const redirectRoutes = {
-    CUSTOMER: "/dashboard",
-    PROPERTY_OWNER: "/dashboard/provider",
-    VEHICLE_OWNER: "/dashboard/vehicle-owner",
-    TOUR_GUIDE: "/dashboard/guide",
-    SUPER_ADMIN: "/dashboard/admin"
-  };
-
-  return createUserSession(result.user.id, redirectRoutes[user?.role as keyof typeof redirectRoutes] || "/dashboard");
 }
 
 export default function Login() {
@@ -61,6 +81,7 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const { fromBooking } = useLoaderData<typeof loader>();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#01502E]/5 to-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -71,8 +92,18 @@ export default function Login() {
             Welcome Back
           </h2>
           <p className="text-gray-600">
-            Sign in to continue your journey
+            {fromBooking 
+              ? "Please sign in to complete your booking" 
+              : "Sign in to continue your journey"
+            }
           </p>
+          {fromBooking && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                🔒 You need to be logged in to book tours, accommodations, or vehicles
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Login Form */}
@@ -217,7 +248,7 @@ export default function Login() {
           <p className="mt-6 text-center text-sm text-gray-600">
             Don't have an account?{" "}
             <Link
-              to="/register"
+              to={`/register${searchParams.get("redirectTo") ? `?redirectTo=${encodeURIComponent(searchParams.get("redirectTo")!)}` : ""}`}
               className="font-semibold text-[#01502E] hover:text-[#013d23]"
             >
               Sign up now

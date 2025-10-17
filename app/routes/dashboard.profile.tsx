@@ -4,10 +4,11 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "@remix-run/node";
-import { useLoaderData, useActionData, Form, useNavigation } from "@remix-run/react";
-import { useState, useRef } from "react";
+import { useLoaderData, useActionData, Form, useNavigation, useFetcher } from "@remix-run/react";
+import { useState, useRef, useEffect } from "react";
 import { requireUserId, getUser } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
+import { v2 as cloudinary } from "cloudinary";
 import { hashPassword, verifyPassword } from "~/lib/auth/auth.server";
 import {
   User,
@@ -29,12 +30,39 @@ import {
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
   const user = await getUser(request);
+  const url = new URL(request.url);
+  const updated = url.searchParams.get("updated");
 
   if (!user) {
     throw redirect("/login");
   }
 
-  return json({ user });
+  // Fetch customer profile for city and country
+  const customerProfile = await prisma.customerProfile.findUnique({
+    where: { userId: userId },
+    select: { city: true, country: true }
+  });
+
+  // Merge user data with customer profile data
+  const userWithLocation = {
+    ...user,
+    city: customerProfile?.city || null,
+    country: customerProfile?.country || null,
+  };
+
+  console.log("Dashboard profile loader:", { 
+    userId, 
+    user: { 
+      id: user.id, 
+      name: user.name, 
+      phone: user.phone,
+      city: userWithLocation.city, 
+      country: userWithLocation.country 
+    }, 
+    updated 
+  });
+
+  return json({ user: userWithLocation, updated: updated === "true" });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -48,23 +76,66 @@ export async function action({ request }: ActionFunctionArgs) {
     const city = formData.get("city") as string;
     const country = formData.get("country") as string;
 
+    console.log("Dashboard profile update attempt:", { name, phone, city, country, userId });
+
     if (!name) {
       return json({ error: "Name is required" }, { status: 400 });
     }
 
     try {
-      await prisma.user.update({
+      console.log("Attempting to update user and customer profile with data:", {
+        userId,
+        name,
+        phone: phone || null,
+        city: city || null,
+        country: country || null,
+      });
+
+      // Update the User model (name and phone)
+      const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
           name,
           phone: phone || null,
+        },
+      });
+
+      // Update or create CustomerProfile for city and country
+      await prisma.customerProfile.upsert({
+        where: { userId: userId },
+        update: {
+          city: city || null,
+          country: country || null,
+        },
+        create: {
+          userId: userId,
+          firstName: name.split(' ')[0] || name,
+          lastName: name.split(' ').slice(1).join(' ') || '',
           city: city || null,
           country: country || null,
         },
       });
 
-      return json({ success: "Profile updated successfully!" });
+      console.log("Dashboard profile updated successfully:", {
+        userId: updatedUser.id,
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+        city,
+        country,
+      });
+      
+      return redirect("/dashboard/profile?updated=true");
     } catch (error) {
+      console.error("Dashboard profile update error details:", {
+        error: error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        userId,
+        name,
+        phone,
+        city,
+        country
+      });
       return json({ error: "Failed to update profile" }, { status: 500 });
     }
   }
@@ -142,11 +213,32 @@ export async function action({ request }: ActionFunctionArgs) {
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
     let url: string | null = null;
+    let target: 'cloudinary' | 'local' = 'local';
     try {
       if (cloudName && apiKey && apiSecret) {
-        const arrayBuffer = await file.arrayBuffer();
-        const base64 = Buffer.from(arrayBuffer).toString("base64");
-        url = `data:${file.type};base64,${base64}`;
+        try {
+          cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
+          const arrayBuffer = await file.arrayBuffer();
+          const uploadResult: any = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream({ folder: 'findo' }, (err, result) => {
+              if (err) reject(err); else resolve(result);
+            });
+            stream.end(Buffer.from(arrayBuffer));
+          });
+          url = uploadResult.secure_url as string;
+          target = 'cloudinary';
+        } catch (cloudErr) {
+          // Fallback to local storage if Cloudinary fails
+          const uploadsDir = "public/uploads/profiles";
+          const fs = await import("fs");
+          if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+          const ext = file.name.split(".").pop() || "jpg";
+          const filename = `${userId}-${Date.now()}.${ext}`;
+          const arrayBuffer = await file.arrayBuffer();
+          fs.writeFileSync(`${uploadsDir}/${filename}`, Buffer.from(arrayBuffer));
+          url = `/uploads/profiles/${filename}`;
+          target = 'local';
+        }
       } else {
         const uploadsDir = "public/uploads/profiles";
         const fs = await import("fs");
@@ -156,10 +248,11 @@ export async function action({ request }: ActionFunctionArgs) {
         const arrayBuffer = await file.arrayBuffer();
         fs.writeFileSync(`${uploadsDir}/${filename}`, Buffer.from(arrayBuffer));
         url = `/uploads/profiles/${filename}`;
+        target = 'local';
       }
 
       await prisma.user.update({ where: { id: userId }, data: { avatar: url! } });
-      return json({ success: "Profile picture updated!" });
+      return json({ success: "Profile picture updated!", target, url });
     } catch (e) {
       return json({ error: "Failed to upload image" }, { status: 500 });
     }
@@ -205,7 +298,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function ProfileSettings() {
-  const { user } = useLoaderData<typeof loader>();
+  const { user, updated } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -227,13 +320,13 @@ export default function ProfileSettings() {
         </div>
 
         {/* Success/Error Messages */}
-        {actionData?.success && (
+        {(actionData?.success || updated) && (
           <div className="mb-6 rounded-md bg-green-50 p-4">
             <div className="flex">
               <CheckCircle className="h-5 w-5 text-green-400" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-green-800">
-                  {actionData.success}
+                  {actionData?.success || "Profile updated successfully!"} {actionData?.target ? `(Uploaded to: ${actionData.target})` : ''}
                 </p>
               </div>
             </div>
@@ -279,7 +372,18 @@ export default function ProfileSettings() {
                 <AvatarUploader userName={user.name} />
               </div>
 
-              <Form method="post" className="space-y-4">
+              <Form method="post" className="space-y-4" onSubmit={(e) => {
+                const formData = new FormData(e.currentTarget);
+                const name = formData.get("name");
+                const city = formData.get("city");
+                const country = formData.get("country");
+                console.log("Dashboard form submission:", { name, city, country });
+                if (!name || typeof name !== "string" || name.trim() === "") {
+                  e.preventDefault();
+                  alert("Name is required");
+                  return;
+                }
+              }}>
                 <input type="hidden" name="intent" value="update-profile" />
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -683,9 +787,26 @@ export default function ProfileSettings() {
 function AvatarUploader({ userName }: { userName: string }) {
   const [preview, setPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const fetcher = useFetcher();
+  
+  // Clear preview when form submission is successful
+  useEffect(() => {
+    if (fetcher.data?.success) {
+      setPreview(null);
+      if (inputRef.current) {
+        inputRef.current.value = '';
+      }
+    }
+  }, [fetcher.data]);
+  
+  const isSubmitting = fetcher.state === "submitting";
+  
   return (
     <div className="ml-4">
-      <Form method="post" encType="multipart/form-data">
+      <fetcher.Form 
+        method="post" 
+        encType="multipart/form-data"
+      >
         <input type="hidden" name="intent" value="update-avatar" />
         <input
           ref={inputRef}
@@ -701,7 +822,8 @@ function AvatarUploader({ userName }: { userName: string }) {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+          disabled={isSubmitting}
         >
           <Camera className="w-4 h-4 mr-2" />
           Change Photo
@@ -713,11 +835,35 @@ function AvatarUploader({ userName }: { userName: string }) {
           </div>
         )}
         {preview && (
-          <div className="mt-2">
-            <button type="submit" className="px-3 py-2 bg-[#01502E] text-white rounded-md">Save</button>
+          <div className="mt-2 flex gap-2">
+            <button 
+              type="submit" 
+              className="px-3 py-2 bg-[#01502E] text-white rounded-md hover:bg-[#013d23] transition-colors disabled:opacity-50"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPreview(null);
+                if (inputRef.current) {
+                  inputRef.current.value = '';
+                }
+              }}
+              className="px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         )}
-      </Form>
+        {fetcher.data?.error && (
+          <p className="text-red-500 text-xs mt-1">{fetcher.data.error}</p>
+        )}
+        {fetcher.data?.success && (
+          <p className="text-green-500 text-xs mt-1">{fetcher.data.success}</p>
+        )}
+      </fetcher.Form>
     </div>
   );
 }

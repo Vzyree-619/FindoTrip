@@ -16,7 +16,7 @@ export function AttachmentPreview({
   return (
     <div className={clsx("mt-2 grid grid-cols-3 gap-2", className)}>
       {files.map((file, idx) => (
-        <div key={idx} className="relative group border rounded-lg p-2 bg-white dark:bg-gray-800">
+        <div key={idx} className="relative group border rounded-lg p-2 bg-white">
           {file.type === "image" ? (
             <div className="aspect-video overflow-hidden rounded">
               <img src={file.url} alt={file.name || "attachment"} className="w-full h-full object-cover" />
@@ -35,7 +35,7 @@ export function AttachmentPreview({
             <button
               type="button"
               onClick={() => onRemove(idx)}
-              className="absolute -top-2 -right-2 bg-white dark:bg-gray-900 border rounded-full p-1 shadow hover:bg-gray-50"
+              className="absolute -top-2 -right-2 bg-white border rounded-full p-1 shadow hover:bg-gray-50"
               aria-label="Remove attachment"
             >
               <X className="w-4 h-4" />

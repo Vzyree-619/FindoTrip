@@ -4,7 +4,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useRouteLoaderData,
+  useLoaderData,
 } from "@remix-run/react";
 import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -17,6 +17,7 @@ import { SkipToContent, ScreenReaderAnnouncement } from "~/hooks/useAccessibilit
 import { useNetwork } from "~/hooks/useNetwork";
 import { getUser } from "~/lib/auth/auth.server";
 import { generateMeta, structuredDataTemplates, StructuredData } from "~/components/common/SEOHead";
+import { FloatingChatButton } from "~/components/chat/FloatingChatButton";
 import "~/styles/shared.css";
 import "~/tailwind.css";
 
@@ -47,12 +48,17 @@ export const links: LinksFunction = () => [
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await getUser(request);
-  return json({ user });
+  try {
+    const user = await getUser(request);
+    return json({ user });
+  } catch (error) {
+    console.error("Root loader error:", error);
+    return json({ user: null });
+  }
 }
 
-export function Layout({ children }: { children: React.ReactNode }) {
-  const data = useRouteLoaderData<typeof loader>("root");
+export default function App() {
+  const { user } = useLoaderData<typeof loader>();
   const { isOnline } = useNetwork();
   const [showOnlineIndicator, setShowOnlineIndicator] = useState(false);
   const [wasOffline, setWasOffline] = useState(false);
@@ -93,14 +99,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         
         {/* Main navigation */}
         <header className="sticky top-0 z-50 bg-white shadow-sm">
-          <NavBar user={data?.user} />
+          <NavBar user={user} />
         </header>
         
         {/* Mobile navigation is now handled in NavBar */}
         
         {/* Main content */}
         <main id="main-content" className="min-h-screen pb-16 lg:pb-0">
-          {children}
+          <Outlet />
         </main>
         
         {/* Network status indicators (debounced offline) */}
@@ -111,6 +117,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         )} */}
         <OnlineIndicator show={showOnlineIndicator} />
+        
+        {/* Floating Chat Button - only show for authenticated users */}
+        {user && (
+          <FloatingChatButton currentUserId={user.id} />
+        )}
         
         {/* Scripts and restoration */}
         <ScrollRestoration />
@@ -137,10 +148,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </body>
     </html>
   );
-}
-
-export default function App() {
-  return <Outlet />;
 }
 
 // Export error boundary for the app

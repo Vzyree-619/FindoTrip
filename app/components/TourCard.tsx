@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "@remix-run/react";
 import { Heart, Star, Users, Clock, MapPin, Globe, Calendar, Zap, Shield } from "lucide-react";
+import { useFavorites } from "~/hooks/useFavorites";
 
 // ========================================
 // TYPESCRIPT INTERFACES
@@ -51,34 +52,24 @@ interface TourCardProps {
 // UTILITY FUNCTIONS
 // ========================================
 
-const getCategoryColor = (category: string) => {
-  const colors = {
-    Adventure: 'bg-orange-500',
-    Cultural: 'bg-purple-500',
-    Food: 'bg-red-500',
-    Nature: 'bg-green-500',
-    Historical: 'bg-amber-500',
-    Wildlife: 'bg-teal-500'
-  };
-  return colors[category as keyof typeof colors] || 'bg-gray-500';
-};
+const getCategoryColor = (_category: string) => 'bg-orange-500';
 
 const getDifficultyColor = (difficulty: string) => {
   const colors = {
-    Easy: 'text-green-600',
-    Moderate: 'text-yellow-600',
-    Hard: 'text-red-600'
+    Easy: 'text-[#01502E]',
+    Moderate: 'text-orange-600',
+    Hard: 'text-orange-700'
   };
-  return colors[difficulty as keyof typeof colors] || 'text-gray-600';
+  return colors[difficulty as keyof typeof colors] || 'text-[#01502E]';
 };
 
 const getAvailabilityColor = (availability: string) => {
   const colors = {
-    Available: 'bg-green-500',
-    Limited: 'bg-yellow-500',
-    'Fully Booked': 'bg-red-500'
+    Available: 'bg-[#01502E]',
+    Limited: 'bg-orange-500',
+    'Fully Booked': 'bg-orange-700'
   };
-  return colors[availability as keyof typeof colors] || 'bg-gray-500';
+  return colors[availability as keyof typeof colors] || 'bg-[#01502E]';
 };
 
 const getWeatherIcon = (condition: string) => {
@@ -100,7 +91,7 @@ export default function TourCard({ tour }: TourCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isImageHovered, setIsImageHovered] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(tour.isFavorite || false);
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   // Auto-slide images
   useEffect(() => {
@@ -115,15 +106,12 @@ export default function TourCard({ tour }: TourCardProps) {
   const handleFavoriteToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsFavorite(!isFavorite);
+    
+    toggleFavorite('tour', tour.id);
     tour.onToggleFavorite?.(tour.id);
   };
 
-  const handleImageClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % tour.images.length);
-  };
+  // Remove click interception to allow navigation when clicking the image inside the Link
 
   return (
     <div
@@ -131,7 +119,7 @@ export default function TourCard({ tour }: TourCardProps) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link to={`/tours/${tour.id}`} className="block">
+      <Link to={`/tour/${tour.id}`} className="block">
         {/* Image Section */}
         <div className="relative h-64 overflow-hidden">
           {/* Image Carousel */}
@@ -139,7 +127,6 @@ export default function TourCard({ tour }: TourCardProps) {
             className="relative w-full h-full"
             onMouseEnter={() => setIsImageHovered(true)}
             onMouseLeave={() => setIsImageHovered(false)}
-            onClick={handleImageClick}
           >
             {tour.images.map((image, index) => (
               <img
@@ -226,7 +213,7 @@ export default function TourCard({ tour }: TourCardProps) {
           >
             <Heart
               className={`w-4 h-4 transition-colors duration-200 ${
-                isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-600'
+                isFavorite('tour', tour.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'
               }`}
             />
           </button>
@@ -249,7 +236,7 @@ export default function TourCard({ tour }: TourCardProps) {
           </div>
 
           {/* Tour Title */}
-          <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-200">
+          <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-[#01502E] transition-colors duration-200">
             {tour.title}
           </h3>
 
@@ -263,11 +250,11 @@ export default function TourCard({ tour }: TourCardProps) {
               </div>
               <span className="text-sm font-medium text-gray-700">{tour.guide.name}</span>
               {tour.guide.isVerified && (
-                <Shield className="w-4 h-4 text-blue-500" />
+                <Shield className="w-4 h-4 text-[#01502E]" />
               )}
             </div>
             <div className="flex items-center space-x-1">
-              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+              <Star className="w-4 h-4 text-orange-400 fill-orange-400" />
               <span className="text-sm font-medium text-gray-700">
                 {tour.guide.rating.toFixed(1)}
               </span>
@@ -296,18 +283,18 @@ export default function TourCard({ tour }: TourCardProps) {
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <span className="text-xl font-bold text-gray-900">
-                  ${tour.price}
+                  PKR {tour.price.toLocaleString()}
                 </span>
                 {tour.originalPrice && tour.originalPrice > tour.price && (
                   <span className="text-sm text-gray-500 line-through">
-                    ${tour.originalPrice}
+                    PKR {tour.originalPrice.toLocaleString()}
                   </span>
                 )}
               </div>
               <span className="text-xs text-gray-500">per person</span>
             </div>
             
-            <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <button className="bg-gradient-to-r from-[#01502E] to-[#013d23] text-white px-6 py-3 rounded-lg font-semibold hover:from-[#013d23] hover:to-[#01502E] transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl border-2 border-transparent hover:border-[#01502E]">
               Book Now
             </button>
           </div>

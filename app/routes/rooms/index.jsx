@@ -2,7 +2,6 @@ import HomePage from "~/components/features/rooms/HomePage";
 import PopularAttractions from "~/components/features/rooms/PopularAttractions";
 import GuestRooms from "~/components/features/rooms/GuestRooms";
 import Apartments from "~/components/features/rooms/Apartments";
-import SubscriptionForm from "~/components/features/home/SubscriptionForm";
 import Footer from "~/components/layout/Footer";
 import { useNavigate } from "@remix-run/react";
 import { Card } from "~/components/ui/card";
@@ -155,7 +154,6 @@ export default function Rooms() {
         </div>
       </div>
       <Apartments />
-      <SubscriptionForm />
       <Footer />
     </>
   );

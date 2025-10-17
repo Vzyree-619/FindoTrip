@@ -25,43 +25,92 @@ import {
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
 
-  // Get all bookings across all types
-  const bookings = await getUserBookings(userId);
+  try {
+    // Get all bookings across all types
+    const bookings = await getUserBookings(userId);
+    
+    console.log("User ID:", userId);
+    console.log("Total bookings found:", bookings.length);
 
-  // For now, return empty arrays for related data
-  // These will need to be fetched based on booking type
-  const accommodations: any[] = [];
-  const payments: any[] = [];
-  const reviews: any[] = [];
+    // For now, return empty arrays for related data
+    // These will need to be fetched based on booking type
+    const accommodations: any[] = [];
+    const payments: any[] = [];
+    const reviews: any[] = [];
 
-  // Combine the data
-  const bookingsWithRelations = bookings.map(booking => ({
-    ...booking,
-    accommodation: accommodations.find(acc => acc.id === booking.accommodationId) || null,
-    payments: payments.filter(payment => payment.bookingId === booking.id).slice(0, 1), // Take only the latest payment
-    reviews: reviews.filter(review => review.bookingId === booking.id),
-  }));
+    // Combine the data
+    const bookingsWithRelations = bookings.map(booking => ({
+      ...booking,
+      accommodation: accommodations.find(acc => acc.id === booking.accommodationId) || null,
+      payments: payments.filter(payment => payment.bookingId === booking.id).slice(0, 1), // Take only the latest payment
+      reviews: reviews.filter(review => review.bookingId === booking.id),
+    }));
 
-  // Categorize bookings
-  const now = new Date();
-  const upcoming = bookingsWithRelations.filter(
-    (booking) => booking.status === "CONFIRMED" && new Date(booking.checkIn) > now
-  );
-  const past = bookingsWithRelations.filter(
-    (booking) => 
-      (booking.status === "COMPLETED" || 
-       (booking.status === "CONFIRMED" && new Date(booking.checkOut) < now))
-  );
-  const cancelled = bookingsWithRelations.filter((booking) => booking.status === "CANCELLED");
+    // Categorize bookings
+    const now = new Date();
+    const upcoming = bookingsWithRelations.filter((booking) => {
+      if (booking.status !== "CONFIRMED") return false;
+      
+      // Get the relevant date based on booking type
+      let relevantDate: Date;
+      if (booking.type === "property" && booking.checkIn) {
+        relevantDate = new Date(booking.checkIn);
+      } else if (booking.type === "vehicle" && booking.startDate) {
+        relevantDate = new Date(booking.startDate);
+      } else if (booking.type === "tour" && booking.tourDate) {
+        relevantDate = new Date(booking.tourDate);
+      } else {
+        return false; // No relevant date found
+      }
+      
+      return relevantDate > now;
+    });
+    
+    const past = bookingsWithRelations.filter((booking) => {
+      if (booking.status === "COMPLETED") return true;
+      if (booking.status !== "CONFIRMED") return false;
+      
+      // Get the relevant end date based on booking type
+      let relevantDate: Date;
+      if (booking.type === "property" && booking.checkOut) {
+        relevantDate = new Date(booking.checkOut);
+      } else if (booking.type === "vehicle" && booking.endDate) {
+        relevantDate = new Date(booking.endDate);
+      } else if (booking.type === "tour" && booking.tourDate) {
+        relevantDate = new Date(booking.tourDate);
+      } else {
+        return false; // No relevant date found
+      }
+      
+      return relevantDate < now;
+    });
+    
+    const cancelled = bookingsWithRelations.filter((booking) => booking.status === "CANCELLED");
 
-  return json({
-    bookings: {
-      upcoming,
-      past,
-      cancelled,
-      all: bookingsWithRelations,
-    },
-  });
+    console.log("Upcoming bookings:", upcoming.length);
+    console.log("Past bookings:", past.length);
+    console.log("Cancelled bookings:", cancelled.length);
+
+    return json({
+      bookings: {
+        upcoming,
+        past,
+        cancelled,
+        all: bookingsWithRelations,
+      },
+    });
+  } catch (error) {
+    console.error("Error in bookings loader:", error);
+    return json({
+      bookings: {
+        upcoming: [],
+        past: [],
+        cancelled: [],
+        all: [],
+      },
+      error: "Failed to load bookings"
+    });
+  }
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -358,7 +407,7 @@ export default function MyBookings() {
               {activeTab === "upcoming" && (
                 <div className="mt-6">
                   <Link
-                    to="/accommodations/search"
+                    to="/accommodations"
                     className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]"
                   >
                     Book a Stay

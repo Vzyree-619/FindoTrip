@@ -36,11 +36,10 @@ export async function action({ request }: ActionFunctionArgs) {
     // Rate limiting for typing indicators
     const rateLimitResult = await checkRateLimit(
       userId,
-      
-      'chat-typing-${userId}',
-      '300', // 300 typing events per minute
-      '60' * 1000
-    });
+      `chat-typing-${userId}`,
+      300, // 300 typing events per minute
+      60 * 1000
+    );
     
     if (!rateLimitResult.allowed) {
       return json(

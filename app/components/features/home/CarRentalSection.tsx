@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import { cn } from '~/lib/utils';
 
-const vehicles = [
+function vehiclesDefault() {
+  return [
   {
     id: 1,
     name: 'Toyota Prado',
@@ -121,18 +122,43 @@ const vehicles = [
     available: true,
     discount: 0,
   },
-];
+  ];
+}
 
-export default function CarRentalSection() {
+export default function CarRentalSection({ vehicles = [] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [favorites, setFavorites] = useState<number[]>([]);
+
+  // Normalize incoming data to a safe array
+  const provided = Array.isArray(vehicles) ? vehicles : [];
+  
+  // Transform database vehicles to CarRentalSection format
+  const transformedVehicles = provided.map(vehicle => ({
+    id: vehicle.id,
+    name: vehicle.name,
+    type: vehicle.category || 'Car',
+    seats: vehicle.specs?.passengers || 5,
+    fuel: vehicle.fuelType || 'Petrol',
+    transmission: vehicle.transmission || 'Automatic',
+    price: vehicle.price || 0,
+    currency: 'PKR',
+    rating: vehicle.rating || 0,
+    reviews: vehicle.reviewCount || 0,
+    image: vehicle.images?.[0] || '/car.jpg',
+    features: vehicle.features || [],
+    location: vehicle.location || '',
+    available: vehicle.availability === 'Available',
+    discount: 0,
+  }));
+  
+  const displayVehicles = transformedVehicles.length > 0 ? transformedVehicles : vehiclesDefault();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
-  const itemsPerView = 3;
-  const maxIndex = Math.max(0, vehicles.length - itemsPerView);
+  const itemsPerView = 4;
+  const maxIndex = Math.max(0, (displayVehicles.length || 6) - itemsPerView);
 
   const nextSlide = () => {
     setCurrentIndex(prev => Math.min(prev + 1, maxIndex));
@@ -190,14 +216,14 @@ export default function CarRentalSection() {
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E]/10 text-[#01502E] rounded-full text-sm font-medium mb-4">
             <Car className="h-4 w-4" />
-            <span>Car Rentals</span>
+            <span>Chauffeured Vehicles</span>
           </div>
           
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Find Your Perfect Ride
+            Find Your Perfect Ride with Driver
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Choose from our premium fleet of vehicles for a comfortable and memorable journey across Pakistan.
+            Choose from our premium fleet with professional drivers for a safe and comfortable journey across Pakistan.
           </p>
         </div>
 
@@ -250,7 +276,11 @@ export default function CarRentalSection() {
           onMouseLeave={handleMouseLeave}
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {vehicles.map((vehicle) => (
+          {displayVehicles.length === 0 ? (
+            <div className="w-full text-center text-gray-600 py-10">
+              No vehicles available right now. Please check back later or view all vehicles.
+            </div>
+          ) : displayVehicles.map((vehicle) => (
             <Card key={vehicle.id} className="min-w-[300px] max-w-[320px] group hover:shadow-xl transition-all duration-300 border-0 shadow-lg">
               <CardHeader className="p-0">
                 <div className="relative">
@@ -265,11 +295,11 @@ export default function CarRentalSection() {
                   {/* Badges */}
                   <div className="absolute top-3 left-3 flex flex-col gap-2">
                     {vehicle.discount > 0 && (
-                      <Badge className="bg-red-500 text-white">
+                      <Badge className="bg-orange-500 text-white">
                         {vehicle.discount}% OFF
                       </Badge>
                     )}
-                    <Badge variant={vehicle.available ? "default" : "secondary"}>
+                    <Badge className={vehicle.available ? "bg-[#01502E] text-white" : "bg-orange-600 text-white"}>
                       {vehicle.available ? "Available" : "Booked"}
                     </Badge>
                   </div>
@@ -321,8 +351,8 @@ export default function CarRentalSection() {
                           key={i}
                           className={cn(
                             "h-4 w-4",
-                            i < Math.floor(vehicle.rating) 
-                              ? "fill-yellow-400 text-yellow-400" 
+                            i < Math.floor(vehicle.rating)
+                              ? "fill-orange-400 text-orange-400"
                               : "text-gray-300"
                           )}
                         />
@@ -375,7 +405,7 @@ export default function CarRentalSection() {
                       <span className="text-2xl font-bold text-[#01502E]">
                         {vehicle.currency} {vehicle.price.toLocaleString()}
                       </span>
-                      <span className="text-sm text-gray-600">/day</span>
+                      <span className="text-sm text-gray-600">/day (with driver)</span>
                     </div>
                     {vehicle.discount > 0 && (
                       <div className="text-right">
@@ -388,17 +418,13 @@ export default function CarRentalSection() {
 
                   {/* Action Buttons */}
                   <div className="flex gap-2">
-                    <Button 
-                      asChild 
-                      className="flex-1 bg-[#01502E] hover:bg-[#013d23]"
-                      disabled={!vehicle.available}
-                    >
-                      <Link to={`/car_rentals?vehicle=${vehicle.id}`}>
+                    <Button asChild className="flex-1 bg-[#01502E] hover:bg-[#013d23] text-white" disabled={!vehicle.available}>
+                      <Link to={`/vehicle/${vehicle.id}`}>
                         <Calendar className="h-4 w-4 mr-2" />
                         {vehicle.available ? "Book Now" : "Unavailable"}
                       </Link>
                     </Button>
-                    <Button variant="outline" size="icon">
+                    <Button variant="outline" size="icon" className="border-[#01502E] text-[#01502E] hover:bg-[#01502E]/10">
                       <Share2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -411,7 +437,7 @@ export default function CarRentalSection() {
         {/* View All Button */}
         <div className="text-center mt-12">
           <Button asChild size="lg" variant="outline" className="px-8">
-            <Link to="/car_rentals">
+            <Link to="/vehicles">
               View All Vehicles
               <ChevronRight className="h-4 w-4 ml-2" />
             </Link>

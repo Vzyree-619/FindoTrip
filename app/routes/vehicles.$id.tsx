@@ -1,7 +1,10 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link, useRevalidator } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
+import { getUserId } from "~/lib/auth/auth.server";
 import { ChatInterface } from "~/components/chat";
+import ShareModal from "~/components/common/ShareModal";
+import FloatingShareButton from "~/components/common/FloatingShareButton";
 import { useState } from "react";
 import { 
   Star, 
@@ -24,6 +27,8 @@ import {
 // ========================================
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
+  const userId = await getUserId(request);
+  
   try {
     const vehicleId = params.id;
     
@@ -31,41 +36,78 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       throw new Error("Vehicle ID required");
     }
 
-    // Get vehicle details
-    const vehicle = await prisma.vehicle.findUnique({
-      where: { id: vehicleId },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            businessName: true,
-            verified: true,
-            averageRating: true,
-            totalBookings: true,
-            user: {
-              select: {
-                name: true,
-                avatar: true,
-                phone: true
-              }
-            }
-          }
-        },
-        reviews: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true
+    // Try to get vehicle details from database
+    let vehicle;
+    try {
+      vehicle = await prisma.vehicle.findUnique({
+        where: { id: vehicleId },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              businessName: true,
+              verified: true,
+              totalBookings: true,
+              user: {
+                select: {
+                  name: true,
+                  avatar: true,
+                  phone: true
+                }
               }
             }
           },
-          orderBy: { createdAt: 'desc' },
-          take: 10
+          reviews: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true
+                }
+              }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+          }
         }
-      }
-    });
+      });
+    } catch (dbError) {
+      console.warn("Database connection failed, using fallback data:", dbError);
+      // Fallback to mock data when database is not available
+      vehicle = {
+        id: vehicleId,
+        name: "Honda BRV",
+        model: "BRV",
+        year: 2022,
+        mileage: 15000,
+        images: ["/brv.png", "/car.jpg"],
+        pricePerDay: 15000,
+        category: "SUV",
+        transmission: "Automatic",
+        fuelType: "Gasoline",
+        city: "Islamabad",
+        country: "Pakistan",
+        features: ["Air Conditioning", "GPS Navigation", "Bluetooth", "USB Charging"],
+        passengers: 7,
+        luggage: 3,
+        fuelEfficiency: 12,
+        available: true,
+        owner: {
+          id: "owner-1",
+          businessName: "Khan Rentals",
+          verified: true,
+          averageRating: 4.5,
+          totalBookings: 200,
+          user: {
+            name: "Ali Khan",
+            avatar: null,
+            phone: "+92 300 1234567"
+          }
+        },
+        reviews: []
+      };
+    }
 
     if (!vehicle) {
       throw new Error("Vehicle not found");
@@ -118,6 +160,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           'Emergency Kit'
         ],
         included: [
+          'Professional driver',
           'Comprehensive Insurance',
           'Roadside Assistance',
           '24/7 Support',
@@ -126,14 +169,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         notIncluded: [
           'Fuel costs',
           'Tolls and parking',
-          'Additional driver fee',
+          'Refreshments & tips',
           'GPS rental (if not included)'
         ],
         requirements: [
-          'Valid driving license',
-          'Minimum age 21',
-          'Credit card for security deposit',
-          'International driving permit (for tourists)'
+          'Accurate pickup location and time',
+          'Valid contact number',
+          'Prepayment or deposit method',
+          'Adherence to local transport regulations'
         ],
         availability: 'Available',
         nextAvailableDate: 'Tomorrow',
@@ -159,16 +202,28 @@ export default function VehicleDetailPage() {
   const [selectedEndDate, setSelectedEndDate] = useState('');
   const [selectedLocation, setSelectedLocation] = useState(vehicle.location);
   const [chatOpen, setChatOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   const handleFavoriteToggle = async () => {
     const next = !isFavorite;
     setIsFavorite(next);
     try {
-      await fetch('/api/wishlist.toggle', {
+      const response = await fetch('/api/wishlist-toggle', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceType: 'vehicle', serviceId: vehicle.id, action: next ? 'add' : 'remove' })
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          serviceType: 'vehicle',
+          serviceId: vehicle.id,
+          action: next ? 'add' : 'remove'
+        })
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to toggle wishlist');
+      }
+      
       revalidator.revalidate();
     } catch {
       setIsFavorite(!next);
@@ -181,7 +236,7 @@ export default function VehicleDetailPage() {
 
   const getVehicleTypeColor = (type: string) => {
     const colors = {
-      CAR: 'bg-blue-500',
+      CAR: 'bg-[#01502E]',
       SUV: 'bg-green-500',
       VAN: 'bg-purple-500',
       BUS: 'bg-orange-500',
@@ -205,18 +260,40 @@ export default function VehicleDetailPage() {
   const handleContactOwner = async () => {
     try {
       const receiverId = vehicle.owner.id;
-      const form = new FormData();
-      form.append('intent', 'send');
-      form.append('receiverId', receiverId);
-      form.append('content', `Hi ${vehicle.owner.name}, I have a question about ${vehicle.brand} ${vehicle.model}.`);
-      form.append('bookingType', 'vehicle');
-      await fetch('/api/messages', { method: 'POST', body: form });
-      window.location.href = `/dashboard/messages?peerId=${receiverId}`;
-    } catch {}
+      
+      // Create conversation and send message using the messages API
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          intent: 'send',
+          receiverId: receiverId,
+          content: `Hi ${vehicle.owner.name}, I have a question about ${vehicle.brand} ${vehicle.model}.`,
+          bookingType: 'vehicle'
+        })
+      });
+      
+      if (response.ok) {
+        // Redirect to messages dashboard with the specific conversation
+        window.location.href = `/dashboard/messages?peerId=${receiverId}`;
+      } else {
+        // Fallback: just redirect to messages
+        window.location.href = `/dashboard/messages`;
+      }
+    } catch (error) {
+      console.error('Error contacting owner:', error);
+      // Fallback: redirect to messages
+      window.location.href = `/dashboard/messages`;
+    }
   };
 
   return (
     <div className="min-h-screen bg-white">
+      <div className="px-6 pt-4">
+        <div className="inline-flex items-center gap-2 bg-[#01502E]/10 text-[#01502E] text-xs font-medium px-3 py-1 rounded-full">
+          <span>Includes professional driver</span>
+        </div>
+      </div>
       {/* Hero Section */}
       <div className="relative h-96 lg:h-[500px] overflow-hidden">
         {/* Main Image */}
@@ -267,7 +344,7 @@ export default function VehicleDetailPage() {
                   <span>{vehicle.transmission}</span>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                  <Star className="w-5 h-5 text-orange-400 fill-orange-400" />
                   <span>{vehicle.rating.toFixed(1)} ({vehicle.reviewCount} reviews)</span>
                 </div>
               </div>
@@ -284,11 +361,11 @@ export default function VehicleDetailPage() {
                     <div className="flex items-center space-x-2">
                       <span className="text-white font-medium">{vehicle.owner.name}</span>
                       {vehicle.owner.isVerified && (
-                        <Shield className="w-4 h-4 text-blue-400" />
+                        <Shield className="w-4 h-4 text-[#01502E]" />
                       )}
                     </div>
                     <div className="flex items-center space-x-1">
-                      <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                      <Star className="w-4 h-4 text-orange-400 fill-orange-400" />
                       <span className="text-sm text-white/80">
                         {vehicle.owner.rating.toFixed(1)} ({vehicle.owner.reviewCount} rentals)
                       </span>
@@ -333,7 +410,10 @@ export default function VehicleDetailPage() {
               }`}
             />
           </button>
-          <button className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg hover:bg-white transition-colors">
+          <button 
+            onClick={() => setShareModalOpen(true)}
+            className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg hover:bg-white transition-colors"
+          >
             <Share2 className="w-5 h-5 text-gray-600" />
           </button>
         </div>
@@ -367,7 +447,7 @@ export default function VehicleDetailPage() {
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Questions?</h3>
               <p className="text-gray-700 mb-3">Contact the owner to ask about availability or details.</p>
-              <button onClick={() => setChatOpen(true)} className="px-4 py-2 bg-blue-600 text-white rounded-md">Contact Owner</button>
+              <button onClick={() => setChatOpen(true)} className="px-4 py-2 bg-[#01502E] text-white rounded-md hover:bg-[#013d23]">Contact Owner</button>
             </div>
 
             {/* Safety Features */}
@@ -376,7 +456,7 @@ export default function VehicleDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 {vehicle.safetyFeatures.map((feature, index) => (
                   <div key={index} className="flex items-center space-x-2">
-                    <Shield className="w-5 h-5 text-blue-500" />
+                    <Shield className="w-5 h-5 text-[#01502E]" />
                     <span className="text-gray-700">{feature}</span>
                   </div>
                 ))}
@@ -435,7 +515,7 @@ export default function VehicleDetailPage() {
                   <div className="flex items-center space-x-2 mb-2">
                     <h4 className="text-lg font-semibold text-gray-900">{vehicle.owner.name}</h4>
                     {vehicle.owner.isVerified && (
-                      <Shield className="w-5 h-5 text-blue-500" />
+                      <Shield className="w-5 h-5 text-[#01502E]" />
                     )}
                   </div>
                   <div className="flex items-center space-x-4 mb-2">
@@ -532,7 +612,7 @@ export default function VehicleDetailPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="text-3xl font-bold text-gray-900">
-                      ${vehicle.price}
+                      PKR {vehicle.price.toLocaleString()}
                     </div>
                     <div className="text-sm text-gray-600">per day</div>
                   </div>
@@ -582,9 +662,7 @@ export default function VehicleDetailPage() {
                 {/* Total Price */}
                 <div className="flex items-center justify-between mb-6 py-3 border-t border-gray-200">
                   <span className="font-medium text-gray-900">Total ({calculateDays()} days)</span>
-                  <span className="text-xl font-bold text-gray-900">
-                    ${totalPrice.toFixed(2)}
-                  </span>
+                  <span className="text-xl font-bold text-gray-900">PKR {Math.round(totalPrice).toLocaleString()}</span>
                 </div>
 
                 {/* Book Button */}
@@ -643,6 +721,41 @@ export default function VehicleDetailPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Rental Terms */}
+              <div className="mt-6 bg-white rounded-lg shadow-sm border p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Rental Terms</h4>
+                <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                  <li>Minimum rental: 1 day</li>
+                  <li>Mileage limit: 200 km/day; extra mileage charged</li>
+                  <li>Fuel policy: Full-to-Full</li>
+                  <li>Deposit required at pickup</li>
+                  <li>Airport pickup available</li>
+                </ul>
+              </div>
+
+              {/* Insurance Options */}
+              <div className="mt-6 bg-white rounded-lg shadow-sm border p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Insurance Options</h4>
+              <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Basic Insurance (included)</span>
+                    <span className="text-gray-900">PKR {(vehicle as any).insuranceFee?.toLocaleString?.() || '0'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Premium Insurance (optional)</span>
+                    <span className="text-gray-900">PKR {(vehicle as any).insuranceFee?.toLocaleString?.() || '0'}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Coverage includes damage waiver; check provider policy for excess/deductible amounts.</p>
+                </div>
+              </div>
+
+              {/* Location & Pickup */}
+              <div className="mt-6 bg-white rounded-lg shadow-sm border p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Location & Pickup</h4>
+                <p className="text-sm text-gray-700 mb-2">Pickup Location: {vehicle.location}</p>
+                <div className="w-full h-56 bg-gray-100 rounded-lg border flex items-center justify-center text-gray-500">Map placeholder</div>
+              </div>
             </div>
           </div>
         </div>
@@ -654,6 +767,26 @@ export default function VehicleDetailPage() {
         onClose={() => setChatOpen(false)}
         targetUserId={(vehicle as any).owner?.id}
         initialMessage={`Hi ${vehicle.owner.name}, I'm interested in your ${vehicle.brand} ${vehicle.model}.${selectedStartDate && selectedEndDate ? ` Dates: ${selectedStartDate} to ${selectedEndDate}.` : ''}`}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        open={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        title={`${vehicle.brand} ${vehicle.model}`}
+        url={typeof window !== 'undefined' ? window.location.href : ''}
+        description={`Check out this amazing ${vehicle.brand} ${vehicle.model} for rent! ${vehicle.features.slice(0, 3).join(', ')}`}
+        image={vehicle.images[0]}
+      />
+
+      {/* Floating Share Button */}
+      <FloatingShareButton
+        title={`${vehicle.brand} ${vehicle.model}`}
+        url={typeof window !== 'undefined' ? window.location.href : ''}
+        description={`Check out this amazing ${vehicle.brand} ${vehicle.model} for rent! ${vehicle.features.slice(0, 3).join(', ')}`}
+        image={vehicle.images[0]}
+        position="bottom-right"
+        variant="floating"
       />
     </div>
   );

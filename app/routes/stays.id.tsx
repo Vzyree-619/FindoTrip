@@ -47,7 +47,7 @@ export default function AccommodationDetail() {
         {/* Back Button */}
         <Link
           to="/"
-          className="text-blue-600 hover:text-blue-700 font-semibold mb-4 inline-block"
+          className="text-[#01502E] hover:text-[#013d23] font-semibold mb-4 inline-block"
         >
           ← Back to search
         </Link>
@@ -55,7 +55,7 @@ export default function AccommodationDetail() {
         {/* Image Gallery */}
         <div className="grid grid-cols-4 gap-4 mb-8">
           <div className="col-span-4 md:col-span-2 row-span-2">
-            <div className="h-96 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg overflow-hidden">
+            <div className="h-96 bg-gradient-to-br from-[#01502E] to-[#047857] rounded-lg overflow-hidden">
               {accommodation.images[0] ? (
                 <img
                   src={accommodation.images[0]}
@@ -226,7 +226,7 @@ export default function AccommodationDetail() {
               <div className="mb-6">
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-bold text-gray-900">
-                    ${accommodation.pricePerNight}
+                    PKR {accommodation.pricePerNight.toLocaleString()}
                   </span>
                   <span className="text-gray-600">per night</span>
                 </div>
@@ -240,7 +240,7 @@ export default function AccommodationDetail() {
                   </label>
                   <input
                     type="date"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                     required
                   />
                 </div>
@@ -251,7 +251,7 @@ export default function AccommodationDetail() {
                   </label>
                   <input
                     type="date"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                     required
                   />
                 </div>
@@ -265,7 +265,7 @@ export default function AccommodationDetail() {
                     min="1"
                     max={accommodation.maxGuests}
                     defaultValue="2"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                     required
                   />
                 </div>

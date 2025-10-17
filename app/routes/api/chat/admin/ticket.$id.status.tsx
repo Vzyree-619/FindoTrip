@@ -64,11 +64,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Rate limiting
     const rateLimitResult = await checkRateLimit(
       userId,
-      
-      'chat-admin-status-${userId}',
-      '50', // 50 status updates per minute
-      '60' * 1000
-    });
+      `chat-admin-status-${userId}`,
+      50, // 50 status updates per minute
+      60 * 1000
+    );
     
     if (!rateLimitResult.allowed) {
       return json(

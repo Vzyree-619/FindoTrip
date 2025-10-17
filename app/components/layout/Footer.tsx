@@ -23,15 +23,22 @@ import {
   ChevronRight
 } from 'lucide-react';
 
+import { useRouteLoaderData } from '@remix-run/react';
+
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  // Pull user from root loader if available (NavBarWithAuth already uses it)
+  // Fallback: hide consumer links when any provider role is detected in path or user context
+  const rootData: any = useRouteLoaderData('root');
+  const user = rootData?.user;
+  const isProvider = user && (user.role === 'PROPERTY_OWNER' || user.role === 'VEHICLE_OWNER' || user.role === 'TOUR_GUIDE');
 
   const footerSections = [
     {
       title: "Travel Services",
       links: [
-        { name: "Hotels & Stays", href: "/accommodations/search", icon: "🏨" },
-        { name: "Car Rentals", href: "/car_rentals", icon: "🚗" },
+        { name: "Hotels & Stays", href: "/accommodations", icon: "🏨" },
+        { name: "Car Rentals", href: "/vehicles", icon: "🚗" },
         { name: "Tour Packages", href: "/tours", icon: "🗺️" },
         { name: "Tour Guides", href: "/tours", icon: "👨‍🏫" },
         { name: "Activities", href: "/activities", icon: "🎯" },
@@ -109,7 +116,7 @@ export default function Footer() {
   const contactInfo = [
     { icon: Phone, text: "+92 300 123 4567", href: "tel:+923001234567" },
     { icon: Mail, text: "info@findotrip.com", href: "mailto:info@findotrip.com" },
-    { icon: MapPin, text: "Karachi, Pakistan", href: "/contact" },
+    { icon: MapPin, text: "Skardu, Pakistan", href: "/contact" },
     { icon: Clock, text: "24/7 Support", href: "/support" },
   ];
 
@@ -184,7 +191,7 @@ export default function Footer() {
 
         {/* Links Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-8 mb-12">
-          {footerSections.map((section, index) => (
+          {(isProvider ? footerSections.filter(s => !['Travel Services','Resources'].includes(s.title)) : footerSections).map((section, index) => (
             <div key={index}>
               <h4 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
                 {section.title}
@@ -270,20 +277,33 @@ export default function Footer() {
             {/* Download Apps */}
             <div className="text-center lg:text-right">
               <h4 className="text-lg font-semibold mb-4">Download Our App</h4>
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-end">
+                {/* Google Play Store */}
                 <a
-                  href="/download/android"
-                  className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                  href="https://play.google.com/store/apps/details?id=com.findotrip.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block hover:opacity-80 transition-opacity"
                 >
-                  <span>📱</span>
-                  <span className="text-sm">Android App</span>
+                  <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+                    alt="Get it on Google Play"
+                    className="h-12 w-auto"
+                  />
                 </a>
+                
+                {/* Apple App Store */}
                 <a
-                  href="/download/ios"
-                  className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                  href="https://apps.apple.com/app/findotrip/id123456789"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block hover:opacity-80 transition-opacity"
                 >
-                  <span>🍎</span>
-                  <span className="text-sm">iOS App</span>
+                  <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg"
+                    alt="Download on the App Store"
+                    className="h-12 w-auto"
+                  />
                 </a>
               </div>
             </div>

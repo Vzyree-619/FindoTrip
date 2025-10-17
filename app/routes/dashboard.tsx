@@ -4,10 +4,9 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { Outlet, useLoaderData, NavLink, Link } from "@remix-run/react";
-import { requireUserId, getUser } from "~/lib/auth/auth.server";
+import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import {
-  User,
   Calendar,
   Heart,
   Star,
@@ -15,27 +14,31 @@ import {
   LogOut,
   Home,
   Bell,
-  CreditCard,
+  MessageCircle,
 } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
+  const url = new URL(request.url);
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true }
+    select: { id: true, name: true, role: true, avatar: true }
   });
 
-  // Redirect based on role - customers stay on main dashboard
-  if (user?.role === "PROPERTY_OWNER") {
-    throw redirect("/dashboard/provider");
+  // Redirect based on role only when visiting the root dashboard path
+  // Avoid self-redirect loops on role-specific child routes (e.g., /dashboard/provider)
+  if (url.pathname === "/dashboard") {
+    if (user?.role === "PROPERTY_OWNER") {
+      throw redirect("/dashboard/provider");
+    }
+    if (user?.role === "VEHICLE_OWNER") {
+      throw redirect("/dashboard/vehicle-owner");
+    }
+    if (user?.role === "TOUR_GUIDE") {
+      throw redirect("/dashboard/guide");
+    }
+    // SUPER_ADMIN would stay here for admin dashboard
   }
-  if (user?.role === "VEHICLE_OWNER") {
-    throw redirect("/dashboard/vehicle-owner");
-  }
-  if (user?.role === "TOUR_GUIDE") {
-    throw redirect("/dashboard/guide");
-  }
-  // SUPER_ADMIN would stay here for admin dashboard
 
   // Get dashboard stats - only for customers
   const [propertyBookings, vehicleBookings, tourBookings, reviewsCount, wishlists] = await Promise.all([
@@ -116,12 +119,70 @@ export default function Dashboard() {
     );
   }
 
+  // Render provider-specific layout with overview
+  const isProviderRole = user.role === "PROPERTY_OWNER" || user.role === "VEHICLE_OWNER" || user.role === "TOUR_GUIDE";
+  if (isProviderRole) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="flex">
+          {/* Provider Sidebar */}
+          <div className="w-64 bg-white shadow-lg">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
+              <p className="text-sm text-gray-600 mt-1">Welcome back, {user.name}</p>
+            </div>
+            <nav className="mt-6">
+              <div className="px-6 py-3">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="text-blue-600 font-medium">Total Bookings</div>
+                    <div className="text-2xl font-bold text-blue-900">{stats.bookingsCount}</div>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <div className="text-green-600 font-medium">Upcoming</div>
+                    <div className="text-2xl font-bold text-green-900">{stats.upcomingBookings}</div>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <div className="text-purple-600 font-medium">Reviews</div>
+                    <div className="text-2xl font-bold text-purple-900">{stats.reviewsCount}</div>
+                  </div>
+                  <div className="bg-orange-50 p-3 rounded-lg">
+                    <div className="text-orange-600 font-medium">Favorites</div>
+                    <div className="text-2xl font-bold text-orange-900">{stats.favoritesCount}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 py-3 space-y-2">
+                <Link to="/dashboard/bookings" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                  📅 My Bookings
+                </Link>
+                <Link to="/dashboard/messages" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                  💬 Messages
+                </Link>
+                <Link to="/dashboard/reviews" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                  ⭐ Reviews
+                </Link>
+                <Link to="/dashboard/profile" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                  ⚙️ Profile
+                </Link>
+              </div>
+            </nav>
+          </div>
+          <main className="flex-1">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   // Type assertion that user is not null
   const safeUser = user as NonNullable<typeof user>;
 
   const navigation = [
     { name: "Overview", href: "/dashboard", icon: Home, exact: true },
     { name: "My Bookings", href: "/dashboard/bookings", icon: Calendar },
+    { name: "Messages", href: "/dashboard/messages", icon: MessageCircle },
     { name: "Favorites", href: "/dashboard/favorites", icon: Heart },
     { name: "Reviews", href: "/dashboard/reviews", icon: Star },
     { name: "Profile", href: "/dashboard/profile", icon: Settings },
@@ -247,146 +308,3 @@ export default function Dashboard() {
   );
 }
 
-// Default dashboard overview page
-export function DashboardIndex() {
-  const { user, stats } = useLoaderData<typeof loader>();
-
-  if (!user) {
-    return <div>Loading...</div>;
-  }
-
-  return (
-    <div className="py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Welcome back, {user.name.split(" ")[0]}!
-          </h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Here's what's happening with your account today.
-          </p>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Link
-            to="/accommodations/search"
-            className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition"
-          >
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Calendar className="h-6 w-6 text-[#01502E]" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Book a Stay
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      Find Hotels
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </Link>
-
-          <Link
-            to="/dashboard/bookings"
-            className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition"
-          >
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Calendar className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Upcoming Trips
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {stats.upcomingBookings}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </Link>
-
-          <Link
-            to="/dashboard/favorites"
-            className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition"
-          >
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Heart className="h-6 w-6 text-red-600" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Saved Places
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {stats.favoritesCount}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </Link>
-
-          <Link
-            to="/dashboard/reviews"
-            className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition"
-          >
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Star className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Your Reviews
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {stats.reviewsCount}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </Link>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-              Recent Activity
-            </h3>
-            <div className="text-center py-8">
-              <Bell className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No recent activity</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Your recent bookings and updates will appear here.
-              </p>
-              <div className="mt-6">
-                <Link
-                  to="/accommodations/search"
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]"
-                >
-                  Book Your First Stay
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

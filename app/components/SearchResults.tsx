@@ -1,5 +1,6 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Link } from "@remix-run/react";
+import ShareModal from "~/components/common/ShareModal";
 import { 
   Star, 
   MapPin, 
@@ -89,38 +90,15 @@ const getServiceIcon = (type: string) => {
   return icons[type as keyof typeof icons] || Home;
 };
 
-const getCategoryColor = (category: string) => {
-  const colors = {
-    // Property types
-    'Apartment': 'bg-blue-500',
-    'House': 'bg-green-500',
-    'Villa': 'bg-purple-500',
-    'Condo': 'bg-orange-500',
-    // Vehicle types
-    'Economy': 'bg-gray-500',
-    'SUV': 'bg-blue-500',
-    'Luxury': 'bg-purple-500',
-    'Van': 'bg-orange-500',
-    'Sports': 'bg-red-500',
-    'Electric': 'bg-green-500',
-    // Tour categories
-    'Adventure': 'bg-orange-500',
-    'Cultural': 'bg-purple-500',
-    'Food': 'bg-red-500',
-    'Nature': 'bg-green-500',
-    'Historical': 'bg-amber-500',
-    'Wildlife': 'bg-teal-500'
-  };
-  return colors[category as keyof typeof colors] || 'bg-gray-500';
-};
+const getCategoryColor = (_category: string) => 'bg-orange-500';
 
 const getDifficultyColor = (difficulty: string) => {
   const colors = {
-    'Easy': 'text-green-600',
-    'Moderate': 'text-yellow-600',
-    'Hard': 'text-red-600'
+    Easy: 'text-[#01502E]',
+    Moderate: 'text-orange-600',
+    Hard: 'text-orange-700'
   };
-  return colors[difficulty as keyof typeof colors] || 'text-gray-600';
+  return colors[difficulty as keyof typeof colors] || 'text-[#01502E]';
 };
 
 // ========================================
@@ -137,6 +115,19 @@ export default function SearchResults({
   onQuickView
 }: SearchResultsProps) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [shareModal, setShareModal] = useState<{ 
+    open: boolean; 
+    title: string; 
+    url: string; 
+    description?: string; 
+    image?: string; 
+  }>({ 
+    open: false, 
+    title: '', 
+    url: '',
+    description: '',
+    image: ''
+  });
 
   const handleFavoriteToggle = (id: string) => {
     setFavorites(prev => {
@@ -151,7 +142,15 @@ export default function SearchResults({
     onToggleFavorite?.(id);
   };
 
-  const handleShare = (id: string) => {
+  const handleShare = (id: string, title: string, description?: string, image?: string) => {
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    setShareModal({ 
+      open: true, 
+      title, 
+      url,
+      description: description || `Check out this amazing ${serviceType}!`,
+      image
+    });
     onShare?.(id);
   };
 
@@ -210,6 +209,16 @@ export default function SearchResults({
           onQuickView={handleQuickView}
         />
       ))}
+      
+      {/* Share Modal */}
+      <ShareModal
+        open={shareModal.open}
+        onClose={() => setShareModal({ open: false, title: '', url: '', description: '', image: '' })}
+        title={shareModal.title}
+        url={shareModal.url}
+        description={shareModal.description}
+        image={shareModal.image}
+      />
     </div>
   );
 }
@@ -240,7 +249,7 @@ function SearchResultCard({
   const getResultUrl = () => {
     switch (serviceType) {
       case 'accommodations':
-        return `/properties/${result.id}`;
+        return `/property/${result.id}`;
       case 'vehicles':
         return `/vehicles/${result.id}`;
       case 'tours':
@@ -266,7 +275,7 @@ function SearchResultCard({
   if (viewMode === 'list') {
     return (
       <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
-        <Link to={getResultUrl()} className="block">
+        <Link to={getResultUrl().replace('/tours/', '/tour/').replace('/vehicles/', '/vehicle/')} className="block">
           <div className="p-6">
             <div className="flex items-start space-x-4">
               {/* Image */}
@@ -277,12 +286,12 @@ function SearchResultCard({
                   className="w-full h-full rounded-lg object-cover"
                 />
                 {result.isFeatured && (
-                  <span className="absolute top-2 left-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded">
+                  <span className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">
                     Featured
                   </span>
                 )}
                 {result.isNew && (
-                  <span className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
+                  <span className="absolute top-2 right-2 bg-[#01502E] text-white text-xs font-bold px-2 py-1 rounded">
                     New
                   </span>
                 )}
@@ -306,7 +315,7 @@ function SearchResultCard({
                         <span>{result.location}</span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                        <Star className="w-4 h-4 text-orange-400 fill-orange-400" />
                         <span>{result.rating.toFixed(1)}</span>
                         <span>({result.reviewCount})</span>
                       </div>
@@ -387,11 +396,11 @@ function SearchResultCard({
                   <div className="flex flex-col items-end space-y-2">
                     <div className="text-right">
                       <div className="text-2xl font-bold text-gray-900">
-                        ${result.price}
+                        PKR {result.price.toLocaleString()}
                       </div>
                       {result.originalPrice && result.originalPrice > result.price && (
                         <div className="text-sm text-gray-500 line-through">
-                          ${result.originalPrice}
+                          PKR {result.originalPrice.toLocaleString()}
                         </div>
                       )}
                       <div className="text-sm text-gray-500">
@@ -448,7 +457,7 @@ function SearchResultCard({
   // Grid view
   return (
     <div className="group relative bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow cursor-pointer">
-      <Link to={getResultUrl()} className="block">
+      <Link to={getResultUrl().replace('/tours/', '/tour/').replace('/vehicles/', '/vehicle/')} className="block">
         {/* Image */}
         <div className="relative h-48 overflow-hidden rounded-t-lg">
           <img
@@ -460,17 +469,17 @@ function SearchResultCard({
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col space-y-2">
             {result.isFeatured && (
-              <span className="bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded">
+              <span className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">
                 Featured
               </span>
             )}
             {result.isNew && (
-              <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
+              <span className="bg-[#01502E] text-white text-xs font-bold px-2 py-1 rounded">
                 New
               </span>
             )}
             {result.isPopular && (
-              <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+              <span className="bg-orange-700 text-white text-xs font-bold px-2 py-1 rounded">
                 Popular
               </span>
             )}
@@ -503,7 +512,7 @@ function SearchResultCard({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onShare(result.id);
+                handleShare(result.id, result.title, result.description, result.images[0]);
               }}
               className="bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg hover:bg-white transition-colors"
             >
@@ -528,7 +537,7 @@ function SearchResultCard({
 
         {/* Content */}
         <div className="p-4 space-y-3">
-          <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+          <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 group-hover:text-[#01502E] transition-colors">
             {result.title}
           </h3>
 
@@ -538,7 +547,7 @@ function SearchResultCard({
               <span>{result.location}</span>
             </div>
             <div className="flex items-center space-x-1">
-              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+              <Star className="w-4 h-4 text-orange-400 fill-orange-400" />
               <span>{result.rating.toFixed(1)}</span>
             </div>
             {result.distance && (
@@ -575,18 +584,18 @@ function SearchResultCard({
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <span className="text-xl font-bold text-gray-900">
-                  ${result.price}
+                  PKR {result.price.toLocaleString()}
                 </span>
                 {result.originalPrice && result.originalPrice > result.price && (
                   <span className="text-sm text-gray-500 line-through">
-                    ${result.originalPrice}
+                    PKR {result.originalPrice.toLocaleString()}
                   </span>
                 )}
               </div>
               <span className="text-xs text-gray-500">{getPriceLabel()}</span>
             </div>
             
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+            <button className="bg-[#01502E] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#013d23] transition-colors">
               View Details
             </button>
           </div>
@@ -595,3 +604,4 @@ function SearchResultCard({
     </div>
   );
 }
+import React from 'react';

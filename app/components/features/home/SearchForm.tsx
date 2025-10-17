@@ -80,7 +80,10 @@ export default function SearchForm({ className }: SearchFormProps) {
 
     try {
       const params = new URLSearchParams();
-      if (accommodationForm.destination) params.set('city', accommodationForm.destination);
+      if (accommodationForm.destination) {
+        // Use smart search that searches both name and city
+        params.set('search', accommodationForm.destination);
+      }
       if (accommodationForm.checkIn) params.set('checkIn', accommodationForm.checkIn);
       if (accommodationForm.checkOut) params.set('checkOut', accommodationForm.checkOut);
       if (accommodationForm.adults) params.set('adults', accommodationForm.adults.toString());
@@ -88,7 +91,7 @@ export default function SearchForm({ className }: SearchFormProps) {
       if (accommodationForm.rooms) params.set('rooms', accommodationForm.rooms.toString());
 
       // Navigate to accommodations search page
-      navigate(`/accommodations/search?${params.toString()}`);
+      navigate(`/accommodations?${params.toString()}`);
     } catch (error) {
       console.error('Search error:', error);
     } finally {
@@ -108,8 +111,8 @@ export default function SearchForm({ className }: SearchFormProps) {
       if (vehicleForm.returnDate) params.set('returnDate', vehicleForm.returnDate);
       if (vehicleForm.pickupTime) params.set('pickupTime', vehicleForm.pickupTime);
 
-      // Navigate to car rentals page
-      navigate(`/car_rentals?${params.toString()}`);
+      // Navigate to vehicles page
+      navigate(`/vehicles?${params.toString()}`);
     } catch (error) {
       console.error('Search error:', error);
     } finally {

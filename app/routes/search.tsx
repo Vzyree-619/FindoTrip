@@ -1,19 +1,15 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSearchParams, useNavigate } from "@remix-run/react";
+import { useLoaderData, useSearchParams, isRouteErrorResponse, useRouteError } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { 
   Search, 
   MapPin, 
   Calendar, 
   Users, 
-  Filter, 
   X, 
-  ChevronDown, 
-  ChevronUp,
   Star,
   Clock,
-  Zap,
   Car,
   Home,
   Plane,
@@ -21,8 +17,8 @@ import {
   Sliders,
   Grid,
   List,
-  SortAsc,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from "lucide-react";
 
 // ========================================
@@ -260,11 +256,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
           owner: {
             select: {
               id: true,
+              businessName: true,
               name: true,
-              avatar: true,
               averageRating: true,
               totalReviews: true,
-              isVerified: true
+              verified: true
             }
           },
           images: true,
@@ -287,14 +283,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
         images: vehicle.images || ['/placeholder-vehicle.jpg'],
         price: vehicle.basePrice,
         originalPrice: vehicle.originalPrice,
-        rating: vehicle.averageRating || 0,
-        reviewCount: vehicle.totalReviews || 0,
+        rating: vehicle.rating || 0,
+        reviewCount: vehicle.reviewCount || 0,
         location: vehicle.location,
         distance: Math.floor(Math.random() * 50) + 1,
         category: vehicle.category,
         features: vehicle.features || [],
-        isAvailable: true,
-        isFeatured: vehicle.isFeatured || false,
+        isAvailable: vehicle.available,
+        isFeatured: false, // This field doesn't exist in schema
         isPopular: vehicle.totalBookings > 10,
         isNew: new Date(vehicle.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       }));
@@ -451,7 +447,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function SearchPage() {
   const { results, total, filters, popularSearches, recentSearches } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get("serviceType") || "accommodations");
@@ -528,8 +523,8 @@ export default function SearchPage() {
   useEffect(() => {
     const applied: string[] = [];
     if (currentFilters.location) applied.push(`Location: ${currentFilters.location}`);
-    if (currentFilters.priceMin > 0) applied.push(`Min Price: $${currentFilters.priceMin}`);
-    if (currentFilters.priceMax < 1000) applied.push(`Max Price: $${currentFilters.priceMax}`);
+    if (currentFilters.priceMin > 0) applied.push(`Min Price: PKR ${currentFilters.priceMin.toLocaleString()}`);
+    if (currentFilters.priceMax < 1000) applied.push(`Max Price: PKR ${currentFilters.priceMax.toLocaleString()}`);
     if (currentFilters.rating > 0) applied.push(`Rating: ${currentFilters.rating}+ stars`);
     if (currentFilters.propertyType.length > 0) applied.push(`Type: ${currentFilters.propertyType.join(', ')}`);
     if (currentFilters.amenities.length > 0) applied.push(`Amenities: ${currentFilters.amenities.length} selected`);
@@ -576,7 +571,7 @@ export default function SearchPage() {
                   placeholder="Where are you going?"
                   value={currentFilters.location}
                   onChange={(e) => handleFilterChange("location", e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
             </div>
@@ -589,7 +584,7 @@ export default function SearchPage() {
                   type="date"
                   value={currentFilters.checkIn}
                   onChange={(e) => handleFilterChange("checkIn", e.target.value)}
-                  className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
               <div className="relative">
@@ -598,7 +593,7 @@ export default function SearchPage() {
                   type="date"
                   value={currentFilters.checkOut}
                   onChange={(e) => handleFilterChange("checkOut", e.target.value)}
-                  className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
             </div>
@@ -612,7 +607,7 @@ export default function SearchPage() {
                   activeTab === 'vehicles' ? 'passengers' : 'guests', 
                   parseInt(e.target.value)
                 )}
-                className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
               >
                 {[...Array(10)].map((_, i) => (
                   <option key={i + 1} value={i + 1}>
@@ -625,7 +620,7 @@ export default function SearchPage() {
             {/* Search Button */}
             <button
               onClick={() => setIsLoading(true)}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              className="bg-[#01502E] text-white px-6 py-3 rounded-lg hover:bg-[#013d23] transition-colors flex items-center space-x-2"
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -647,7 +642,7 @@ export default function SearchPage() {
                 <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
                 <button
                   onClick={clearAllFilters}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  className="text-[#01502E] hover:text-[#013d23] text-sm font-medium"
                 >
                   Clear all
                 </button>
@@ -660,7 +655,7 @@ export default function SearchPage() {
                     {appliedFilters.map((filter, index) => (
                       <span
                         key={index}
-                        className="bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full flex items-center space-x-2"
+                        className="bg-[#01502E]/10 text-[#01502E] text-sm px-3 py-1 rounded-full flex items-center space-x-2"
                       >
                         <span>{filter}</span>
                         <button
@@ -668,7 +663,7 @@ export default function SearchPage() {
                             // Remove specific filter logic would go here
                             console.log('Remove filter:', filter);
                           }}
-                          className="hover:text-blue-600"
+                          className="hover:text-[#01502E]"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -696,8 +691,8 @@ export default function SearchPage() {
                         className="w-full"
                       />
                       <div className="flex justify-between text-sm text-gray-600">
-                        <span>${currentFilters.priceMin}</span>
-                        <span>${currentFilters.priceMax}</span>
+                        <span>PKR {currentFilters.priceMin.toLocaleString()}</span>
+                        <span>PKR {currentFilters.priceMax.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -719,7 +714,7 @@ export default function SearchPage() {
                                 : currentFilters.propertyType.filter(t => t !== type);
                               handleFilterChange("propertyType", newTypes);
                             }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                           />
                           <span className="ml-2 text-sm text-gray-700">{type}</span>
                         </label>
@@ -767,7 +762,7 @@ export default function SearchPage() {
                                 : currentFilters.amenities.filter(a => a !== amenity);
                               handleFilterChange("amenities", newAmenities);
                             }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                           />
                           <span className="ml-2 text-sm text-gray-700">{amenity}</span>
                         </label>
@@ -794,8 +789,8 @@ export default function SearchPage() {
                         className="w-full"
                       />
                       <div className="flex justify-between text-sm text-gray-600">
-                        <span>${currentFilters.priceMin}</span>
-                        <span>${currentFilters.priceMax}</span>
+                        <span>PKR {currentFilters.priceMin.toLocaleString()}</span>
+                        <span>PKR {currentFilters.priceMax.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -817,7 +812,7 @@ export default function SearchPage() {
                                 : currentFilters.vehicleType.filter(t => t !== type);
                               handleFilterChange("vehicleType", newTypes);
                             }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                           />
                           <span className="ml-2 text-sm text-gray-700">{type}</span>
                         </label>
@@ -842,7 +837,7 @@ export default function SearchPage() {
                                 : currentFilters.transmission.filter(t => t !== transmission);
                               handleFilterChange("transmission", newTransmissions);
                             }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                           />
                           <span className="ml-2 text-sm text-gray-700">{transmission}</span>
                         </label>
@@ -894,8 +889,8 @@ export default function SearchPage() {
                         className="w-full"
                       />
                       <div className="flex justify-between text-sm text-gray-600">
-                        <span>${currentFilters.priceMin}</span>
-                        <span>${currentFilters.priceMax}</span>
+                        <span>PKR {currentFilters.priceMin.toLocaleString()}</span>
+                        <span>PKR {currentFilters.priceMax.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -1095,11 +1090,11 @@ export default function SearchPage() {
                         </div>
                         <div className="text-right">
                           <div className="text-2xl font-bold text-gray-900">
-                            ${result.price}
+                            PKR {result.price.toLocaleString()}
                           </div>
                           {result.originalPrice && result.originalPrice > result.price && (
                             <div className="text-sm text-gray-500 line-through">
-                              ${result.originalPrice}
+                              PKR {result.originalPrice.toLocaleString()}
                             </div>
                           )}
                           <div className="text-sm text-gray-500">
@@ -1148,6 +1143,67 @@ export default function SearchPage() {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ========================================
+// ERROR BOUNDARY
+// ========================================
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error)) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full text-center">
+          <div className="mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500 rounded-full mb-4">
+              <AlertTriangle className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              {error.status} - {error.statusText}
+            </h1>
+            <p className="text-gray-600 mb-6">
+              {error.status === 404 
+                ? "No search results found."
+                : "Something went wrong while searching."
+              }
+            </p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-[#01502E] text-white px-6 py-3 rounded-lg hover:bg-[#013d23] transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="max-w-md w-full text-center">
+        <div className="mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500 rounded-full mb-4">
+            <AlertTriangle className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Search Error
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Something went wrong while performing the search.
+          </p>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-[#01502E] text-white px-6 py-3 rounded-lg hover:bg-[#013d23] transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     </div>
   );

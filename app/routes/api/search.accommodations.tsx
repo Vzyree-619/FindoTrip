@@ -4,6 +4,7 @@ import { prisma } from "~/lib/db/db.server";
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const city = url.searchParams.get("city");
+  const name = url.searchParams.get("name");
   const checkIn = url.searchParams.get("checkIn");
   const checkOut = url.searchParams.get("checkOut");
   const adults = url.searchParams.get("adults");
@@ -21,6 +22,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (city) {
       whereClause.city = {
         $regex: city,
+        $options: "i", // case insensitive
+      };
+    }
+
+    // Add name filter if provided
+    if (name) {
+      whereClause.name = {
+        $regex: name,
         $options: "i", // case insensitive
       };
     }

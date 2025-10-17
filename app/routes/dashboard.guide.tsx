@@ -2,7 +2,7 @@ import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from
 import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
-import { Plus, CheckCircle2, MapPin, Users, Star, Clock, AlertCircle, Info } from "lucide-react";
+import { Plus, CheckCircle2, MapPin, Users, Star, Clock, AlertCircle, Info, MessageCircle } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -159,11 +159,16 @@ export default function TourGuideDashboard() {
             <h1 className="text-2xl font-bold text-gray-900">Tour Guide Dashboard</h1>
             <p className="text-gray-600">Welcome, {guide ? `${guide.firstName} ${guide.lastName}` : user.name}</p>
           </div>
-          {isVerified && (
-            <a href="#create" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
-              <Plus className="w-4 h-4" /> Create Tour
-            </a>
-          )}
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard/messages" className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+              <MessageCircle className="w-4 h-4" /> Messages
+            </Link>
+            {isVerified && (
+              <a href="#create" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
+                <Plus className="w-4 h-4" /> Create Tour
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Approval Status Banner */}
@@ -186,8 +191,8 @@ export default function TourGuideDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-3 text-blue-800 bg-blue-50 p-3 rounded">
-                <Info className="h-5 w-5 text-blue-600" />
+              <div className="flex items-center gap-3 text-[#013d23] bg-[#01502E]/10 p-3 rounded">
+                <Info className="h-5 w-5 text-[#01502E]" />
                 <div>
                   <h3 className="font-medium">Complete Your Profile</h3>
                   <p className="text-sm">Create your first tour to get started with verification.</p>
@@ -268,7 +273,7 @@ export default function TourGuideDashboard() {
                       <span className={`px-2 py-0.5 rounded ${tour.approvalStatus === "APPROVED" ? "bg-green-50 text-green-700" : tour.approvalStatus === "PENDING" ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-700"}`}>
                         {tour.approvalStatus}
                       </span>
-                      <span className={`px-2 py-0.5 rounded ${tour.available ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-700"}`}>
+                      <span className={`px-2 py-0.5 rounded ${tour.available ? "bg-[#01502E]/10 text-[#01502E]" : "bg-gray-100 text-gray-700"}`}>
                         {tour.available ? "Available" : "Unavailable"}
                       </span>
                     </div>

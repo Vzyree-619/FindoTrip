@@ -10,6 +10,22 @@ Run the dev server:
 npm run dev
 ```
 
+## Platform Guide
+
+For a complete overview of routes, features, booking flows, theming, and testing, see:
+
+`docs/PlatformGuide.md`
+
+## Feature Tests
+
+Run lightweight loader tests to verify key features:
+
+```sh
+npm run test:features
+```
+
+These exercise the list/detail loaders and vehicle booking loader. If your environment blocks IPC, run the tests locally.
+
 ## Deployment
 
 First, build your app for production:

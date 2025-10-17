@@ -6,7 +6,8 @@ import {
 } from "@remix-run/node";
 import { Form, useLoaderData, useActionData, useNavigation } from "@remix-run/react";
 import { unstable_parseMultipartFormData, unstable_createMemoryUploadHandler } from "@remix-run/node";
-import { useState } from "react";
+import { v2 as cloudinary } from "cloudinary";
+import { useState, useEffect } from "react";
 import { requireUserId, getUser } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import { 
@@ -25,12 +26,39 @@ import {
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
   const user = await getUser(request);
+  const url = new URL(request.url);
+  const updated = url.searchParams.get("updated");
   
   if (!user) {
     throw redirect("/login");
   }
 
-  return json({ user });
+  // Fetch customer profile for city and country
+  const customerProfile = await prisma.customerProfile.findUnique({
+    where: { userId: userId },
+    select: { city: true, country: true }
+  });
+
+  // Merge user data with customer profile data
+  const userWithLocation = {
+    ...user,
+    city: customerProfile?.city || null,
+    country: customerProfile?.country || null,
+  };
+  
+  console.log("Profile loader:", { 
+    userId, 
+    user: { 
+      id: user.id, 
+      name: user.name, 
+      phone: user.phone,
+      city: userWithLocation.city, 
+      country: userWithLocation.country 
+    }, 
+    updated 
+  });
+
+  return json({ user: userWithLocation, updated: updated === "true" });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -48,23 +76,57 @@ export async function action({ request }: ActionFunctionArgs) {
     const city = formData.get("city");
     const country = formData.get("country");
 
+    console.log("Profile update attempt:", { name, phone, city, country, userId });
+
     if (typeof name !== "string" || !name) {
       return json({ error: "Name is required" }, { status: 400 });
     }
 
     try {
-      await prisma.user.update({
+      console.log("Attempting to update user and customer profile with data:", {
+        userId,
+        name,
+        phone: phone || null,
+        city: city || null,
+        country: country || null,
+      });
+
+      // Update the User model (name and phone)
+      const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
           name,
           phone: phone as string || null,
+        },
+      });
+
+      // Update or create CustomerProfile for city and country
+      await prisma.customerProfile.upsert({
+        where: { userId: userId },
+        update: {
+          city: city as string || null,
+          country: country as string || null,
+        },
+        create: {
+          userId: userId,
+          firstName: name.split(' ')[0] || name,
+          lastName: name.split(' ').slice(1).join(' ') || '',
           city: city as string || null,
           country: country as string || null,
         },
       });
 
-      return json({ success: "Profile updated successfully!" });
+      console.log("Profile updated successfully:", {
+        userId: updatedUser.id,
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+        city,
+        country,
+      });
+      
+      return redirect("/profile?updated=true");
     } catch (error) {
+      console.error("Profile update error:", error);
       return json({ error: "Failed to update profile" }, { status: 500 });
     }
   }
@@ -78,8 +140,23 @@ export async function action({ request }: ActionFunctionArgs) {
     try {
       let urlToSave = typeof avatarUrl === 'string' && avatarUrl ? avatarUrl : undefined;
       if (file) {
-        const name = `${Date.now()}-${file.name}`;
-        urlToSave = `/uploads/${name}`;
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+        const apiKey = process.env.CLOUDINARY_API_KEY;
+        const apiSecret = process.env.CLOUDINARY_API_SECRET;
+        if (cloudName && apiKey && apiSecret) {
+          cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
+          const arrayBuffer = await file.arrayBuffer();
+          const uploadResult: any = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream({ folder: 'findo' }, (err, result) => {
+              if (err) reject(err); else resolve(result);
+            });
+            stream.end(Buffer.from(arrayBuffer));
+          });
+          urlToSave = uploadResult.secure_url as string;
+        } else {
+          const name = `${Date.now()}-${file.name}`;
+          urlToSave = `/uploads/${name}`;
+        }
       }
       if (!urlToSave) return json({ error: "Invalid image input" }, { status: 400 });
       await prisma.user.update({ where: { id: userId }, data: { avatar: urlToSave } });
@@ -93,11 +170,18 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Profile() {
-  const { user } = useLoaderData<typeof loader>();
+  const { user, updated } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const [isEditing, setIsEditing] = useState(false);
+
+  // Close editing mode after successful update
+  useEffect(() => {
+    if (actionData?.success && isEditing) {
+      setIsEditing(false);
+    }
+  }, [actionData?.success, isEditing]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -151,11 +235,13 @@ export default function Profile() {
             </div>
 
             {/* Action Messages */}
-            {actionData?.success && (
+            {(actionData?.success || updated) && (
               <div className="mb-6 rounded-lg bg-green-50 border border-green-200 p-4">
                 <div className="flex items-center">
                   <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
-                  <p className="text-sm text-green-800">{actionData.success}</p>
+                  <p className="text-sm text-green-800">
+                    {actionData?.success || "Profile updated successfully!"}
+                  </p>
                 </div>
               </div>
             )}
@@ -181,7 +267,18 @@ export default function Profile() {
 
             {/* Profile Form */}
             {isEditing ? (
-              <Form method="post" className="space-y-6">
+              <Form method="post" className="space-y-6" onSubmit={(e) => {
+                const formData = new FormData(e.currentTarget);
+                const name = formData.get("name");
+                const city = formData.get("city");
+                const country = formData.get("country");
+                console.log("Form submission:", { name, city, country });
+                if (!name || typeof name !== "string" || name.trim() === "") {
+                  e.preventDefault();
+                  alert("Name is required");
+                  return;
+                }
+              }}>
                 <input type="hidden" name="intent" value="update-profile" />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

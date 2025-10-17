@@ -1,6 +1,7 @@
 import React from "react";
 import { Check, CheckCheck, MoreVertical } from "lucide-react";
 import { formatTimestamp, clsx } from "./utils";
+import { useTheme } from "~/contexts/ThemeContext";
 import type { Message } from "./types";
 
 export function MessageBubble({
@@ -22,8 +23,9 @@ export function MessageBubble({
   onDelete?: (m: Message) => void;
   onReply?: (m: Message) => void;
 }) {
+  const { resolvedTheme } = useTheme();
   const statusIcon = message.status === "read" ? (
-    <CheckCheck className="w-4 h-4 text-blue-500" />
+    <CheckCheck className="w-4 h-4 text-[#01502E]" />
   ) : message.status === "delivered" ? (
     <CheckCheck className="w-4 h-4 text-gray-400" />
   ) : message.status === "sent" ? (
@@ -33,7 +35,11 @@ export function MessageBubble({
   const content = (
     <div className={clsx(
       "max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow",
-      isSender ? "bg-[#01502E] text-white self-end" : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+      isSender 
+        ? "bg-[#01502E] text-white self-end" 
+        : resolvedTheme === 'dark' 
+          ? "bg-gray-800 text-gray-100 border border-gray-700" 
+          : "bg-white text-gray-900 border border-gray-200"
     )}>
       {message.type === "text" ? (
         <span className="whitespace-pre-wrap break-words">

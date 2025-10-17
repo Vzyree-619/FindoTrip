@@ -1,74 +1,95 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { requireUserId } from "~/lib/auth/auth.server";
+import { getUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 
 // GET /api/chat.conversations - List all conversations for current user
 export async function loader({ request }: LoaderFunctionArgs) {
-  const userId = await requireUserId(request);
+  const userId = await getUserId(request);
+  
+  // If no user is logged in, return empty data instead of redirecting
+  if (!userId) {
+    return json({
+      success: true,
+      data: {
+        conversations: [],
+        currentUserId: null,
+        userId: null
+      }
+    });
+  }
 
   try {
-    // Find all messages where user is sender or receiver
-    const messages = await prisma.message.findMany({
+    // Get conversations where user is a participant
+    const conversations = await prisma.conversation.findMany({
       where: {
-        OR: [
-          { senderId: userId },
-          { receiverId: userId },
-        ],
+        participants: { has: userId },
+        isActive: true
       },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        senderId: true,
-        receiverId: true,
-        content: true,
-        createdAt: true,
-        read: true,
+      include: {
+        messages: {
+          include: {
+            sender: { select: { id: true, name: true, role: true, avatar: true } }
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1
+        }
       },
+      orderBy: { lastMessageAt: "desc" },
+      take: 50
     });
 
-    // Group by conversation (peer user)
-    const conversationMap = new Map<string, any>();
-
-    for (const msg of messages) {
-      const peerId = msg.senderId === userId ? msg.receiverId : msg.senderId;
-      const convKey = [userId, peerId].sort().join(":");
-
-      if (!conversationMap.has(convKey)) {
-        // Get peer user info
-        const peer = await prisma.user.findUnique({
-          where: { id: peerId },
-          select: { id: true, name: true, role: true },
+    // Process conversations and get participant details
+    const processedConversations = await Promise.all(
+      conversations.map(async (conv) => {
+        // Get other participants (excluding current user)
+        const otherParticipantIds = conv.participants.filter(id => id !== userId);
+        
+        // Fetch participant details
+        const participants = await prisma.user.findMany({
+          where: { id: { in: otherParticipantIds } },
+          select: { id: true, name: true, role: true, avatar: true }
         });
 
-        conversationMap.set(convKey, {
-          id: convKey,
-          participants: [{ id: peerId, name: peer?.name, role: peer?.role }],
-          lastMessage: msg,
-          updatedAt: msg.createdAt,
-          unreadCount: 0,
-        });
-      }
+        // Get unread count for this user
+        const unreadCount = conv.unreadCount && typeof conv.unreadCount === 'object' 
+          ? (conv.unreadCount as any)[userId] || 0 
+          : 0;
 
-      // Update last message if this is more recent
-      const conv = conversationMap.get(convKey);
-      if (new Date(msg.createdAt) > new Date(conv.lastMessage.createdAt)) {
-        conv.lastMessage = msg;
-        conv.updatedAt = msg.createdAt;
-      }
-
-      // Count unread messages (received by current user, not read)
-      if (msg.receiverId === userId && !msg.read) {
-        conv.unreadCount++;
-      }
-    }
-
-    const conversations = Array.from(conversationMap.values()).sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        return {
+          id: conv.id,
+          participants,
+          lastMessage: conv.messages[0] ? {
+            id: conv.messages[0].id,
+            content: conv.messages[0].content,
+            senderId: conv.messages[0].senderId,
+            senderName: conv.messages[0].sender.name,
+            createdAt: conv.messages[0].createdAt
+          } : undefined,
+          lastMessageAt: conv.lastMessageAt,
+          updatedAt: conv.lastMessageAt,
+          unreadCount
+        };
+      })
     );
 
-    return json({ conversations });
+    return json({ 
+      success: true,
+      data: { 
+        conversations: processedConversations, 
+        currentUserId: userId,
+        userId: userId
+      } 
+    });
   } catch (e) {
     console.error("chat.conversations loader error", e);
-    return json({ error: "Failed to load conversations" }, { status: 500 });
+    return json({ 
+      success: false,
+      data: { 
+        conversations: [], 
+        currentUserId: userId,
+        userId: userId 
+      },
+      error: "Failed to load conversations"
+    }, { status: 500 });
   }
 }
