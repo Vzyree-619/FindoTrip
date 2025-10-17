@@ -575,19 +575,19 @@ export default function SLATracking() {
           <div className="text-center p-4 bg-red-50 rounded-lg">
             <div className="text-2xl font-bold text-red-600 mb-2">{slaViolations.high}</div>
             <div className="text-sm text-gray-600">High Priority Violations</div>
-            <div className="text-xs text-gray-500 mt-1">Response time > 2 hours</div>
+            <div className="text-xs text-gray-500 mt-1">Response time &gt; 2 hours</div>
           </div>
           
           <div className="text-center p-4 bg-yellow-50 rounded-lg">
             <div className="text-2xl font-bold text-yellow-600 mb-2">{slaViolations.medium}</div>
             <div className="text-sm text-gray-600">Medium Priority Violations</div>
-            <div className="text-xs text-gray-500 mt-1">Response time > 24 hours</div>
+            <div className="text-xs text-gray-500 mt-1">Response time &gt; 24 hours</div>
           </div>
           
           <div className="text-center p-4 bg-orange-50 rounded-lg">
             <div className="text-2xl font-bold text-orange-600 mb-2">{slaViolations.low}</div>
             <div className="text-sm text-gray-600">Low Priority Violations</div>
-            <div className="text-xs text-gray-500 mt-1">Response time > 48 hours</div>
+            <div className="text-xs text-gray-500 mt-1">Response time &gt; 48 hours</div>
           </div>
         </div>
       </Card>

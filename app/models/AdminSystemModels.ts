@@ -1,6 +1,10 @@
-// Missing Database Models for Admin System
-// These models need to be added to the Prisma schema
+// Admin System Models Documentation
+// These models have been added to the Prisma schema
 
+// Import types for better TypeScript support
+import type { Prisma } from '@prisma/client';
+
+// Export the models documentation
 export const AdminSystemModels = `
 // ========================================
 // ADMIN SYSTEM MODELS
