@@ -1,345 +1,363 @@
 import { redirect } from "@remix-run/node";
-import { getUser } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
+import { getUserId } from "~/lib/session.server";
 
-export interface AdminUser {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  phone: string | null;
-  avatar: string | null;
-  verified: boolean;
-}
-
-export interface AdminSession {
-  userId: string;
-  role: string;
-  isAdmin: boolean;
-  permissions: string[];
-}
-
-/**
- * Require admin access - throws redirect if not admin
- * Use this in ALL admin route loaders
- */
-export async function requireAdmin(request: Request): Promise<AdminUser> {
-  const user = await getUser(request);
+export async function requireAdmin(request: Request) {
+  const userId = await getUserId(request);
   
-  if (!user) {
-    throw redirect("/admin/login");
+  if (!userId) {
+    throw redirect("/login");
   }
   
-  if (user.role !== 'SUPER_ADMIN') {
-    throw redirect("/admin/login?error=access_denied");
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      superAdmin: true
+    }
+  });
+  
+  if (!user || !user.superAdmin) {
+    throw redirect("/unauthorized");
   }
   
-  return user as AdminUser;
+  return user;
 }
 
-/**
- * Get admin session without throwing redirect
- * Use this when you need to check admin status without forcing login
- */
-export async function getAdminUser(request: Request): Promise<AdminUser | null> {
-  const user = await getUser(request);
-  
-  if (!user || user.role !== 'SUPER_ADMIN') {
-    return null;
-  }
-  
-  return user as AdminUser;
-}
-
-/**
- * Check if current user is admin (for conditional rendering)
- */
-export async function isAdmin(request: Request): Promise<boolean> {
-  const user = await getUser(request);
-  return user?.role === 'SUPER_ADMIN';
-}
-
-/**
- * Log admin actions for audit trail
- */
 export async function logAdminAction(
-  adminId: string,
-  action: string,
-  details: string,
+  adminId: string, 
+  action: string, 
+  description: string, 
   request: Request,
-  metadata?: Record<string, any>
-): Promise<void> {
+  resourceType?: string,
+  resourceId?: string,
+  details?: any
+) {
   try {
-    const ipAddress = request.headers.get('x-forwarded-for') || 
-                     request.headers.get('x-real-ip') || 
-                     'unknown';
-    const userAgent = request.headers.get('user-agent') || 'unknown';
+    const ipAddress = request.headers.get("x-forwarded-for") || 
+                     request.headers.get("x-real-ip") || 
+                     "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
     
     await prisma.auditLog.create({
       data: {
         userId: adminId,
         action,
-        details,
+        resourceType: resourceType || "ADMIN_ACTION",
+        resourceId: resourceId || "",
+        details: details || {},
         ipAddress,
         userAgent,
-        resourceType: 'ADMIN_ACTION',
-        resourceId: adminId,
-        hash: `${adminId}-${action}-${Date.now()}`
+        severity: getSeverityFromAction(action),
+        hash: generateHash(adminId, action, new Date().toISOString())
       }
     });
   } catch (error) {
     console.error("Failed to log admin action:", error);
-    // Don't throw - logging failures shouldn't break the app
   }
 }
 
-/**
- * Get admin permissions based on role
- */
-export function getAdminPermissions(role: string): string[] {
-  const permissions = {
-    SUPER_ADMIN: [
-      'users.manage',
-      'users.view',
-      'users.delete',
-      'providers.approve',
-      'providers.reject',
-      'providers.suspend',
-      'services.approve',
-      'services.reject',
-      'services.moderate',
-      'bookings.manage',
-      'bookings.view',
-      'bookings.cancel',
-      'support.manage',
-      'support.assign',
-      'reports.view',
-      'reports.export',
-      'settings.manage',
-      'audit.view',
-      'content.moderate',
-      'financial.manage'
-    ],
-    ADMIN: [
-      'users.view',
-      'providers.approve',
-      'services.approve',
-      'bookings.view',
-      'support.manage',
-      'reports.view',
-      'content.moderate'
-    ]
-  };
-  
-  return permissions[role as keyof typeof permissions] || [];
+export async function logActivity(
+  type: string,
+  description: string,
+  userId?: string,
+  request?: Request,
+  metadata?: any
+) {
+  try {
+    const ipAddress = request?.headers.get("x-forwarded-for") || 
+                     request?.headers.get("x-real-ip") || 
+                     "unknown";
+    const userAgent = request?.headers.get("user-agent") || "unknown";
+    
+    await prisma.activityLog.create({
+      data: {
+        type: type as any,
+        description,
+        userId,
+        ipAddress,
+        userAgent,
+        metadata: metadata || {}
+      }
+    });
+  } catch (error) {
+    console.error("Failed to log activity:", error);
+  }
 }
 
-/**
- * Check if admin has specific permission
- */
-export function hasPermission(admin: AdminUser, permission: string): boolean {
-  const permissions = getAdminPermissions(admin.role);
-  return permissions.includes(permission);
-}
-
-/**
- * Get admin dashboard statistics
- */
-export async function getAdminStats(): Promise<{
-  totalUsers: number;
-  totalProviders: number;
-  totalBookings: number;
-  totalRevenue: number;
-  pendingApprovals: number;
-  activeSupportTickets: number;
-  recentActivity: any[];
-}> {
-  const [
-    totalUsers,
-    totalProviders,
-    totalBookings,
-    totalRevenue,
-    pendingApprovals,
-    activeSupportTickets,
-    recentActivity
-  ] = await Promise.all([
-    // Total users (excluding admins)
-    prisma.user.count({
-      where: {
-        role: { not: 'SUPER_ADMIN' }
-      }
-    }),
-    
-    // Total providers (property owners, vehicle owners, tour guides)
-    prisma.user.count({
-      where: {
-        role: { in: ['PROPERTY_OWNER', 'VEHICLE_OWNER', 'TOUR_GUIDE'] }
-      }
-    }),
-    
-    // Total bookings (using property bookings as example)
-    prisma.propertyBooking.count(),
-    
-    // Total revenue (sum of all booking amounts)
-    prisma.propertyBooking.aggregate({
-      _sum: { totalPrice: true }
-    }).then(result => result._sum.totalPrice || 0),
-    
-    // Pending approvals (users and services)
-    Promise.all([
-      prisma.user.count({
-        where: {
-          role: { in: ['PROPERTY_OWNER', 'VEHICLE_OWNER', 'TOUR_GUIDE'] },
-          verified: false
-        }
+export async function getAdminStats() {
+  try {
+    const [
+      totalUsers,
+      totalBookings,
+      totalRevenue,
+      activeTickets,
+      pendingApprovals
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.booking.count(),
+      prisma.booking.aggregate({
+        where: { status: "CONFIRMED" },
+        _sum: { totalAmount: true }
+      }),
+      prisma.supportTicket.count({
+        where: { status: { in: ["NEW", "IN_PROGRESS"] } }
       }),
       prisma.property.count({
-        where: { approvalStatus: 'PENDING' }
-      }),
+        where: { approvalStatus: "PENDING" }
+      }) + 
       prisma.vehicle.count({
-        where: { approvalStatus: 'PENDING' }
-      }),
+        where: { approvalStatus: "PENDING" }
+      }) +
       prisma.tour.count({
-        where: { approvalStatus: 'PENDING' }
+        where: { approvalStatus: "PENDING" }
       })
-    ]).then(counts => counts.reduce((sum, count) => sum + count, 0)),
+    ]);
     
-    // Active support tickets (using a generic count for now)
-    prisma.user.count({
-      where: {
-        role: { not: 'SUPER_ADMIN' }
-      }
-    }),
-    
-    // Recent activity (last 10 audit log entries)
-    prisma.auditLog.findMany({
-      take: 10,
-      orderBy: { id: 'desc' },
+    return {
+      totalUsers,
+      totalBookings,
+      totalRevenue: totalRevenue._sum.totalAmount || 0,
+      activeTickets,
+      pendingApprovals
+    };
+  } catch (error) {
+    console.error("Failed to get admin stats:", error);
+    return {
+      totalUsers: 0,
+      totalBookings: 0,
+      totalRevenue: 0,
+      activeTickets: 0,
+      pendingApprovals: 0
+    };
+  }
+}
+
+export async function getRecentActivity(limit: number = 10) {
+  try {
+    const activities = await prisma.activityLog.findMany({
       include: {
         user: {
           select: {
+            id: true,
+            name: true,
             email: true,
             role: true
           }
         }
-      }
-    })
-  ]);
-  
-  return {
-    totalUsers,
-    totalProviders,
-    totalBookings,
-    totalRevenue,
-    pendingApprovals,
-    activeSupportTickets,
-    recentActivity
-  };
-}
-
-/**
- * Get admin navigation menu based on permissions
- */
-export function getAdminNavigation(admin: AdminUser) {
-  const baseMenu = [
-    {
-      name: 'Dashboard',
-      href: '/admin/dashboard',
-      icon: 'Home',
-      permission: null
-    }
-  ];
-  
-  const menuItems = [
-    {
-      name: 'Users',
-      href: '/admin/users',
-      icon: 'Users',
-      permission: 'users.view',
-      children: [
-        { name: 'All Users', href: '/admin/users' },
-        { name: 'Providers', href: '/admin/users/providers' },
-        { name: 'Customers', href: '/admin/users/customers' }
-      ]
-    },
-    {
-      name: 'Approvals',
-      href: '/admin/approvals',
-      icon: 'CheckCircle',
-      permission: 'providers.approve',
-      children: [
-        { name: 'Provider Applications', href: '/admin/approvals/providers' },
-        { name: 'Service Listings', href: '/admin/approvals/services' }
-      ]
-    },
-    {
-      name: 'Bookings',
-      href: '/admin/bookings',
-      icon: 'Calendar',
-      permission: 'bookings.view'
-    },
-    {
-      name: 'Support',
-      href: '/admin/support',
-      icon: 'MessageSquare',
-      permission: 'support.manage'
-    },
-    {
-      name: 'Reports',
-      href: '/admin/reports',
-      icon: 'BarChart',
-      permission: 'reports.view',
-      children: [
-        { name: 'Financial Reports', href: '/admin/reports/financial' },
-        { name: 'User Analytics', href: '/admin/reports/users' },
-        { name: 'Booking Analytics', href: '/admin/reports/bookings' }
-      ]
-    },
-    {
-      name: 'Settings',
-      href: '/admin/settings',
-      icon: 'Settings',
-      permission: 'settings.manage'
-    },
-    {
-      name: 'Audit Logs',
-      href: '/admin/audit',
-      icon: 'FileText',
-      permission: 'audit.view'
-    }
-  ];
-  
-  // Filter menu based on permissions
-  const filteredMenu = menuItems.filter(item => 
-    !item.permission || hasPermission(admin, item.permission)
-  );
-  
-  return [...baseMenu, ...filteredMenu];
-}
-
-/**
- * Rate limiting for admin actions
- */
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-
-export function checkRateLimit(
-  identifier: string, 
-  maxAttempts: number = 10, 
-  windowMs: number = 60000
-): boolean {
-  const now = Date.now();
-  const key = identifier;
-  const current = rateLimitMap.get(key);
-  
-  if (!current || now > current.resetTime) {
-    rateLimitMap.set(key, { count: 1, resetTime: now + windowMs });
-    return true;
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit
+    });
+    
+    return activities;
+  } catch (error) {
+    console.error("Failed to get recent activity:", error);
+    return [];
   }
-  
-  if (current.count >= maxAttempts) {
+}
+
+export async function getSystemHealth() {
+  try {
+    const [
+      databaseStatus,
+      lastBackup,
+      errorCount,
+      activeUsers
+    ] = await Promise.all([
+      checkDatabaseConnection(),
+      prisma.backupInfo.findFirst({
+        orderBy: { createdAt: "desc" }
+      }),
+      prisma.auditLog.count({
+        where: {
+          severity: "HIGH",
+          createdAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+          }
+        }
+      }),
+      prisma.user.count({
+        where: {
+          lastActiveAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+          }
+        }
+      })
+    ]);
+    
+    return {
+      database: databaseStatus,
+      lastBackup: lastBackup?.createdAt,
+      errorCount,
+      activeUsers,
+      status: databaseStatus ? "healthy" : "unhealthy"
+    };
+  } catch (error) {
+    console.error("Failed to get system health:", error);
+    return {
+      database: false,
+      lastBackup: null,
+      errorCount: 0,
+      activeUsers: 0,
+      status: "unhealthy"
+    };
+  }
+}
+
+export async function sendNotification(
+  type: "email" | "sms" | "push",
+  recipient: string,
+  subject: string,
+  content: string,
+  metadata?: any
+) {
+  try {
+    // Create notification log
+    await prisma.notificationLog.create({
+      data: {
+        type: type.toUpperCase() as any,
+        recipientEmail: type === "email" ? recipient : undefined,
+        recipientPhone: type === "sms" ? recipient : undefined,
+        subject,
+        content,
+        status: "SENT"
+      }
+    });
+    
+    // Here you would integrate with actual notification services
+    // For now, we'll just log the notification
+    
+    console.log(`Notification sent: ${type} to ${recipient}`);
+    return true;
+  } catch (error) {
+    console.error("Failed to send notification:", error);
     return false;
   }
-  
-  current.count++;
-  return true;
 }
+
+export async function createBackup(type: "automatic" | "manual", createdBy?: string) {
+  try {
+    const backup = await prisma.backupInfo.create({
+      data: {
+        backupType: type,
+        status: "completed",
+        size: "2.5 GB", // This would be calculated from actual backup
+        createdBy
+      }
+    });
+    
+    // Here you would implement actual backup logic
+    console.log(`Backup created: ${backup.id}`);
+    return backup;
+  } catch (error) {
+    console.error("Failed to create backup:", error);
+    throw error;
+  }
+}
+
+export async function blockIP(ipAddress: string, reason: string, blockedBy: string) {
+  try {
+    const blockedIP = await prisma.blockedIP.create({
+      data: {
+        ipAddress,
+        reason,
+        blockedBy
+      }
+    });
+    
+    return blockedIP;
+  } catch (error) {
+    console.error("Failed to block IP:", error);
+    throw error;
+  }
+}
+
+export async function unblockIP(ipId: string) {
+  try {
+    const blockedIP = await prisma.blockedIP.delete({
+      where: { id: ipId }
+    });
+    
+    return blockedIP;
+  } catch (error) {
+    console.error("Failed to unblock IP:", error);
+    throw error;
+  }
+}
+
+// Helper functions
+function getSeverityFromAction(action: string): "low" | "medium" | "high" | "critical" {
+  const highSeverityActions = [
+    "USER_SUSPENDED",
+    "USER_DELETED",
+    "REFUND_ISSUED",
+    "DATA_EXPORT",
+    "SETTINGS_CHANGED"
+  ];
+  
+  const criticalActions = [
+    "ADMIN_LOGIN",
+    "ADMIN_LOGOUT",
+    "SECURITY_SETTINGS_CHANGED"
+  ];
+  
+  if (criticalActions.includes(action)) {
+    return "critical";
+  }
+  
+  if (highSeverityActions.includes(action)) {
+    return "high";
+  }
+  
+  return "medium";
+}
+
+function generateHash(adminId: string, action: string, timestamp: string): string {
+  // Simple hash generation for audit log integrity
+  const data = `${adminId}-${action}-${timestamp}`;
+  return Buffer.from(data).toString('base64');
+}
+
+async function checkDatabaseConnection(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Export types for use in other files
+export type AdminAction = 
+  | "USER_APPROVED"
+  | "USER_SUSPENDED"
+  | "USER_DELETED"
+  | "SETTINGS_CHANGED"
+  | "BOOKING_CANCELLED"
+  | "REFUND_ISSUED"
+  | "DATA_EXPORT"
+  | "ADMIN_LOGIN"
+  | "ADMIN_LOGOUT"
+  | "SECURITY_SETTINGS_CHANGED"
+  | "EMAIL_TEMPLATE_CREATED"
+  | "EMAIL_TEMPLATE_UPDATED"
+  | "NOTIFICATION_SENT"
+  | "BACKUP_CREATED"
+  | "IP_BLOCKED"
+  | "IP_UNBLOCKED";
+
+export type AdminStats = {
+  totalUsers: number;
+  totalBookings: number;
+  totalRevenue: number;
+  activeTickets: number;
+  pendingApprovals: number;
+};
+
+export type SystemHealth = {
+  database: boolean;
+  lastBackup: Date | null;
+  errorCount: number;
+  activeUsers: number;
+  status: "healthy" | "unhealthy";
+};

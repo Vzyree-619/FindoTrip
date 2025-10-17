@@ -1,58 +1,27 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useFetcher, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useFetcher } from "@remix-run/react";
 import { requireAdmin, logAdminAction } from "~/lib/admin.server";
 import { prisma } from "~/lib/db/db.server";
 import { Card } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { 
   Zap, 
-  Search,
-  Filter,
-  Download,
-  Eye,
-  Edit,
+  Users,
+  MessageSquare,
+  Star,
+  DollarSign,
+  Calendar,
+  Clock,
+  AlertTriangle,
   CheckCircle,
   XCircle,
-  Clock,
-  Mail,
-  Phone,
-  Star,
-  AlertTriangle,
-  UserCheck,
-  UserX,
-  Settings,
-  Activity,
-  TrendingUp,
-  BarChart3,
-  Shield,
-  BookOpen,
-  Globe,
-  Award,
-  Flag,
-  Archive,
-  Trash2,
+  Eye,
+  Download,
+  RefreshCw,
+  Search,
+  Filter,
   Plus,
   Minus,
-  ZoomIn,
-  ZoomOut,
-  Bell,
-  BellOff,
-  Lock,
-  Unlock,
-  CheckCircle2,
-  XCircle2,
-  Clock3,
-  AlertCircle,
-  Info,
-  HelpCircle,
-  Bug,
-  Wrench,
-  Heart,
-  ThumbsUp,
-  ThumbsDown,
-  Send,
-  Reply,
-  Forward,
   Copy,
   Share,
   Bookmark,
@@ -61,171 +30,141 @@ import {
   Target,
   Timer,
   User,
-  Users,
-  Calendar,
-  Tag,
-  Priority,
   FileText,
   Paperclip,
   Image,
   File,
   Video,
   Music,
-  Archive as ArchiveFile,
-  MessageSquare,
-  RefreshCw,
-  ArrowUp,
-  ArrowDown,
-  ArrowRight,
-  ArrowLeft,
-  RotateCcw,
-  RotateCw,
-  Maximize,
-  Minimize,
-  Move,
-  Grip,
-  MoreHorizontal,
-  MoreVertical,
-  ChevronUp,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Play,
-  Pause,
-  Stop,
-  Square,
-  Circle,
-  Triangle,
-  Hexagon,
-  Octagon,
-  Diamond,
-  Square as SquareIcon,
-  Circle as CircleIcon,
-  Triangle as TriangleIcon
+  Archive,
+  Settings,
+  Globe,
+  CreditCard,
+  Shield,
+  Bell,
+  Building,
+  Car,
+  MapPin,
+  Heart,
+  Share2,
+  Gift,
+  Info,
+  HelpCircle,
+  Wrench,
+  Database,
+  Server,
+  Cloud,
+  Lock,
+  Unlock,
+  Bot,
+  Cpu,
+  HardDrive,
+  Network,
+  Wifi,
+  WifiOff,
+  Signal,
+  Battery,
+  Power,
+  Plug,
+  Unplug,
+  Cable,
+  Router,
+  Sun,
+  Moon,
+  Sunrise,
+  Sunset,
+  Wind,
+  Thermometer,
+  Droplets,
+  Flame,
+  Snowflake,
+  Sparkles,
+  ThumbsUp,
+  ThumbsDown,
+  Reply,
+  Forward,
+  Send,
+  Mail,
+  Phone,
+  MessageCircle,
+  AlertCircle,
+  Bug,
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  PieChart,
+  LineChart,
+  Activity,
+  Key
 } from "lucide-react";
 import { useState } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const admin = await requireAdmin(request);
-  const url = new URL(request.url);
-  const search = url.searchParams.get('search') || '';
-  const status = url.searchParams.get('status') || 'all';
-  const priority = url.searchParams.get('priority') || 'all';
-  const assignedTo = url.searchParams.get('assignedTo') || 'all';
-  const page = parseInt(url.searchParams.get('page') || '1');
-  const limit = parseInt(url.searchParams.get('limit') || '20');
   
-  // Build where clause for tickets
-  const whereClause: any = {};
-  
-  if (search) {
-    whereClause.OR = [
-      { subject: { contains: search, mode: 'insensitive' } },
-      { description: { contains: search, mode: 'insensitive' } },
-      { user: { name: { contains: search, mode: 'insensitive' } } },
-      { user: { email: { contains: search, mode: 'insensitive' } } }
-    ];
-  }
-  
-  if (status !== 'all') {
-    whereClause.status = status.toUpperCase();
-  }
-  
-  if (priority !== 'all') {
-    whereClause.priority = priority.toUpperCase();
-  }
-  
-  if (assignedTo !== 'all') {
-    if (assignedTo === 'unassigned') {
-      whereClause.assignedTo = null;
-    } else {
-      whereClause.assignedTo = assignedTo;
-    }
-  }
-  
-  // Get tickets for quick actions
-  const [tickets, totalCount] = await Promise.all([
-    prisma.supportTicket.findMany({
-      where: whereClause,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            role: true,
-            verified: true,
-            isActive: true
-          }
-        },
-        assignedTo: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        _count: {
-          select: {
-            messages: true
-          }
+  // Get support tickets for quick actions
+  const tickets = await prisma.supportTicket.findMany({
+    include: {
+      provider: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true
         }
       },
-      orderBy: [
-        { priority: 'desc' },
-        { createdAt: 'desc' }
-      ],
-      skip: (page - 1) * limit,
-      take: limit
-    }),
-    prisma.supportTicket.count({ where: whereClause })
-  ]);
+      assignedTo: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+      messages: {
+        select: {
+          id: true,
+          content: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 1
+      }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20
+  });
   
   // Get available admins for assignment
-  const availableAdmins = await prisma.user.findMany({
+  const admins = await prisma.user.findMany({
     where: {
-      role: { in: ['SUPER_ADMIN', 'ADMIN'] },
-      isActive: true
+      role: 'SUPER_ADMIN'
     },
     select: {
       id: true,
       name: true,
       email: true,
       role: true
-    },
-    orderBy: { name: 'asc' }
+    }
   });
   
-  // Get ticket statistics for quick actions
-  const ticketStats = await Promise.all([
-    prisma.supportTicket.count({ where: { status: 'NEW' } }),
-    prisma.supportTicket.count({ where: { status: 'IN_PROGRESS' } }),
-    prisma.supportTicket.count({ where: { priority: 'HIGH' } }),
-    prisma.supportTicket.count({ where: { assignedTo: null } }),
-    prisma.supportTicket.count({ where: { escalatedAt: { not: null } } })
-  ]);
+  // Get user logs for a specific user (if provided)
+  const url = new URL(request.url);
+  const userId = url.searchParams.get('userId');
+  
+  let userLogs = [];
+  if (userId) {
+    userLogs = await prisma.activityLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    });
+  }
   
   return json({
     admin,
     tickets,
-    totalCount,
-    availableAdmins,
-    ticketStats: {
-      new: ticketStats[0],
-      inProgress: ticketStats[1],
-      highPriority: ticketStats[2],
-      unassigned: ticketStats[3],
-      escalated: ticketStats[4]
-    },
-    pagination: {
-      page,
-      limit,
-      totalPages: Math.ceil(totalCount / limit),
-      hasNext: page < Math.ceil(totalCount / limit),
-      hasPrev: page > 1
-    },
-    filters: { search, status, priority, assignedTo }
+    admins,
+    userLogs
   });
 }
 
@@ -233,739 +172,440 @@ export async function action({ request }: ActionFunctionArgs) {
   const admin = await requireAdmin(request);
   const formData = await request.formData();
   const action = formData.get('action') as string;
-  const ticketId = formData.get('ticketId') as string;
-  const newStatus = formData.get('newStatus') as string;
-  const newPriority = formData.get('newPriority') as string;
-  const assignedTo = formData.get('assignedTo') as string;
-  const reason = formData.get('reason') as string;
-  const message = formData.get('message') as string;
   
   try {
     if (action === 'change_priority') {
+      const ticketId = formData.get('ticketId') as string;
+      const priority = formData.get('priority') as string;
+      
       await prisma.supportTicket.update({
         where: { id: ticketId },
-        data: { 
-          priority: newPriority,
-          updatedAt: new Date()
-        }
+        data: { priority: priority as any }
       });
       
-      // Add internal note about priority change
-      await prisma.supportMessage.create({
-        data: {
-          ticketId: ticketId,
-          senderId: admin.id,
-          senderType: 'ADMIN',
-          content: `Priority changed to ${newPriority} by ${admin.name}`,
-          isInternal: true
-        }
-      });
-      
-      await logAdminAction(admin.id, 'CHANGE_PRIORITY', `Changed ticket ${ticketId} priority to ${newPriority}`, request);
+      await logAdminAction(admin.id, 'CHANGE_PRIORITY', `Changed priority to ${priority}`, request);
       
     } else if (action === 'change_status') {
+      const ticketId = formData.get('ticketId') as string;
+      const status = formData.get('status') as string;
+      const reason = formData.get('reason') as string;
+      
       await prisma.supportTicket.update({
         where: { id: ticketId },
-        data: { 
-          status: newStatus,
-          updatedAt: new Date()
-        }
+        data: { status: status as any }
       });
       
-      // Add internal note about status change
+      // Add system message about status change
       await prisma.supportMessage.create({
         data: {
-          ticketId: ticketId,
+          content: `Status changed to ${status}. Reason: ${reason}`,
+          ticketId,
           senderId: admin.id,
-          senderType: 'ADMIN',
-          content: `Status changed to ${newStatus} by ${admin.name}`,
-          isInternal: true
+          type: 'SYSTEM'
         }
       });
       
-      await logAdminAction(admin.id, 'CHANGE_STATUS', `Changed ticket ${ticketId} status to ${newStatus}`, request);
+      await logAdminAction(admin.id, 'CHANGE_STATUS', `Changed status to ${status}`, request);
       
     } else if (action === 'assign_ticket') {
+      const ticketId = formData.get('ticketId') as string;
+      const assigneeId = formData.get('assigneeId') as string;
+      
       await prisma.supportTicket.update({
         where: { id: ticketId },
         data: { 
-          assignedTo: assignedTo,
-          status: 'ASSIGNED',
-          assignedAt: new Date(),
-          updatedAt: new Date()
+          assignedToId: assigneeId,
+          status: 'ASSIGNED'
         }
       });
       
-      // Add internal note about assignment
+      // Add system message about assignment
       await prisma.supportMessage.create({
         data: {
-          ticketId: ticketId,
+          content: `Ticket assigned to admin`,
+          ticketId,
           senderId: admin.id,
-          senderType: 'ADMIN',
-          content: `Ticket assigned to ${assignedTo} by ${admin.name}`,
-          isInternal: true
+          type: 'SYSTEM'
         }
       });
       
-      await logAdminAction(admin.id, 'ASSIGN_TICKET', `Assigned ticket ${ticketId} to ${assignedTo}`, request);
+      await logAdminAction(admin.id, 'ASSIGN_TICKET', `Assigned ticket to admin`, request);
       
-    } else if (action === 'escalate') {
+    } else if (action === 'escalate_ticket') {
+      const ticketId = formData.get('ticketId') as string;
+      const reason = formData.get('reason') as string;
+      
       await prisma.supportTicket.update({
         where: { id: ticketId },
         data: { 
-          priority: 'HIGH',
+          escalated: true,
           escalatedAt: new Date(),
-          escalationReason: reason,
           escalatedBy: admin.id,
-          updatedAt: new Date()
+          priority: 'URGENT'
         }
       });
       
-      // Add internal note about escalation
+      // Add system message about escalation
       await prisma.supportMessage.create({
         data: {
-          ticketId: ticketId,
+          content: `Ticket escalated. Reason: ${reason}`,
+          ticketId,
           senderId: admin.id,
-          senderType: 'ADMIN',
-          content: `Ticket escalated by ${admin.name}. Reason: ${reason}`,
-          isInternal: true
+          type: 'SYSTEM'
         }
       });
       
-      await logAdminAction(admin.id, 'ESCALATE_TICKET', `Escalated ticket ${ticketId}`, request);
+      await logAdminAction(admin.id, 'ESCALATE_TICKET', `Escalated ticket`, request);
       
     } else if (action === 'reset_password') {
-      // Generate password reset link (simplified)
+      const userId = formData.get('userId') as string;
+      
+      // Generate password reset token (simplified)
       const resetToken = Math.random().toString(36).substring(2, 15);
       
-      // Add internal note about password reset
-      await prisma.supportMessage.create({
-        data: {
-          ticketId: ticketId,
-          senderId: admin.id,
-          senderType: 'ADMIN',
-          content: `Password reset link generated by ${admin.name}. Token: ${resetToken}`,
-          isInternal: true
-        }
-      });
+      // In a real implementation, you would:
+      // 1. Generate a secure reset token
+      // 2. Store it in the database with expiration
+      // 3. Send email with reset link
       
-      await logAdminAction(admin.id, 'RESET_PASSWORD', `Generated password reset for ticket ${ticketId}`, request);
+      await logAdminAction(admin.id, 'RESET_PASSWORD', `Reset password for user ${userId}`, request);
       
     } else if (action === 'access_account') {
-      // Log admin access to user account
-      await prisma.supportMessage.create({
-        data: {
-          ticketId: ticketId,
-          senderId: admin.id,
-          senderType: 'ADMIN',
-          content: `Admin ${admin.name} accessed user account for troubleshooting`,
-          isInternal: true
-        }
-      });
+      const userId = formData.get('userId') as string;
       
-      await logAdminAction(admin.id, 'ACCESS_ACCOUNT', `Accessed user account for ticket ${ticketId}`, request);
+      // In a real implementation, you would:
+      // 1. Create a temporary admin session
+      // 2. Log the admin impersonation
+      // 3. Set time limits
       
-    } else if (action === 'view_logs') {
-      // Log admin viewing user logs
-      await prisma.supportMessage.create({
-        data: {
-          ticketId: ticketId,
-          senderId: admin.id,
-          senderType: 'ADMIN',
-          content: `Admin ${admin.name} viewed user activity logs`,
-          isInternal: true
-        }
-      });
-      
-      await logAdminAction(admin.id, 'VIEW_LOGS', `Viewed user logs for ticket ${ticketId}`, request);
+      await logAdminAction(admin.id, 'ACCESS_ACCOUNT', `Accessed account for user ${userId}`, request);
     }
     
     return json({ success: true });
   } catch (error) {
-    console.error('Quick action error:', error);
-    return json({ success: false, error: 'Failed to process action' }, { status: 500 });
+    console.error('Quick actions error:', error);
+    return json({ success: false, error: 'Failed to perform action' }, { status: 500 });
   }
 }
 
 export default function QuickActions() {
-  const { admin, tickets, totalCount, availableAdmins, ticketStats, pagination, filters } = useLoaderData<typeof loader>();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
-  const [actionModal, setActionModal] = useState<{ open: boolean; action: string; ticketId: string; title: string }>({
-    open: false,
-    action: '',
-    ticketId: '',
-    title: ''
-  });
-  const [formData, setFormData] = useState({
-    newStatus: '',
-    newPriority: '',
-    assignedTo: '',
-    reason: '',
-    message: ''
-  });
+  const { admin, tickets, admins, userLogs } = useLoaderData<typeof loader>();
+  const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [showUserLogs, setShowUserLogs] = useState(false);
   
   const fetcher = useFetcher();
   
-  const handleSelectAll = () => {
-    if (selectedTickets.length === tickets.length) {
-      setSelectedTickets([]);
-    } else {
-      setSelectedTickets(tickets.map(t => t.id));
-    }
-  };
-  
-  const handleSelectTicket = (ticketId: string) => {
-    setSelectedTickets(prev => 
-      prev.includes(ticketId) 
-        ? prev.filter(id => id !== ticketId)
-        : [...prev, ticketId]
-    );
-  };
-  
-  const handleQuickAction = (action: string, ticketId: string, title: string) => {
-    setActionModal({ open: true, action, ticketId, title });
-  };
-  
-  const executeAction = () => {
-    const formDataToSubmit = new FormData();
-    formDataToSubmit.append('action', actionModal.action);
-    formDataToSubmit.append('ticketId', actionModal.ticketId);
-    if (formData.newStatus) formDataToSubmit.append('newStatus', formData.newStatus);
-    if (formData.newPriority) formDataToSubmit.append('newPriority', formData.newPriority);
-    if (formData.assignedTo) formDataToSubmit.append('assignedTo', formData.assignedTo);
-    if (formData.reason) formDataToSubmit.append('reason', formData.reason);
-    if (formData.message) formDataToSubmit.append('message', formData.message);
-    fetcher.submit(formDataToSubmit, { method: 'post' });
+  const handlePriorityChange = (ticketId: string, priority: string) => {
+    const formData = new FormData();
+    formData.append('action', 'change_priority');
+    formData.append('ticketId', ticketId);
+    formData.append('priority', priority);
     
-    setActionModal({ open: false, action: '', ticketId: '', title: '' });
-    setFormData({
-      newStatus: '',
-      newPriority: '',
-      assignedTo: '',
-      reason: '',
-      message: ''
-    });
+    fetcher.submit(formData, { method: 'post' });
   };
   
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'NEW': return 'bg-blue-100 text-blue-800';
-      case 'ASSIGNED': return 'bg-yellow-100 text-yellow-800';
-      case 'IN_PROGRESS': return 'bg-orange-100 text-orange-800';
-      case 'WAITING': return 'bg-purple-100 text-purple-800';
-      case 'RESOLVED': return 'bg-green-100 text-green-800';
-      case 'CLOSED': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const handleStatusChange = (ticketId: string, status: string, reason: string) => {
+    const formData = new FormData();
+    formData.append('action', 'change_status');
+    formData.append('ticketId', ticketId);
+    formData.append('status', status);
+    formData.append('reason', reason);
+    
+    fetcher.submit(formData, { method: 'post' });
+  };
+  
+  const handleAssignTicket = (ticketId: string, assigneeId: string) => {
+    const formData = new FormData();
+    formData.append('action', 'assign_ticket');
+    formData.append('ticketId', ticketId);
+    formData.append('assigneeId', assigneeId);
+    
+    fetcher.submit(formData, { method: 'post' });
+  };
+  
+  const handleEscalateTicket = (ticketId: string, reason: string) => {
+    const formData = new FormData();
+    formData.append('action', 'escalate_ticket');
+    formData.append('ticketId', ticketId);
+    formData.append('reason', reason);
+    
+    fetcher.submit(formData, { method: 'post' });
+  };
+  
+  const handleResetPassword = (userId: string) => {
+    if (confirm('Are you sure you want to reset this user\'s password?')) {
+      const formData = new FormData();
+      formData.append('action', 'reset_password');
+      formData.append('userId', userId);
+      
+      fetcher.submit(formData, { method: 'post' });
     }
   };
   
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return 'bg-red-100 text-red-800';
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
-      case 'LOW': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const handleAccessAccount = (userId: string) => {
+    if (confirm('Are you sure you want to access this user\'s account? This action will be logged.')) {
+      const formData = new FormData();
+      formData.append('action', 'access_account');
+      formData.append('userId', userId);
+      
+      fetcher.submit(formData, { method: 'post' });
     }
+  };
+  
+  const formatTimeAgo = (date: string) => {
+    const now = new Date();
+    const past = new Date(date);
+    const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
   };
   
   return (
-    <div className="flex space-x-6">
-      {/* Main Content */}
-      <div className="flex-1 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Quick Actions</h1>
-            <p className="text-gray-600">Fast ticket management with one-click actions</p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button onClick={() => window.print()} variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Quick Actions</h1>
+          <p className="text-gray-600">One-click actions for efficient ticket management</p>
         </div>
-        
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <MessageSquare className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">New</p>
-                <p className="text-2xl font-bold text-gray-900">{ticketStats.new}</p>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Activity className="w-6 h-6 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">In Progress</p>
-                <p className="text-2xl font-bold text-gray-900">{ticketStats.inProgress}</p>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">High Priority</p>
-                <p className="text-2xl font-bold text-gray-900">{ticketStats.highPriority}</p>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <UserX className="w-6 h-6 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Unassigned</p>
-                <p className="text-2xl font-bold text-gray-900">{ticketStats.unassigned}</p>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Zap className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Escalated</p>
-                <p className="text-2xl font-bold text-gray-900">{ticketStats.escalated}</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-        
-        {/* Filters */}
-        <Card className="p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center space-x-2">
-              <Filter className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Filters:</span>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <label className="text-sm text-gray-600">Status:</label>
-              <select
-                value={filters.status}
-                onChange={(e) => {
-                  const newParams = new URLSearchParams(searchParams);
-                  newParams.set('status', e.target.value);
-                  setSearchParams(newParams);
-                }}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="new">New</option>
-                <option value="assigned">Assigned</option>
-                <option value="in_progress">In Progress</option>
-                <option value="waiting">Waiting</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <label className="text-sm text-gray-600">Priority:</label>
-              <select
-                value={filters.priority}
-                onChange={(e) => {
-                  const newParams = new URLSearchParams(searchParams);
-                  newParams.set('priority', e.target.value);
-                  setSearchParams(newParams);
-                }}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="all">All Priorities</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Search className="w-4 h-4 text-gray-500" />
-              <input
-                type="text"
-                placeholder="Search tickets..."
-                value={filters.search}
-                onChange={(e) => {
-                  const newParams = new URLSearchParams(searchParams);
-                  newParams.set('search', e.target.value);
-                  setSearchParams(newParams);
-                }}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm w-64"
-              />
-            </div>
-          </div>
-        </Card>
-        
-        {/* Tickets List */}
-        <div className="space-y-4">
-          {tickets.length === 0 ? (
-            <Card className="p-8 text-center">
-              <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Tickets Found</h3>
-              <p className="text-gray-600">No tickets match your current filters.</p>
-            </Card>
-          ) : (
-            <>
-              {/* Select All */}
-              <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
-                <input
-                  type="checkbox"
-                  checked={selectedTickets.length === tickets.length}
-                  onChange={handleSelectAll}
-                  className="rounded"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  Select All ({tickets.length} tickets)
-                </span>
-              </div>
-              
-              {tickets.map((ticket) => (
-                <Card key={ticket.id} className="p-4">
-                  <div className="flex items-start space-x-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedTickets.includes(ticket.id)}
-                      onChange={() => handleSelectTicket(ticket.id)}
-                      className="rounded mt-1"
-                    />
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{ticket.subject}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
-                          {ticket.status}
-                        </span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
-                          {ticket.priority}
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
-                        <div className="flex items-center space-x-2">
-                          <User className="w-4 h-4" />
-                          <span>{ticket.user.name} ({ticket.user.role})</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="w-4 h-4" />
-                          <span>Created {new Date(ticket.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <MessageSquare className="w-4 h-4" />
-                          <span>{ticket._count.messages} messages</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Clock className="w-4 h-4" />
-                          <span>
-                            {ticket.assignedTo ? `Assigned to ${ticket.assignedTo.name}` : 'Unassigned'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <p className="text-sm text-gray-700 line-clamp-2">{ticket.description}</p>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </>
-          )}
+        <div className="flex items-center space-x-4">
+          <Button onClick={() => window.print()} variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export Actions
+          </Button>
         </div>
       </div>
       
-      {/* Quick Actions Sidebar */}
-      <div className="w-80 space-y-4">
-        {/* Priority Actions */}
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Change Priority</h3>
-          <div className="space-y-2">
-            <Button
-              onClick={() => handleQuickAction('change_priority', '', 'Change Priority')}
-              className="w-full justify-start bg-red-600 hover:bg-red-700"
-            >
-              <ArrowUp className="w-4 h-4 mr-2" />
-              Set to HIGH
-            </Button>
-            <Button
-              onClick={() => handleQuickAction('change_priority', '', 'Change Priority')}
-              className="w-full justify-start bg-yellow-600 hover:bg-yellow-700"
-            >
-              <ArrowRight className="w-4 h-4 mr-2" />
-              Set to MEDIUM
-            </Button>
-            <Button
-              onClick={() => handleQuickAction('change_priority', '', 'Change Priority')}
-              className="w-full justify-start bg-green-600 hover:bg-green-700"
-            >
-              <ArrowDown className="w-4 h-4 mr-2" />
-              Set to LOW
-            </Button>
+      {/* Quick Actions Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Priority Changes */}
+        <Card className="p-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Target className="w-6 h-6 text-blue-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Priority Changes</h2>
+          </div>
+          
+          <div className="space-y-4">
+            {tickets.slice(0, 5).map((ticket) => (
+              <div key={ticket.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{ticket.title}</p>
+                  <p className="text-xs text-gray-600">
+                    {ticket.provider.name} • {ticket.status} • {formatTimeAgo(ticket.createdAt)}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={ticket.priority}
+                    onChange={(e) => handlePriorityChange(ticket.id, e.target.value)}
+                    className="text-xs px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="LOW">Low</option>
+                    <option value="NORMAL">Normal</option>
+                    <option value="HIGH">High</option>
+                    <option value="URGENT">Urgent</option>
+                  </select>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
         
-        {/* Status Actions */}
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Change Status</h3>
-          <div className="space-y-2">
-            <Button
-              onClick={() => handleQuickAction('change_status', '', 'Change Status')}
-              className="w-full justify-start bg-blue-600 hover:bg-blue-700"
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Mark as NEW
-            </Button>
-            <Button
-              onClick={() => handleQuickAction('change_status', '', 'Change Status')}
-              className="w-full justify-start bg-orange-600 hover:bg-orange-700"
-            >
-              <Activity className="w-4 h-4 mr-2" />
-              Mark as IN_PROGRESS
-            </Button>
-            <Button
-              onClick={() => handleQuickAction('change_status', '', 'Change Status')}
-              className="w-full justify-start bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Mark as RESOLVED
-            </Button>
-            <Button
-              onClick={() => handleQuickAction('change_status', '', 'Change Status')}
-              className="w-full justify-start bg-gray-600 hover:bg-gray-700"
-            >
-              <XCircle className="w-4 h-4 mr-2" />
-              Mark as CLOSED
-            </Button>
+        {/* Status Changes */}
+        <Card className="p-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <CheckCircle className="w-6 h-6 text-green-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Status Changes</h2>
+          </div>
+          
+          <div className="space-y-4">
+            {tickets.slice(0, 5).map((ticket) => (
+              <div key={ticket.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{ticket.title}</p>
+                  <p className="text-xs text-gray-600">
+                    {ticket.provider.name} • {ticket.priority} • {formatTimeAgo(ticket.createdAt)}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={ticket.status}
+                    onChange={(e) => handleStatusChange(ticket.id, e.target.value, 'Status changed via quick actions')}
+                    className="text-xs px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="NEW">New</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="WAITING">Waiting</option>
+                    <option value="RESOLVED">Resolved</option>
+                    <option value="CLOSED">Closed</option>
+                    <option value="ESCALATED">Escalated</option>
+                  </select>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
         
-        {/* Assignment Actions */}
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Assign to Other</h3>
-          <div className="space-y-2">
-            {availableAdmins.map((admin) => (
-              <Button
-                key={admin.id}
-                onClick={() => handleQuickAction('assign_ticket', '', 'Assign Ticket')}
-                variant="outline"
-                className="w-full justify-start"
-              >
-                <UserCheck className="w-4 h-4 mr-2" />
-                {admin.name}
-              </Button>
+        {/* Ticket Assignment */}
+        <Card className="p-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Users className="w-6 h-6 text-purple-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Ticket Assignment</h2>
+          </div>
+          
+          <div className="space-y-4">
+            {tickets.slice(0, 5).map((ticket) => (
+              <div key={ticket.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{ticket.title}</p>
+                  <p className="text-xs text-gray-600">
+                    {ticket.provider.name} • {ticket.priority} • {formatTimeAgo(ticket.createdAt)}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={ticket.assignedToId || ''}
+                    onChange={(e) => handleAssignTicket(ticket.id, e.target.value)}
+                    className="text-xs px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">Unassigned</option>
+                    {admins.map((admin) => (
+                      <option key={admin.id} value={admin.id}>
+                        {admin.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             ))}
           </div>
         </Card>
         
         {/* Escalation Actions */}
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Escalate to Senior</h3>
-          <div className="space-y-2">
-            <Button
-              onClick={() => handleQuickAction('escalate', '', 'Escalate Ticket')}
-              className="w-full justify-start bg-red-600 hover:bg-red-700"
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              Escalate Now
-            </Button>
-            <Button
-              onClick={() => handleQuickAction('escalate', '', 'Escalate Ticket')}
-              className="w-full justify-start bg-orange-600 hover:bg-orange-700"
-            >
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              Escalate with Reason
-            </Button>
+        <Card className="p-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Escalation Actions</h2>
           </div>
-        </Card>
-        
-        {/* User Actions */}
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">User Actions</h3>
-          <div className="space-y-2">
-            <Button
-              onClick={() => handleQuickAction('reset_password', '', 'Reset Password')}
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Reset Password
-            </Button>
-            <Button
-              onClick={() => handleQuickAction('access_account', '', 'Access Account')}
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <User className="w-4 h-4 mr-2" />
-              Access Account
-            </Button>
-            <Button
-              onClick={() => handleQuickAction('view_logs', '', 'View User Logs')}
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              View User Logs
-            </Button>
-          </div>
-        </Card>
-        
-        {/* Bulk Actions */}
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Bulk Actions</h3>
-          <div className="space-y-2">
-            <Button
-              onClick={() => handleQuickAction('bulk_assign', '', 'Bulk Assign')}
-              variant="outline"
-              className="w-full justify-start"
-              disabled={selectedTickets.length === 0}
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Assign Selected ({selectedTickets.length})
-            </Button>
-            <Button
-              onClick={() => handleQuickAction('bulk_priority', '', 'Bulk Priority')}
-              variant="outline"
-              className="w-full justify-start"
-              disabled={selectedTickets.length === 0}
-            >
-              <Priority className="w-4 h-4 mr-2" />
-              Change Priority ({selectedTickets.length})
-            </Button>
-            <Button
-              onClick={() => handleQuickAction('bulk_status', '', 'Bulk Status')}
-              variant="outline"
-              className="w-full justify-start"
-              disabled={selectedTickets.length === 0}
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Change Status ({selectedTickets.length})
-            </Button>
+          
+          <div className="space-y-4">
+            {tickets.slice(0, 5).map((ticket) => (
+              <div key={ticket.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{ticket.title}</p>
+                  <p className="text-xs text-gray-600">
+                    {ticket.provider.name} • {ticket.priority} • {formatTimeAgo(ticket.createdAt)}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    onClick={() => handleEscalateTicket(ticket.id, 'Escalated via quick actions')}
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    Escalate
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       </div>
       
-      {/* Action Modal */}
-      {actionModal.open && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">{actionModal.title}</h3>
-              <Button
-                variant="outline"
-                onClick={() => setActionModal({ open: false, action: '', ticketId: '', title: '' })}
-              >
-                <XCircle className="w-4 h-4" />
-              </Button>
-            </div>
-            
-            <div className="space-y-4">
-              {actionModal.action === 'change_priority' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    New Priority
-                  </label>
-                  <select
-                    value={formData.newPriority}
-                    onChange={(e) => setFormData({ ...formData, newPriority: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select Priority</option>
-                    <option value="HIGH">High</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="LOW">Low</option>
-                  </select>
-                </div>
-              )}
-              
-              {actionModal.action === 'change_status' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    New Status
-                  </label>
-                  <select
-                    value={formData.newStatus}
-                    onChange={(e) => setFormData({ ...formData, newStatus: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select Status</option>
-                    <option value="NEW">New</option>
-                    <option value="ASSIGNED">Assigned</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="WAITING">Waiting</option>
-                    <option value="RESOLVED">Resolved</option>
-                    <option value="CLOSED">Closed</option>
-                  </select>
-                </div>
-              )}
-              
-              {actionModal.action === 'assign_ticket' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Assign To
-                  </label>
-                  <select
-                    value={formData.assignedTo}
-                    onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select Admin</option>
-                    {availableAdmins.map((admin) => (
-                      <option key={admin.id} value={admin.id}>
-                        {admin.name} ({admin.role})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              
-              {actionModal.action === 'escalate' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Escalation Reason
-                  </label>
-                  <textarea
-                    value={formData.reason}
-                    onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={3}
-                    placeholder="Enter escalation reason..."
-                  />
-                </div>
-              )}
-              
-              <div className="flex items-center justify-end space-x-3">
+      {/* User Management Actions */}
+      <Card className="p-6">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="p-2 bg-yellow-100 rounded-lg">
+            <User className="w-6 h-6 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900">User Management Actions</h2>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Password Reset</h3>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3">
+                <input
+                  type="text"
+                  placeholder="User ID or Email"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
                 <Button
+                  onClick={() => handleResetPassword('user-id')}
                   variant="outline"
-                  onClick={() => setActionModal({ open: false, action: '', ticketId: '', title: '' })}
+                  size="sm"
                 >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={executeAction}
-                  disabled={fetcher.state === 'submitting'}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {fetcher.state === 'submitting' ? 'Processing...' : 'Execute'}
+                  <Key className="w-4 h-4 mr-1" />
+                  Reset Password
                 </Button>
               </div>
             </div>
-          </Card>
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Account Access</h3>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3">
+                <input
+                  type="text"
+                  placeholder="User ID or Email"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <Button
+                  onClick={() => handleAccessAccount('user-id')}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Eye className="w-4 h-4 mr-1" />
+                  Access Account
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
+      </Card>
+      
+      {/* User Logs */}
+      {showUserLogs && (
+        <Card className="p-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <FileText className="w-6 h-6 text-indigo-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">User Activity Logs</h2>
+          </div>
+          
+          <div className="space-y-3">
+            {userLogs.map((log) => (
+              <div key={log.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                  <Activity className="w-4 h-4 text-indigo-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{log.description}</p>
+                  <p className="text-xs text-gray-600">
+                    {log.type} • {formatTimeAgo(log.createdAt)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
     </div>
   );
