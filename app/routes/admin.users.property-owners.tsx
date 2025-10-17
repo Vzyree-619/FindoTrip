@@ -64,9 +64,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   } else if (status === 'unverified') {
     whereClause.verified = false;
   } else if (status === 'active') {
-    whereClause.isActive = true;
+    whereClause.active = true;
   } else if (status === 'inactive') {
-    whereClause.isActive = false;
+    whereClause.active = false;
   }
   
   if (dateFrom || dateTo) {
@@ -80,25 +80,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.user.findMany({
       where: whereClause,
       include: {
-        properties: {
+        propertyOwner: {
           select: {
-            id: true,
-            name: true,
-            status: true,
-            basePrice: true,
-            city: true,
-            createdAt: true,
-            _count: {
-              select: {
-                bookings: true
-              }
-            }
+            businessName: true,
+            businessPhone: true,
+            businessEmail: true,
+            verificationLevel: true,
+            totalRevenue: true,
+            totalProperties: true
           }
         },
         _count: {
           select: {
-            properties: true,
-            propertyBookings: true
+            propertyBookings: true,
+            reviews: true
           }
         }
       },
@@ -192,7 +187,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const counts = await Promise.all([
     prisma.user.count({ where: { role: 'PROPERTY_OWNER' } }),
     prisma.user.count({ where: { role: 'PROPERTY_OWNER', verified: true } }),
-    prisma.user.count({ where: { role: 'PROPERTY_OWNER', isActive: true } }),
+    prisma.user.count({ where: { role: 'PROPERTY_OWNER', active: true } }),
     prisma.user.count({ 
       where: { 
         role: 'PROPERTY_OWNER',
@@ -498,9 +493,9 @@ export default function PropertyOwners() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        <div className="font-medium">{owner._count.properties}</div>
+                        <div className="font-medium">{owner.propertyOwner?.totalProperties || 0}</div>
                         <div className="text-gray-500">
-                          {owner.properties.filter(p => p.status === 'ACTIVE').length} active
+                          {owner.propertyOwner?.totalProperties || 0} total
                         </div>
                       </div>
                     </td>

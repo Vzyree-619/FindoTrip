@@ -4,7 +4,7 @@ import { requireAdmin } from "~/lib/auth/middleware";
 import { prisma } from "~/lib/db/db.server";
 import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
-import { Shield, BarChart3, Activity, ServerCog, MessagesSquare, Megaphone, Users, FileText, TrendingUp, AlertTriangle, CheckCircle, Clock, DollarSign, Eye } from "lucide-react";
+import { Shield, BarChart3, Activity, ServerCog, MessagesSquare, Megaphone, Users, FileText, TrendingUp, AlertTriangle, CheckCircle, Clock, DollarSign, Eye, Calendar } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireAdmin(request);
@@ -105,11 +105,12 @@ export default function AdminDashboard() {
   const { user, stats, recentUsers, recentBookings } = useLoaderData<typeof loader>();
 
   const sections = [
-    { href: "/dashboard/messages", icon: MessagesSquare, title: "Messages", desc: "Chat with users and support", count: stats.activeConversations },
-    { href: "/admin/users", icon: Users, title: "User Management", desc: "Manage all platform users" },
-    { href: "/admin/moderation", icon: Shield, title: "Content Moderation", desc: "Review and approve content", count: stats.pendingApprovals },
-    { href: "/admin/analytics", icon: BarChart3, title: "Analytics", desc: "Platform metrics and trends" },
-    { href: "/admin/support", icon: Users, title: "Support Center", desc: "Tickets and provider support" },
+    { href: "/admin/users/all", icon: Users, title: "User Management", desc: "Manage all platform users" },
+    { href: "/admin/approvals/providers", icon: Shield, title: "Content Moderation", desc: "Review and approve content", count: stats.pendingApprovals },
+    { href: "/admin/analytics/platform", icon: BarChart3, title: "Analytics", desc: "Platform metrics and trends" },
+    { href: "/admin/support/tickets", icon: Users, title: "Support Center", desc: "Tickets and provider support" },
+    { href: "/admin/bookings/all", icon: Calendar, title: "Booking Management", desc: "Manage all platform bookings" },
+    { href: "/admin/financial/revenue", icon: DollarSign, title: "Financial Overview", desc: "Revenue and commission tracking" },
   ];
 
   return (
@@ -119,6 +120,22 @@ export default function AdminDashboard() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
           <p className="text-gray-600">Welcome, {user.name?.split(" ")[0] || "Admin"}. Manage the platform using the essential tools below.</p>
+          <div className="mt-4 space-x-4">
+            <Link 
+              to="/admin" 
+              className="inline-flex items-center px-4 py-2 bg-[#01502E] text-white rounded-md hover:bg-[#013d23] transition-colors"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Access Full Admin Panel
+            </Link>
+            <Link 
+              to="/admin-access" 
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Admin Access Center
+            </Link>
+          </div>
         </div>
 
         {/* Key Statistics */}

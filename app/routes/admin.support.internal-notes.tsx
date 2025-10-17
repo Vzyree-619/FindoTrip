@@ -62,7 +62,7 @@ import {
   BookmarkCheck as BookmarkCheckIcon,
   Users,
   Calendar,
-  Priority,
+  AlertTriangle,
   FileText,
   Paperclip,
   Image,

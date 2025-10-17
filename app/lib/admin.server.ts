@@ -1,23 +1,20 @@
 import { redirect } from "@remix-run/node";
 import { prisma } from "~/lib/db/db.server";
-import { getUserId } from "~/lib/session.server";
+import { getUserId } from "~/lib/auth/auth.server";
 
 export async function requireAdmin(request: Request) {
   const userId = await getUserId(request);
   
   if (!userId) {
-    throw redirect("/login");
+    throw redirect("/admin/login");
   }
   
   const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      superAdmin: true
-    }
+    where: { id: userId }
   });
   
-  if (!user || !user.superAdmin) {
-    throw redirect("/unauthorized");
+  if (!user || user.role !== 'SUPER_ADMIN') {
+    throw redirect("/admin/login");
   }
   
   return user;

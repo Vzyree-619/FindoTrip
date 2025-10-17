@@ -64,7 +64,7 @@ import {
   Users,
   Calendar,
   Tag,
-  Priority,
+  AlertTriangle,
   FileText,
   Paperclip,
   Image,

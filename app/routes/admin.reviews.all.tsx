@@ -55,7 +55,7 @@ import {
   Copy,
   Share,
   Tag,
-  Priority,
+  AlertTriangle,
   FileText,
   Paperclip,
   Image,
@@ -148,7 +148,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             email: true,
             role: true,
             verified: true,
-            isActive: true
+            active: true
           }
         },
         property: {

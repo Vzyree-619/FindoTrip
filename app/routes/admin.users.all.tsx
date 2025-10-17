@@ -68,9 +68,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   } else if (status === 'unverified') {
     whereClause.verified = false;
   } else if (status === 'active') {
-    whereClause.isActive = true;
+    whereClause.active = true;
   } else if (status === 'inactive') {
-    whereClause.isActive = false;
+    whereClause.active = false;
   }
   
   if (dateFrom || dateTo) {
@@ -90,8 +90,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
             businessPhone: true,
             businessEmail: true,
             verificationLevel: true,
-            totalEarnings: true,
-            totalBookings: true
+            totalRevenue: true,
+            totalProperties: true
           }
         },
         vehicleOwner: {
@@ -100,8 +100,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
             businessPhone: true,
             businessEmail: true,
             verificationLevel: true,
-            totalEarnings: true,
-            totalBookings: true
+            totalRevenue: true,
+            totalVehicles: true
           }
         },
         tourGuide: {
@@ -111,8 +111,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
             businessPhone: true,
             businessEmail: true,
             verificationLevel: true,
-            totalEarnings: true,
-            totalBookings: true
+            totalRevenue: true,
+            totalTours: true
           }
         },
         _count: {
@@ -144,8 +144,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const statusCounts = await Promise.all([
     prisma.user.count({ where: { verified: true } }),
     prisma.user.count({ where: { verified: false } }),
-    prisma.user.count({ where: { isActive: true } }),
-    prisma.user.count({ where: { isActive: false } })
+    prisma.user.count({ where: { active: true } }),
+    prisma.user.count({ where: { active: false } })
   ]);
   
   // Get recent activity
@@ -217,7 +217,7 @@ export async function action({ request }: ActionFunctionArgs) {
     } else if (action === 'activate_user') {
       await prisma.user.update({
         where: { id: userId },
-        data: { isActive: true }
+        data: { active: true }
       });
       await logAdminAction(admin.id, 'USER_ACTIVATED', `Activated user: ${userId}`, request);
       
@@ -225,7 +225,7 @@ export async function action({ request }: ActionFunctionArgs) {
       await prisma.user.update({
         where: { id: userId },
         data: { 
-          isActive: false,
+          active: false,
           deactivationReason: reason
         }
       });
@@ -235,7 +235,7 @@ export async function action({ request }: ActionFunctionArgs) {
       await prisma.user.update({
         where: { id: userId },
         data: { 
-          isActive: false,
+          active: false,
           banned: true,
           banReason: reason
         }
@@ -246,7 +246,7 @@ export async function action({ request }: ActionFunctionArgs) {
       await prisma.user.update({
         where: { id: userId },
         data: { 
-          isActive: true,
+          active: true,
           banned: false,
           banReason: null
         }
@@ -738,7 +738,7 @@ export default function AllUsers() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-col space-y-1">
-                          {user.isActive ? (
+                          {user.active ? (
                             <div className="flex items-center space-x-1 text-green-600">
                               <UserCheck className="w-4 h-4" />
                               <span className="text-sm font-medium">Active</span>

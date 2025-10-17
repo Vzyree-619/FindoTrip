@@ -519,7 +519,6 @@ export default function AuditLogs() {
       case 'BOOKING_CANCELLED': return <Calendar className="w-4 h-4" />;
       case 'REFUND_ISSUED': return <DollarSign className="w-4 h-4" />;
       case 'DATA_EXPORT': return <Download className="w-4 h-4" />;
-      case 'USER_SUSPENDED': return <Ban className="w-4 h-4" />;
       default: return <Activity className="w-4 h-4" />;
     }
   };

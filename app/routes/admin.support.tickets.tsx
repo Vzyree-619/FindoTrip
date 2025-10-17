@@ -47,7 +47,7 @@ import {
   Users,
   Calendar,
   Tag,
-  Priority,
+  AlertTriangle,
   Archive,
   Trash2,
   Plus,

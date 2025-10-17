@@ -51,7 +51,7 @@ import {
   User,
   MessageSquare,
   Tag,
-  Priority,
+  AlertTriangle,
   FileText,
   Paperclip,
   Image,

@@ -249,20 +249,57 @@ export async function loader({ request }: LoaderFunctionArgs) {
     take: 5
   });
   
-  // Get recent bookings
-  const recentBookings = await prisma.booking.findMany({
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true
+  // Get recent bookings from all booking types
+  const [recentPropertyBookings, recentVehicleBookings, recentTourBookings] = await Promise.all([
+    prisma.propertyBooking.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
         }
-      }
-    },
-    orderBy: { createdAt: "desc" },
-    take: 5
-  });
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5
+    }),
+    prisma.vehicleBooking.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5
+    }),
+    prisma.tourBooking.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5
+    })
+  ]);
+  
+  // Combine and sort all recent bookings
+  const allRecentBookings = [
+    ...recentPropertyBookings.map(booking => ({ ...booking, type: 'property' })),
+    ...recentVehicleBookings.map(booking => ({ ...booking, type: 'vehicle' })),
+    ...recentTourBookings.map(booking => ({ ...booking, type: 'tour' }))
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
+  
+  const recentBookings = allRecentBookings;
   
   // Get pending approvals
   const pendingApprovals = await Promise.all([
@@ -323,30 +360,28 @@ export default function AdminDashboard() {
   };
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div>
       {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {admin.name}</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline">
-                <Download className="w-4 h-4 mr-2" />
-                Export Data
-              </Button>
-              <Button>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh
-              </Button>
-            </div>
+      <div className="mb-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-gray-600">Welcome back, {admin.name}</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Button variant="outline">
+              <Download className="w-4 h-4 mr-2" />
+              Export Data
+            </Button>
+            <Button>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
           </div>
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar Navigation */}
           <div className="lg:col-span-1">

@@ -72,7 +72,7 @@ import {
   Timer,
   Users,
   Tag,
-  Priority
+  AlertTriangle
 } from "lucide-react";
 import { useState } from "react";
 

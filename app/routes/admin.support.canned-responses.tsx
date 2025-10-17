@@ -38,7 +38,7 @@ import {
   MoreHorizontal,
   Users,
   Calendar,
-  Priority,
+  AlertTriangle,
   Archive,
   Trash2,
   Plus,

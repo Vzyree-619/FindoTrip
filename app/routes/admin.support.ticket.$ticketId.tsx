@@ -47,7 +47,7 @@ import {
   Users,
   Calendar,
   Tag,
-  Priority,
+  AlertTriangle,
   Archive,
   Trash2,
   Plus,
@@ -400,7 +400,7 @@ export default function TicketDetails() {
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-yellow-100 rounded-lg">
-              <Priority className="w-6 h-6 text-yellow-600" />
+              <AlertTriangle className="w-6 h-6 text-yellow-600" />
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Priority</p>
@@ -776,7 +776,7 @@ export default function TicketDetails() {
                     variant="outline"
                     className="w-full justify-start"
                   >
-                    <Priority className="w-4 h-4 mr-2" />
+                    <AlertTriangle className="w-4 h-4 mr-2" />
                     Update Priority
                   </Button>
                   

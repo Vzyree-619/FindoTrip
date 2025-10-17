@@ -120,40 +120,40 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Top properties by bookings
     prisma.property.findMany({
       take: 5,
-      orderBy: { _count: { bookings: "desc" } },
+      orderBy: { totalBookings: "desc" },
       select: {
         name: true,
         city: true,
         basePrice: true,
         currency: true,
-        _count: { select: { bookings: true } }
+        totalBookings: true
       }
     }),
     
     // Top vehicles by bookings
     prisma.vehicle.findMany({
       take: 5,
-      orderBy: { _count: { bookings: "desc" } },
+      orderBy: { totalBookings: "desc" },
       select: {
         name: true,
         brand: true,
         model: true,
         basePrice: true,
         currency: true,
-        _count: { select: { bookings: true } }
+        totalBookings: true
       }
     }),
     
     // Top tours by bookings
     prisma.tour.findMany({
       take: 5,
-      orderBy: { _count: { bookings: "desc" } },
+      orderBy: { totalBookings: "desc" },
       select: {
-        name: true,
-        location: true,
+        title: true,
+        city: true,
         pricePerPerson: true,
         currency: true,
-        _count: { select: { bookings: true } }
+        totalBookings: true
       }
     })
   ]);
@@ -336,7 +336,7 @@ export default function AdminAnalytics() {
                       <p className="text-xs text-gray-500">{property.city}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold">{property._count.bookings} bookings</p>
+                      <p className="text-sm font-semibold">{property.totalBookings} bookings</p>
                       <p className="text-xs text-gray-500">{property.currency} {property.basePrice}</p>
                     </div>
                   </div>
@@ -361,7 +361,7 @@ export default function AdminAnalytics() {
                       <p className="text-xs text-gray-500">{vehicle.brand} {vehicle.model}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold">{vehicle._count.bookings} bookings</p>
+                      <p className="text-sm font-semibold">{vehicle.totalBookings} bookings</p>
                       <p className="text-xs text-gray-500">{vehicle.currency} {vehicle.basePrice}</p>
                     </div>
                   </div>
@@ -380,13 +380,13 @@ export default function AdminAnalytics() {
             <CardContent>
               <div className="space-y-3">
                 {analytics.recent.topTours.map((tour, index) => (
-                  <div key={tour.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={tour.title} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
-                      <p className="font-medium text-sm">{tour.name}</p>
+                      <p className="font-medium text-sm">{tour.title}</p>
                       <p className="text-xs text-gray-500">{tour.location}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold">{tour._count.bookings} bookings</p>
+                      <p className="text-sm font-semibold">{tour.totalBookings} bookings</p>
                       <p className="text-xs text-gray-500">{tour.currency} {tour.pricePerPerson}</p>
                     </div>
                   </div>

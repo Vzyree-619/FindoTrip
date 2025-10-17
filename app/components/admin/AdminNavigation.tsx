@@ -48,6 +48,7 @@ import {
   RotateCcw,
   RotateCw,
   Maximize,
+  Zap,
   Minimize,
   Move,
   Grip,

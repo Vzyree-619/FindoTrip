@@ -57,7 +57,7 @@ import {
   Copy,
   Share,
   Tag,
-  Priority,
+  AlertTriangle,
   FileText,
   Paperclip,
   Image,
