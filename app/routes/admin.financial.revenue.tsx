@@ -1,289 +1,331 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSearchParams, Link } from "@remix-run/react";
+import { useLoaderData, useSearchParams } from "@remix-run/react";
 import { requireAdmin } from "~/lib/admin.server";
 import { prisma } from "~/lib/db/db.server";
 import { Card } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { 
   DollarSign, 
-  TrendingUp, 
+  TrendingUp,
   TrendingDown,
-  Building, 
-  Car, 
-  MapPin, 
-  User,
-  Search,
-  Filter,
   Download,
-  Eye,
   Calendar,
-  Star,
-  CreditCard,
-  Receipt,
   BarChart3,
   PieChart,
-  Activity,
   Target,
+  Users,
+  Building,
+  Car,
+  MapPin,
+  CreditCard,
+  Banknote,
+  Wallet,
+  Receipt,
+  FileText,
+  Star,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Clock,
+  User,
+  MessageSquare,
+  Settings,
+  Bookmark,
+  BookmarkCheck,
+  Lightbulb,
+  Zap,
+  Timer,
+  Bell,
+  BellOff,
+  Lock,
+  Unlock,
+  CheckCircle2,
+  XCircle2,
+  Clock3,
+  AlertCircle,
+  Info,
+  HelpCircle,
+  Bug,
+  Wrench,
+  Heart,
+  ThumbsUp,
+  ThumbsDown,
+  Send,
+  Reply,
+  Forward,
+  Copy,
+  Share,
+  Tag,
+  Priority,
+  Paperclip,
+  Image,
+  File,
+  Video,
+  Music,
+  Archive,
+  Plus,
+  Minus,
+  ZoomIn,
+  ZoomOut,
+  MessageCircle,
+  UserCheck,
+  UserX,
+  Activity,
+  Globe,
   Award,
-  Zap
+  Flag,
+  Shield,
+  BookOpen
 } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const admin = await requireAdmin(request);
   const url = new URL(request.url);
-  const period = url.searchParams.get('period') || '30';
-  const type = url.searchParams.get('type') || 'all';
+  const dateFrom = url.searchParams.get('dateFrom') || '';
+  const dateTo = url.searchParams.get('dateTo') || '';
+  const serviceType = url.searchParams.get('serviceType') || 'all';
+  const paymentMethod = url.searchParams.get('paymentMethod') || 'all';
   
-  const days = parseInt(period);
-  const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  // Set default date range if not provided (last 30 days)
+  const fromDate = dateFrom ? new Date(dateFrom) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const toDate = dateTo ? new Date(dateTo) : new Date();
+  
+  // Build where clause for revenue data
+  const whereClause: any = {
+    status: { in: ['CONFIRMED', 'COMPLETED'] },
+    createdAt: {
+      gte: fromDate,
+      lte: toDate
+    }
+  };
+  
+  if (serviceType !== 'all') {
+    whereClause.serviceType = serviceType.toUpperCase();
+  }
+  
+  if (paymentMethod !== 'all') {
+    whereClause.paymentMethod = paymentMethod.toUpperCase();
+  }
   
   // Get revenue statistics
-  const [totalRevenue, propertyRevenue, vehicleRevenue, tourRevenue] = await Promise.all([
-    Promise.all([
-      prisma.propertyBooking.aggregate({ 
-        _sum: { totalPrice: true },
-        where: { 
-          createdAt: { gte: startDate },
-          status: 'CONFIRMED'
-        }
-      }),
-      prisma.vehicleBooking.aggregate({ 
-        _sum: { totalPrice: true },
-        where: { 
-          createdAt: { gte: startDate },
-          status: 'CONFIRMED'
-        }
-      }),
-      prisma.tourBooking.aggregate({ 
-        _sum: { totalPrice: true },
-        where: { 
-          createdAt: { gte: startDate },
-          status: 'CONFIRMED'
-        }
-      })
-    ]).then(results => results.reduce((sum, result) => sum + (result._sum.totalPrice || 0), 0)),
-    
-    prisma.propertyBooking.aggregate({ 
-      _sum: { totalPrice: true },
-      _count: { id: true },
-      where: { 
-        createdAt: { gte: startDate },
-        status: 'CONFIRMED'
-      }
+  const revenueStats = await Promise.all([
+    // Total bookings
+    prisma.booking.aggregate({
+      where: whereClause,
+      _sum: { totalAmount: true },
+      _count: { id: true }
     }),
     
-    prisma.vehicleBooking.aggregate({ 
-      _sum: { totalPrice: true },
-      _count: { id: true },
-      where: { 
-        createdAt: { gte: startDate },
-        status: 'CONFIRMED'
-      }
+    // Platform commission
+    prisma.booking.aggregate({
+      where: whereClause,
+      _sum: { platformCommission: true }
     }),
     
-    prisma.tourBooking.aggregate({ 
-      _sum: { totalPrice: true },
-      _count: { id: true },
-      where: { 
-        createdAt: { gte: startDate },
-        status: 'CONFIRMED'
-      }
+    // Paid to providers
+    prisma.booking.aggregate({
+      where: whereClause,
+      _sum: { providerAmount: true }
+    }),
+    
+    // Previous period for comparison
+    prisma.booking.aggregate({
+      where: {
+        ...whereClause,
+        createdAt: {
+          gte: new Date(fromDate.getTime() - (toDate.getTime() - fromDate.getTime())),
+          lte: fromDate
+        }
+      },
+      _sum: { totalAmount: true }
     })
   ]);
   
-  // Get commission data
-  const commissionRate = 0.1; // 10% commission
-  const totalCommission = totalRevenue * commissionRate;
-  const netRevenue = totalRevenue - totalCommission;
-  
-  // Get monthly revenue for chart
-  const monthlyRevenue = await Promise.all(
-    Array.from({ length: 12 }, (_, i) => {
-      const monthStart = new Date(new Date().getFullYear(), i, 1);
-      const monthEnd = new Date(new Date().getFullYear(), i + 1, 0);
-      
-      return Promise.all([
-        prisma.propertyBooking.aggregate({
-          _sum: { totalPrice: true },
-          where: {
-            createdAt: { gte: monthStart, lte: monthEnd },
-            status: 'CONFIRMED'
-          }
-        }),
-        prisma.vehicleBooking.aggregate({
-          _sum: { totalPrice: true },
-          where: {
-            createdAt: { gte: monthStart, lte: monthEnd },
-            status: 'CONFIRMED'
-          }
-        }),
-        prisma.tourBooking.aggregate({
-          _sum: { totalPrice: true },
-          where: {
-            createdAt: { gte: monthStart, lte: monthEnd },
-            status: 'CONFIRMED'
-          }
-        })
-      ]).then(results => {
-        const monthRevenue = results.reduce((sum, result) => sum + (result._sum.totalPrice || 0), 0);
-        return {
-          month: monthStart.toLocaleDateString('en-US', { month: 'short' }),
-          revenue: monthRevenue,
-          commission: monthRevenue * commissionRate
-        };
-      });
-    })
-  );
-  
-  // Get top performing services
-  const [topProperties, topVehicles, topTours] = await Promise.all([
-    prisma.property.findMany({
-      take: 5,
-      orderBy: { bookings: { _count: 'desc' } },
-      include: {
-        _count: {
-          select: { bookings: true }
-        },
-        bookings: {
-          where: { status: 'CONFIRMED' },
-          select: { totalPrice: true }
-        }
-      }
+  // Get revenue by service type
+  const revenueByService = await Promise.all([
+    prisma.booking.aggregate({
+      where: { ...whereClause, serviceType: 'PROPERTY' },
+      _sum: { totalAmount: true },
+      _count: { id: true }
     }),
-    
-    prisma.vehicle.findMany({
-      take: 5,
-      orderBy: { bookings: { _count: 'desc' } },
-      include: {
-        _count: {
-          select: { bookings: true }
-        },
-        bookings: {
-          where: { status: 'CONFIRMED' },
-          select: { totalPrice: true }
-        }
-      }
+    prisma.booking.aggregate({
+      where: { ...whereClause, serviceType: 'VEHICLE' },
+      _sum: { totalAmount: true },
+      _count: { id: true }
     }),
-    
-    prisma.tour.findMany({
-      take: 5,
-      orderBy: { bookings: { _count: 'desc' } },
-      include: {
-        _count: {
-          select: { bookings: true }
-        },
-        bookings: {
-          where: { status: 'CONFIRMED' },
-          select: { totalPrice: true }
-        }
-      }
+    prisma.booking.aggregate({
+      where: { ...whereClause, serviceType: 'TOUR' },
+      _sum: { totalAmount: true },
+      _count: { id: true }
     })
   ]);
   
-  // Get revenue by status
-  const revenueByStatus = await Promise.all([
-    prisma.propertyBooking.aggregate({
-      _sum: { totalPrice: true },
-      where: { status: 'CONFIRMED' }
+  // Get revenue by payment method
+  const revenueByPayment = await Promise.all([
+    prisma.booking.aggregate({
+      where: { ...whereClause, paymentMethod: 'CREDIT_CARD' },
+      _sum: { totalAmount: true },
+      _count: { id: true }
     }),
-    prisma.vehicleBooking.aggregate({
-      _sum: { totalPrice: true },
-      where: { status: 'CONFIRMED' }
+    prisma.booking.aggregate({
+      where: { ...whereClause, paymentMethod: 'PAYPAL' },
+      _sum: { totalAmount: true },
+      _count: { id: true }
     }),
-    prisma.tourBooking.aggregate({
-      _sum: { totalPrice: true },
-      where: { status: 'CONFIRMED' }
-    }),
-    prisma.propertyBooking.aggregate({
-      _sum: { totalPrice: true },
-      where: { status: 'PENDING' }
-    }),
-    prisma.vehicleBooking.aggregate({
-      _sum: { totalPrice: true },
-      where: { status: 'PENDING' }
-    }),
-    prisma.tourBooking.aggregate({
-      _sum: { totalPrice: true },
-      where: { status: 'PENDING' }
+    prisma.booking.aggregate({
+      where: { ...whereClause, paymentMethod: 'BANK_TRANSFER' },
+      _sum: { totalAmount: true },
+      _count: { id: true }
     })
   ]);
   
-  const confirmedRevenue = revenueByStatus.slice(0, 3).reduce((sum, result) => sum + (result._sum.totalPrice || 0), 0);
-  const pendingRevenue = revenueByStatus.slice(3, 6).reduce((sum, result) => sum + (result._sum.totalPrice || 0), 0);
-  
-  // Get growth metrics
-  const previousPeriodStart = new Date(Date.now() - (days * 2) * 24 * 60 * 60 * 1000);
-  const previousPeriodEnd = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  
-  const previousRevenue = await Promise.all([
-    prisma.propertyBooking.aggregate({ 
-      _sum: { totalPrice: true },
-      where: { 
-        createdAt: { gte: previousPeriodStart, lte: previousPeriodEnd },
-        status: 'CONFIRMED'
+  // Get top earning services
+  const topEarningServices = await prisma.booking.groupBy({
+    by: ['serviceId', 'serviceType'],
+    where: whereClause,
+    _sum: { totalAmount: true },
+    _count: { id: true },
+    orderBy: {
+      _sum: {
+        totalAmount: 'desc'
       }
-    }),
-    prisma.vehicleBooking.aggregate({ 
-      _sum: { totalPrice: true },
-      where: { 
-        createdAt: { gte: previousPeriodStart, lte: previousPeriodEnd },
-        status: 'CONFIRMED'
-      }
-    }),
-    prisma.tourBooking.aggregate({ 
-      _sum: { totalPrice: true },
-      where: { 
-        createdAt: { gte: previousPeriodStart, lte: previousPeriodEnd },
-        status: 'CONFIRMED'
-      }
-    })
-  ]).then(results => results.reduce((sum, result) => sum + (result._sum.totalPrice || 0), 0));
+    },
+    take: 10
+  });
   
-  const growthRate = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+  // Get daily revenue for chart
+  const dailyRevenue = await prisma.booking.groupBy({
+    by: ['createdAt'],
+    where: whereClause,
+    _sum: { totalAmount: true },
+    orderBy: { createdAt: 'asc' }
+  });
+  
+  // Get revenue by location
+  const revenueByLocation = await prisma.booking.groupBy({
+    by: ['city'],
+    where: whereClause,
+    _sum: { totalAmount: true },
+    _count: { id: true },
+    orderBy: {
+      _sum: {
+        totalAmount: 'desc'
+      }
+    },
+    take: 10
+  });
+  
+  // Calculate growth percentage
+  const currentRevenue = revenueStats[0]._sum.totalAmount || 0;
+  const previousRevenue = revenueStats[3]._sum.totalAmount || 0;
+  const growthPercentage = previousRevenue > 0 
+    ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 
+    : 0;
   
   return json({
     admin,
-    revenue: {
-      total: totalRevenue,
-      property: propertyRevenue._sum.totalPrice || 0,
-      vehicle: vehicleRevenue._sum.totalPrice || 0,
-      tour: tourRevenue._sum.totalPrice || 0,
-      commission: totalCommission,
-      net: netRevenue
+    revenueStats: {
+      totalBookings: revenueStats[0]._count.id || 0,
+      totalRevenue: currentRevenue,
+      platformCommission: revenueStats[1]._sum.platformCommission || 0,
+      paidToProviders: revenueStats[2]._sum.providerAmount || 0,
+      growthPercentage
     },
-    bookings: {
-      property: propertyRevenue._count.id || 0,
-      vehicle: vehicleRevenue._count.id || 0,
-      tour: tourRevenue._count.id || 0,
-      total: (propertyRevenue._count.id || 0) + (vehicleRevenue._count.id || 0) + (tourRevenue._count.id || 0)
+    revenueByService: {
+      properties: {
+        amount: revenueByService[0]._sum.totalAmount || 0,
+        count: revenueByService[0]._count.id || 0
+      },
+      vehicles: {
+        amount: revenueByService[1]._sum.totalAmount || 0,
+        count: revenueByService[1]._count.id || 0
+      },
+      tours: {
+        amount: revenueByService[2]._sum.totalAmount || 0,
+        count: revenueByService[2]._count.id || 0
+      }
     },
-    monthlyRevenue,
-    topProperties,
-    topVehicles,
-    topTours,
-    revenueByStatus: {
-      confirmed: confirmedRevenue,
-      pending: pendingRevenue
+    revenueByPayment: {
+      creditCard: {
+        amount: revenueByPayment[0]._sum.totalAmount || 0,
+        count: revenueByPayment[0]._count.id || 0
+      },
+      paypal: {
+        amount: revenueByPayment[1]._sum.totalAmount || 0,
+        count: revenueByPayment[1]._count.id || 0
+      },
+      bankTransfer: {
+        amount: revenueByPayment[2]._sum.totalAmount || 0,
+        count: revenueByPayment[2]._count.id || 0
+      }
     },
-    growth: {
-      rate: growthRate,
-      previous: previousRevenue,
-      current: totalRevenue
-    },
-    filters: { period, type }
+    topEarningServices,
+    dailyRevenue,
+    revenueByLocation,
+    filters: { dateFrom, dateTo, serviceType, paymentMethod }
   });
 }
 
 export default function RevenueOverview() {
-  const { admin, revenue, bookings, monthlyRevenue, topProperties, topVehicles, topTours, revenueByStatus, growth, filters } = useLoaderData<typeof loader>();
+  const { 
+    admin, 
+    revenueStats, 
+    revenueByService, 
+    revenueByPayment, 
+    topEarningServices, 
+    dailyRevenue, 
+    revenueByLocation, 
+    filters 
+  } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   
   const formatCurrency = (amount: number) => {
-    return `PKR ${amount.toLocaleString()}`;
+    return new Intl.NumberFormat('en-PK', {
+      style: 'currency',
+      currency: 'PKR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
   };
   
-  const formatPercentage = (value: number) => {
-    return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+  const formatPercentage = (percentage: number) => {
+    return `${percentage >= 0 ? '+' : ''}${percentage.toFixed(1)}%`;
+  };
+  
+  const getServiceIcon = (serviceType: string) => {
+    switch (serviceType) {
+      case 'PROPERTY': return Building;
+      case 'VEHICLE': return Car;
+      case 'TOUR': return MapPin;
+      default: return Star;
+    }
+  };
+  
+  const getServiceColor = (serviceType: string) => {
+    switch (serviceType) {
+      case 'PROPERTY': return 'text-green-600';
+      case 'VEHICLE': return 'text-blue-600';
+      case 'TOUR': return 'text-purple-600';
+      default: return 'text-gray-600';
+    }
+  };
+  
+  const getPaymentIcon = (method: string) => {
+    switch (method) {
+      case 'CREDIT_CARD': return CreditCard;
+      case 'PAYPAL': return Wallet;
+      case 'BANK_TRANSFER': return Banknote;
+      default: return DollarSign;
+    }
+  };
+  
+  const getPaymentColor = (method: string) => {
+    switch (method) {
+      case 'CREDIT_CARD': return 'text-blue-600';
+      case 'PAYPAL': return 'text-yellow-600';
+      case 'BANK_TRANSFER': return 'text-green-600';
+      default: return 'text-gray-600';
+    }
   };
   
   return (
@@ -292,7 +334,7 @@ export default function RevenueOverview() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Revenue Overview</h1>
-          <p className="text-gray-600">Platform revenue analytics and financial insights</p>
+          <p className="text-gray-600">Track platform revenue and financial performance</p>
         </div>
         <div className="flex items-center space-x-4">
           <Button onClick={() => window.print()} variant="outline">
@@ -302,149 +344,93 @@ export default function RevenueOverview() {
         </div>
       </div>
       
-      {/* Period Filter */}
+      {/* Date Range Selector */}
       <Card className="p-4">
-        <div className="flex items-center space-x-4">
-          <Filter className="w-4 h-4 text-gray-500" />
-          <span className="text-sm font-medium text-gray-700">Period:</span>
-          <select
-            value={filters.period}
-            onChange={(e) => {
-              const newParams = new URLSearchParams(searchParams);
-              newParams.set('period', e.target.value);
-              setSearchParams(newParams);
-            }}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-          >
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-            <option value="365">Last year</option>
-          </select>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center space-x-2">
+            <Calendar className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Date Range:</span>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-gray-600">From:</label>
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) => {
+                const newParams = new URLSearchParams(searchParams);
+                newParams.set('dateFrom', e.target.value);
+                setSearchParams(newParams);
+              }}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-gray-600">To:</label>
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={(e) => {
+                const newParams = new URLSearchParams(searchParams);
+                newParams.set('dateTo', e.target.value);
+                setSearchParams(newParams);
+              }}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-gray-600">Service Type:</label>
+            <select
+              value={filters.serviceType}
+              onChange={(e) => {
+                const newParams = new URLSearchParams(searchParams);
+                newParams.set('serviceType', e.target.value);
+                setSearchParams(newParams);
+              }}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            >
+              <option value="all">All Services</option>
+              <option value="property">Properties</option>
+              <option value="vehicle">Vehicles</option>
+              <option value="tour">Tours</option>
+            </select>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-gray-600">Payment Method:</label>
+            <select
+              value={filters.paymentMethod}
+              onChange={(e) => {
+                const newParams = new URLSearchParams(searchParams);
+                newParams.set('paymentMethod', e.target.value);
+                setSearchParams(newParams);
+              }}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            >
+              <option value="all">All Methods</option>
+              <option value="credit_card">Credit Card</option>
+              <option value="paypal">PayPal</option>
+              <option value="bank_transfer">Bank Transfer</option>
+            </select>
+          </div>
         </div>
       </Card>
       
-      {/* Revenue Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <DollarSign className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenue.total)}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Building className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Property Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenue.property)}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Car className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Vehicle Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenue.vehicle)}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <MapPin className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Tour Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenue.tour)}</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-      
-      {/* Commission & Growth Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <CreditCard className="w-6 h-6 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Platform Commission</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenue.commission)}</p>
-              <p className="text-xs text-gray-500">10% of total revenue</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Receipt className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Net Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenue.net)}</p>
-              <p className="text-xs text-gray-500">After commission</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className={`p-2 rounded-lg ${growth.rate >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-              {growth.rate >= 0 ? (
-                <TrendingUp className="w-6 h-6 text-green-600" />
-              ) : (
-                <TrendingDown className="w-6 h-6 text-red-600" />
-              )}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Growth Rate</p>
-              <p className={`text-2xl font-bold ${growth.rate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatPercentage(growth.rate)}
-              </p>
-              <p className="text-xs text-gray-500">vs previous period</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-      
-      {/* Booking Statistics */}
+      {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <Calendar className="w-6 h-6 text-blue-600" />
+              <DollarSign className="w-6 h-6 text-blue-600" />
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Total Bookings</p>
-              <p className="text-2xl font-bold text-gray-900">{bookings.total}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Building className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Property Bookings</p>
-              <p className="text-2xl font-bold text-gray-900">{bookings.property}</p>
+              <p className="text-2xl font-bold text-gray-900">{revenueStats.totalBookings.toLocaleString()}</p>
+              <p className="text-xs text-gray-500">
+                {formatPercentage(revenueStats.growthPercentage)} vs previous period
+              </p>
             </div>
           </div>
         </Card>
@@ -452,11 +438,14 @@ export default function RevenueOverview() {
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-green-100 rounded-lg">
-              <Car className="w-6 h-6 text-green-600" />
+              <TrendingUp className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Vehicle Bookings</p>
-              <p className="text-2xl font-bold text-gray-900">{bookings.vehicle}</p>
+              <p className="text-sm font-medium text-gray-600">Platform Commission</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenueStats.platformCommission)}</p>
+              <p className="text-xs text-gray-500">
+                {((revenueStats.platformCommission / revenueStats.totalRevenue) * 100).toFixed(1)}% of total
+              </p>
             </div>
           </div>
         </Card>
@@ -464,178 +453,208 @@ export default function RevenueOverview() {
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-purple-100 rounded-lg">
-              <MapPin className="w-6 h-6 text-purple-600" />
+              <Users className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Tour Bookings</p>
-              <p className="text-2xl font-bold text-gray-900">{bookings.tour}</p>
+              <p className="text-sm font-medium text-gray-600">Paid to Providers</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenueStats.paidToProviders)}</p>
+              <p className="text-xs text-gray-500">
+                {((revenueStats.paidToProviders / revenueStats.totalRevenue) * 100).toFixed(1)}% of total
+              </p>
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <BarChart3 className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenueStats.totalRevenue)}</p>
+              <p className="text-xs text-gray-500">
+                {formatPercentage(revenueStats.growthPercentage)} growth
+              </p>
             </div>
           </div>
         </Card>
       </div>
       
-      {/* Monthly Revenue Chart */}
+      {/* Revenue by Service Type */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Revenue Trend</h3>
-        <div className="space-y-4">
-          {monthlyRevenue.map((month, index) => (
-            <div key={index} className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-bold text-blue-600">{index + 1}</span>
-                </div>
-                <span className="font-medium text-gray-900">{month.month}</span>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{formatCurrency(month.revenue)}</p>
-                  <p className="text-xs text-gray-500">Revenue</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-600">{formatCurrency(month.commission)}</p>
-                  <p className="text-xs text-gray-500">Commission</p>
-                </div>
-                <div className="w-32 bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full" 
-                    style={{ width: `${(month.revenue / Math.max(...monthlyRevenue.map(m => m.revenue))) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Service Type</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <Building className="w-6 h-6 text-green-600" />
+              <span className="text-lg font-semibold text-gray-900">Properties</span>
             </div>
-          ))}
+            <div className="text-2xl font-bold text-gray-900 mb-1">
+              {formatCurrency(revenueByService.properties.amount)}
+            </div>
+            <div className="text-sm text-gray-600">
+              {revenueByService.properties.count} bookings
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div 
+                className="bg-green-500 h-2 rounded-full"
+                style={{ 
+                  width: `${(revenueByService.properties.amount / revenueStats.totalRevenue) * 100}%` 
+                }}
+              ></div>
+            </div>
+          </div>
+          
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <Car className="w-6 h-6 text-blue-600" />
+              <span className="text-lg font-semibold text-gray-900">Vehicles</span>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 mb-1">
+              {formatCurrency(revenueByService.vehicles.amount)}
+            </div>
+            <div className="text-sm text-gray-600">
+              {revenueByService.vehicles.count} bookings
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div 
+                className="bg-blue-500 h-2 rounded-full"
+                style={{ 
+                  width: `${(revenueByService.vehicles.amount / revenueStats.totalRevenue) * 100}%` 
+                }}
+              ></div>
+            </div>
+          </div>
+          
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <MapPin className="w-6 h-6 text-purple-600" />
+              <span className="text-lg font-semibold text-gray-900">Tours</span>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 mb-1">
+              {formatCurrency(revenueByService.tours.amount)}
+            </div>
+            <div className="text-sm text-gray-600">
+              {revenueByService.tours.count} bookings
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div 
+                className="bg-purple-500 h-2 rounded-full"
+                style={{ 
+                  width: `${(revenueByService.tours.amount / revenueStats.totalRevenue) * 100}%` 
+                }}
+              ></div>
+            </div>
+          </div>
         </div>
       </Card>
       
-      {/* Top Performing Services */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Properties</h3>
-          <div className="space-y-3">
-            {topProperties.map((property, index) => (
-              <div key={property.id} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-bold text-blue-600">#{index + 1}</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{property.name}</p>
-                    <p className="text-sm text-gray-600">{property.city}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{property._count.bookings}</p>
-                  <p className="text-xs text-gray-500">bookings</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Vehicles</h3>
-          <div className="space-y-3">
-            {topVehicles.map((vehicle, index) => (
-              <div key={vehicle.id} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-bold text-green-600">#{index + 1}</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{vehicle.brand} {vehicle.model}</p>
-                    <p className="text-sm text-gray-600">{vehicle.city}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{vehicle._count.bookings}</p>
-                  <p className="text-xs text-gray-500">bookings</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Tours</h3>
-          <div className="space-y-3">
-            {topTours.map((tour, index) => (
-              <div key={tour.id} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-bold text-purple-600">#{index + 1}</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{tour.title}</p>
-                    <p className="text-sm text-gray-600">{tour.city}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{tour._count.bookings}</p>
-                  <p className="text-xs text-gray-500">bookings</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-      
-      {/* Revenue by Status */}
+      {/* Revenue by Payment Method */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Status</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-                <div>
-                  <p className="font-medium text-gray-900">Confirmed Revenue</p>
-                  <p className="text-sm text-gray-600">Completed bookings</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-green-600">{formatCurrency(revenueByStatus.confirmed)}</p>
-              </div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Payment Method</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <CreditCard className="w-5 h-5 text-blue-600" />
+              <span className="font-medium text-gray-900">Credit Card</span>
             </div>
-            
-            <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <Clock className="w-6 h-6 text-yellow-600" />
-                <div>
-                  <p className="font-medium text-gray-900">Pending Revenue</p>
-                  <p className="text-sm text-gray-600">Awaiting confirmation</p>
-                </div>
+            <div className="text-right">
+              <div className="font-semibold text-gray-900">
+                {formatCurrency(revenueByPayment.creditCard.amount)}
               </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-yellow-600">{formatCurrency(revenueByStatus.pending)}</p>
+              <div className="text-sm text-gray-600">
+                {revenueByPayment.creditCard.count} transactions
               </div>
             </div>
           </div>
           
-          <div className="space-y-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-2">Revenue Distribution</h4>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Properties</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {((revenue.property / revenue.total) * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Vehicles</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {((revenue.vehicle / revenue.total) * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Tours</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {((revenue.tour / revenue.total) * 100).toFixed(1)}%
-                  </span>
-                </div>
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <Wallet className="w-5 h-5 text-yellow-600" />
+              <span className="font-medium text-gray-900">PayPal</span>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold text-gray-900">
+                {formatCurrency(revenueByPayment.paypal.amount)}
+              </div>
+              <div className="text-sm text-gray-600">
+                {revenueByPayment.paypal.count} transactions
               </div>
             </div>
           </div>
+          
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <Banknote className="w-5 h-5 text-green-600" />
+              <span className="font-medium text-gray-900">Bank Transfer</span>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold text-gray-900">
+                {formatCurrency(revenueByPayment.bankTransfer.amount)}
+              </div>
+              <div className="text-sm text-gray-600">
+                {revenueByPayment.bankTransfer.count} transactions
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+      
+      {/* Top Earning Services */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Earning Services</h3>
+        <div className="space-y-3">
+          {topEarningServices.map((service, index) => {
+            const ServiceIcon = getServiceIcon(service.serviceType);
+            return (
+              <div key={`${service.serviceType}-${service.serviceId}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
+                  <ServiceIcon className={`w-5 h-5 ${getServiceColor(service.serviceType)}`} />
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      {service.serviceType} #{service.serviceId.slice(-8)}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {service._count.id} bookings
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold text-gray-900">
+                    {formatCurrency(service._sum.totalAmount || 0)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+      
+      {/* Revenue by Location */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Location</h3>
+        <div className="space-y-3">
+          {revenueByLocation.map((location, index) => (
+            <div key={location.city} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
+                <MapPin className="w-5 h-5 text-gray-600" />
+                <div>
+                  <div className="font-medium text-gray-900">{location.city}</div>
+                  <div className="text-sm text-gray-600">
+                    {location._count.id} bookings
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-gray-900">
+                  {formatCurrency(location._sum.totalAmount || 0)}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
     </div>
