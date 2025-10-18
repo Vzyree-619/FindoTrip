@@ -42,7 +42,7 @@ import {
   Crown,
   Zap
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const admin = await requireAdmin(request);
@@ -71,13 +71,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
   
   if (status === 'active') {
-    whereClause.status = 'ACTIVE';
+    whereClause.approvalStatus = 'APPROVED';
   } else if (status === 'inactive') {
-    whereClause.status = 'INACTIVE';
+    whereClause.approvalStatus = 'REJECTED';
   } else if (status === 'pending') {
-    whereClause.status = 'PENDING';
+    whereClause.approvalStatus = 'PENDING';
   } else if (status === 'rejected') {
-    whereClause.status = 'REJECTED';
+    whereClause.approvalStatus = 'REJECTED';
   }
   
   if (type !== 'all') {
@@ -103,8 +103,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (owner) {
     whereClause.owner = {
       OR: [
-        { name: { contains: owner, mode: 'insensitive' } },
-        { email: { contains: owner, mode: 'insensitive' } }
+        { businessName: { contains: owner, mode: 'insensitive' } },
+        { businessEmail: { contains: owner, mode: 'insensitive' } }
       ]
     };
   }
@@ -117,10 +117,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
         owner: {
           select: {
             id: true,
-            name: true,
-            email: true,
-            verified: true,
-            isActive: true
+            businessName: true,
+            businessEmail: true,
+            businessPhone: true,
+            businessCity: true,
+            verificationLevel: true,
+            totalProperties: true,
+            totalRevenue: true,
+            averageRating: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                verified: true,
+                active: true
+              }
+            }
           }
         },
         _count: {
@@ -180,15 +193,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   // Get counts
   const counts = await Promise.all([
-    prisma.property.count({ where: { status: 'ACTIVE' } }),
-    prisma.property.count({ where: { status: 'INACTIVE' } }),
-    prisma.property.count({ where: { status: 'PENDING' } }),
+    prisma.property.count({ where: { approvalStatus: 'APPROVED' } }),
+    prisma.property.count({ where: { approvalStatus: 'REJECTED' } }),
+    prisma.property.count({ where: { approvalStatus: 'PENDING' } }),
     prisma.property.count()
   ]);
   
   // Get top performing properties
   const topPerformers = await prisma.property.findMany({
-    where: { status: 'ACTIVE' },
+    where: { approvalStatus: 'APPROVED' },
     include: {
       _count: {
         select: {
@@ -231,6 +244,31 @@ export default function PropertiesManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   
+  // Debug: Log the actual data being loaded
+  console.log('=== PROPERTIES DEBUG ===');
+  console.log('Properties count:', properties.length);
+  console.log('Total count:', totalCount);
+  console.log('First property:', properties[0]);
+  console.log('All property names:', properties.map(p => p.name));
+  console.log('========================');
+  
+  
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('[id^="dropdown-"]') && !target.closest('[id^="table-dropdown-"]')) {
+        // Close all dropdowns
+        document.querySelectorAll('[id^="dropdown-"], [id^="table-dropdown-"]').forEach(dropdown => {
+          dropdown.classList.add('hidden');
+        });
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+  
   const handleSelectAll = () => {
     if (selectedProperties.length === properties.length) {
       setSelectedProperties([]);
@@ -256,6 +294,12 @@ export default function PropertiesManagement() {
           <p className="text-gray-600">Manage all properties across the platform</p>
         </div>
         <div className="flex items-center space-x-4">
+          <div className="text-sm text-gray-600">
+            {totalCount} properties found
+          </div>
+          <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+            Debug: {properties.length} loaded
+          </div>
           <Button onClick={() => window.print()} variant="outline">
             <Download className="w-4 h-4 mr-2" />
             Export All
@@ -322,22 +366,54 @@ export default function PropertiesManagement() {
             <span className="text-sm font-medium text-gray-700">Quick Filters:</span>
           </div>
           
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              const newParams = new URLSearchParams(searchParams);
+              newParams.set('featured', 'true');
+              setSearchParams(newParams);
+            }}
+          >
             <Crown className="w-4 h-4 mr-2" />
             Featured Properties
           </Button>
           
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              const newParams = new URLSearchParams(searchParams);
+              newParams.set('boosted', 'true');
+              setSearchParams(newParams);
+            }}
+          >
             <Zap className="w-4 h-4 mr-2" />
             Boosted Listings
           </Button>
           
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              const newParams = new URLSearchParams(searchParams);
+              newParams.set('flagged', 'true');
+              setSearchParams(newParams);
+            }}
+          >
             <Flag className="w-4 h-4 mr-2" />
             Flagged for Review
           </Button>
           
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              const newParams = new URLSearchParams(searchParams);
+              newParams.set('highRevenue', 'true');
+              setSearchParams(newParams);
+            }}
+          >
             <AlertTriangle className="w-4 h-4 mr-2" />
             High Revenue
           </Button>
@@ -534,7 +610,26 @@ export default function PropertiesManagement() {
               {selectedProperties.length === properties.length ? 'Deselect All' : 'Select All'}
             </Button>
             {selectedProperties.length > 0 && (
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  // Create CSV export
+                  const csvData = selectedProperties.map(propertyId => {
+                    const property = properties.find(p => p.id === propertyId);
+                    return property ? `${property.name},${property.city},${property.basePrice},${property.approvalStatus}` : '';
+                  }).join('\n');
+                  
+                  const csvContent = 'Name,City,Price,Status\n' + csvData;
+                  const blob = new Blob([csvContent], { type: 'text/csv' });
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `selected-properties-${new Date().toISOString().split('T')[0]}.csv`;
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                }}
+              >
                 Export Selected ({selectedProperties.length})
               </Button>
             )}
@@ -553,12 +648,12 @@ export default function PropertiesManagement() {
                 </div>
                 <div className="absolute top-2 right-2">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    property.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                    property.status === 'INACTIVE' ? 'bg-red-100 text-red-800' :
-                    property.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                    property.approvalStatus === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                    property.approvalStatus === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                    property.approvalStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-gray-100 text-gray-800'
                   }`}>
-                    {property.status}
+                    {property.approvalStatus}
                   </span>
                 </div>
               </div>
@@ -568,7 +663,7 @@ export default function PropertiesManagement() {
                   <h3 className="font-semibold text-gray-900 truncate">{property.name}</h3>
                   <div className="flex items-center space-x-1">
                     <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span className="text-sm font-medium">{property.averageRating.toFixed(1)}</span>
+                    <span className="text-sm font-medium">{property.averageRating ? property.averageRating.toFixed(1) : '0.0'}</span>
                   </div>
                 </div>
                 
@@ -589,7 +684,7 @@ export default function PropertiesManagement() {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Owner:</span>
-                    <span className="font-medium">{property.owner.name}</span>
+                    <span className="font-medium">{property.owner.businessName}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Revenue:</span>
@@ -597,22 +692,90 @@ export default function PropertiesManagement() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Utilization:</span>
-                    <span className="font-medium">{property.utilizationRate.toFixed(1)}%</span>
+                    <span className="font-medium">{property.utilizationRate ? property.utilizationRate.toFixed(1) : '0.0'}%</span>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => {
+                      window.location.href = `/admin/properties/${property.id}`;
+                    }}
+                  >
                     <Eye className="w-4 h-4 mr-1" />
                     View
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => {
+                      window.location.href = `/admin/properties/${property.id}/edit`;
+                    }}
+                  >
                     <Edit className="w-4 h-4 mr-1" />
                     Edit
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      // Toggle dropdown menu for this property
+                      const dropdown = document.getElementById(`dropdown-${property.id}`);
+                      if (dropdown) {
+                        dropdown.classList.toggle('hidden');
+                      }
+                    }}
+                  >
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
+                  
+                  {/* Dropdown Menu */}
+                  <div id={`dropdown-${property.id}`} className="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                    <div className="py-1">
+                      <button 
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => {
+                          window.location.href = `/admin/properties/${property.id}/analytics`;
+                        }}
+                      >
+                        View Analytics
+                      </button>
+                      <button 
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => {
+                          window.location.href = `/admin/properties/${property.id}/bookings`;
+                        }}
+                      >
+                        View Bookings
+                      </button>
+                      <button 
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to ${property.approvalStatus === 'APPROVED' ? 'suspend' : 'approve'} this property?`)) {
+                            // TODO: Implement approval/suspension logic
+                            alert(`Property ${property.approvalStatus === 'APPROVED' ? 'suspended' : 'approved'}`);
+                          }
+                        }}
+                      >
+                        {property.approvalStatus === 'APPROVED' ? 'Suspend' : 'Approve'}
+                      </button>
+                      <button 
+                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete "${property.name}"? This action cannot be undone.`)) {
+                            // TODO: Implement delete logic
+                            alert('Property deleted');
+                          }
+                        }}
+                      >
+                        Delete Property
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -691,8 +854,8 @@ export default function PropertiesManagement() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{property.owner.name}</div>
-                        <div className="text-sm text-gray-500">{property.owner.email}</div>
+                        <div className="text-sm text-gray-900">{property.owner.businessName}</div>
+                        <div className="text-sm text-gray-500">{property.owner.businessEmail}</div>
                         <div className="flex items-center space-x-1 mt-1">
                           {property.owner.verified && (
                             <span className="px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
@@ -720,7 +883,7 @@ export default function PropertiesManagement() {
                         <div className="flex items-center space-x-1">
                           <Star className="w-4 h-4 text-yellow-400 fill-current" />
                           <span className="text-sm font-medium text-gray-900">
-                            {property.averageRating.toFixed(1)}
+                            {property.averageRating ? property.averageRating.toFixed(1) : '0.0'}
                           </span>
                           <span className="text-xs text-gray-500">
                             ({property._count.reviews})
@@ -731,7 +894,7 @@ export default function PropertiesManagement() {
                         <div className="text-sm text-gray-900">
                           <div className="font-medium">{property._count.bookings}</div>
                           <div className="text-xs text-gray-500">
-                            {property.utilizationRate.toFixed(1)}% utilization
+                            {property.utilizationRate ? property.utilizationRate.toFixed(1) : '0.0'}% utilization
                           </div>
                         </div>
                       </td>
@@ -743,27 +906,93 @@ export default function PropertiesManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          property.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                          property.status === 'INACTIVE' ? 'bg-red-100 text-red-800' :
-                          property.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                          property.approvalStatus === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                          property.approvalStatus === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                          property.approvalStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
-                          {property.status}
+                          {property.approvalStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-2">
-                          <Button variant="outline" size="sm">
+                        <div className="flex items-center space-x-2 relative">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              window.location.href = `/admin/properties/${property.id}`;
+                            }}
+                          >
                             <Eye className="w-4 h-4 mr-1" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              window.location.href = `/admin/properties/${property.id}/edit`;
+                            }}
+                          >
                             <Edit className="w-4 h-4 mr-1" />
                             Edit
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              // Toggle dropdown menu for this property
+                              const dropdown = document.getElementById(`table-dropdown-${property.id}`);
+                              if (dropdown) {
+                                dropdown.classList.toggle('hidden');
+                              }
+                            }}
+                          >
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
+                          
+                          {/* Dropdown Menu */}
+                          <div id={`table-dropdown-${property.id}`} className="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                            <div className="py-1">
+                              <button 
+                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                onClick={() => {
+                                  window.location.href = `/admin/properties/${property.id}/analytics`;
+                                }}
+                              >
+                                View Analytics
+                              </button>
+                              <button 
+                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                onClick={() => {
+                                  window.location.href = `/admin/properties/${property.id}/bookings`;
+                                }}
+                              >
+                                View Bookings
+                              </button>
+                              <button 
+                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to ${property.approvalStatus === 'APPROVED' ? 'suspend' : 'approve'} this property?`)) {
+                                    // TODO: Implement approval/suspension logic
+                                    alert(`Property ${property.approvalStatus === 'APPROVED' ? 'suspended' : 'approved'}`);
+                                  }
+                                }}
+                              >
+                                {property.approvalStatus === 'APPROVED' ? 'Suspend' : 'Approve'}
+                              </button>
+                              <button 
+                                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete "${property.name}"? This action cannot be undone.`)) {
+                                    // TODO: Implement delete logic
+                                    alert('Property deleted');
+                                  }
+                                }}
+                              >
+                                Delete Property
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </td>
                     </tr>

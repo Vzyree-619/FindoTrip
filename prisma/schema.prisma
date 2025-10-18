@@ -330,7 +330,6 @@ model User {
   errorLogs        ErrorLog[] @relation("ErrorLogUser")
   activityLogs     ActivityLog[] @relation("ActivityLogUser")
   emailTemplates   EmailTemplate[] @relation("EmailTemplateCreator")
-  auditLogs        AuditLog[] @relation("AuditLogUser")
 
   @@index([role])
   @@index([verified])
@@ -2679,89 +2678,3 @@ model SecuritySetting {
   @@index([isEnabled])
 }
 
-// Platform Analytics
-model PlatformAnalytics {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  date            DateTime @default(now())
-  
-  // User metrics
-  totalUsers      Int @default(0)
-  activeUsers     Int @default(0)
-  newUsers        Int @default(0)
-  
-  // Booking metrics
-  totalBookings   Int @default(0)
-  totalRevenue    Float @default(0)
-  conversionRate  Float @default(0)
-  avgBookingValue Float @default(0)
-  
-  // Platform metrics
-  totalProperties Int @default(0)
-  totalVehicles   Int @default(0)
-  totalTours      Int @default(0)
-  
-  // Traffic metrics
-  pageViews       Int @default(0)
-  uniqueVisitors  Int @default(0)
-  bounceRate      Float @default(0)
-  
-  // Additional metrics
-  metadata        Json?
-  
-  createdAt       DateTime @default(now())
-
-  @@index([date])
-}
-
-// Growth Metrics
-model GrowthMetric {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  date            DateTime @default(now())
-  period          String   // "daily", "weekly", "monthly", "yearly"
-  
-  // Growth metrics
-  userGrowth      Float @default(0)
-  revenueGrowth   Float @default(0)
-  bookingGrowth   Float @default(0)
-  
-  // Acquisition metrics
-  acquisitionCost Float @default(0)
-  lifetimeValue   Float @default(0)
-  churnRate       Float @default(0)
-  retentionRate   Float @default(0)
-  
-  // Forecasting
-  forecastedUsers Int @default(0)
-  forecastedRevenue Float @default(0)
-  
-  createdAt       DateTime @default(now())
-
-  @@index([date])
-  @@index([period])
-}
-
-// Audit Logs
-model AuditLog {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  action          String
-  resourceType    String
-  resourceId      String
-  details         Json?
-  
-  // User context
-  userId          String   @db.ObjectId
-  user            User     @relation("AuditLogUser", fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Security metadata
-  ipAddress       String?
-  userAgent       String?
-  severity        String   @default("LOW") // "LOW", "MEDIUM", "HIGH", "CRITICAL"
-  
-  timestamp       DateTime @default(now())
-
-  @@index([action])
-  @@index([resourceType])
-  @@index([userId])
-  @@index([severity])
-  @@index([timestamp])
-}
