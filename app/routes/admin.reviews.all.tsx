@@ -106,11 +106,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   if (status !== 'all') {
     if (status === 'published') {
-      whereClause.isHidden = false;
+      whereClause.flagged = false;
     } else if (status === 'hidden') {
-      whereClause.isHidden = true;
+      whereClause.flagged = true;
     } else if (status === 'flagged') {
-      whereClause.isFlagged = true;
+      whereClause.flagged = true;
     }
   }
   
@@ -158,8 +158,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
             city: true,
             owner: {
               select: {
-                name: true,
-                email: true
+                businessName: true,
+                businessEmail: true
               }
             }
           }
@@ -172,8 +172,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
             city: true,
             owner: {
               select: {
-                name: true,
-                email: true
+                businessName: true,
+                businessEmail: true
               }
             }
           }
@@ -185,23 +185,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
             city: true,
             guide: {
               select: {
-                name: true,
-                email: true
+                firstName: true,
+                lastName: true,
+                businessEmail: true
               }
             }
           }
         },
-        _count: {
-          select: {
-            helpfulVotes: true,
-            reports: true
-          }
-        }
+        // Note: helpful and flagged are direct fields, not relations
       },
       orderBy: sort === 'newest' ? { createdAt: 'desc' } : 
                sort === 'oldest' ? { createdAt: 'asc' } :
                sort === 'rating' ? { rating: 'desc' } :
-               sort === 'helpful' ? { helpfulVotes: { _count: 'desc' } } :
+               sort === 'helpful' ? { helpful: 'desc' } :
                { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit
@@ -212,9 +208,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Get review statistics
   const reviewStats = await Promise.all([
     prisma.review.count(),
-    prisma.review.count({ where: { isHidden: false } }),
-    prisma.review.count({ where: { isFlagged: true } }),
-    prisma.review.count({ where: { isHidden: true } }),
+    prisma.review.count({ where: { flagged: false } }),
+    prisma.review.count({ where: { flagged: true } }),
+    prisma.review.count({ where: { flagged: true } }),
     prisma.review.aggregate({
       _avg: { rating: true }
     })
@@ -238,8 +234,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   // Get most helpful reviews
   const mostHelpful = await prisma.review.findMany({
-    where: { isHidden: false },
-    orderBy: { helpfulVotes: { _count: 'desc' } },
+    where: { flagged: false },
+    orderBy: { helpful: 'desc' },
     take: 5,
     include: {
       user: {
@@ -298,10 +294,10 @@ export async function action({ request }: ActionFunctionArgs) {
       await prisma.review.update({
         where: { id: reviewId },
         data: { 
-          isHidden: true,
-          hiddenReason: reason,
-          hiddenBy: admin.id,
-          hiddenAt: new Date()
+          flagged: true,
+          flagReason: reason,
+          moderatedBy: admin.id,
+          moderatedAt: new Date()
         }
       });
       
@@ -311,10 +307,10 @@ export async function action({ request }: ActionFunctionArgs) {
       await prisma.review.update({
         where: { id: reviewId },
         data: { 
-          isHidden: false,
-          hiddenReason: null,
-          hiddenBy: null,
-          hiddenAt: null
+          flagged: false,
+          flagReason: null,
+          moderatedBy: null,
+          moderatedAt: null
         }
       });
       
@@ -804,12 +800,12 @@ export default function AllReviews() {
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getServiceColor(review.serviceType)}`}>
                           {review.serviceType}
                         </span>
-                        {review.isHidden && (
+                        {review.flagged && (
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                             Hidden
                           </span>
                         )}
-                        {review.isFlagged && (
+                        {review.flagged && (
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                             Flagged
                           </span>
@@ -875,7 +871,7 @@ export default function AllReviews() {
                         Edit
                       </Button>
                       
-                      {review.isHidden ? (
+                      {review.flagged ? (
                         <Button
                           onClick={() => handleReviewAction('unhide', review.id, 'Unhide Review')}
                           variant="outline"

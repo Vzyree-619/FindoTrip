@@ -136,7 +136,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.supportTicket.findMany({
       where: whereClause,
       include: {
-        user: {
+        provider: {
           select: {
             id: true,
             name: true,
@@ -144,7 +144,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             phone: true,
             role: true,
             verified: true,
-            isActive: true
+            active: true
           }
         },
         assignedTo: {
@@ -174,7 +174,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Get ticket statistics
   const stats = await Promise.all([
     prisma.supportTicket.count({ where: { status: 'NEW' } }),
-    prisma.supportTicket.count({ where: { status: 'ASSIGNED' } }),
     prisma.supportTicket.count({ where: { status: 'IN_PROGRESS' } }),
     prisma.supportTicket.count({ where: { status: 'WAITING' } }),
     prisma.supportTicket.count({ where: { status: 'RESOLVED' } }),
@@ -185,27 +184,29 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Get priority statistics
   const priorityStats = await Promise.all([
     prisma.supportTicket.count({ where: { priority: 'HIGH' } }),
-    prisma.supportTicket.count({ where: { priority: 'MEDIUM' } }),
+    prisma.supportTicket.count({ where: { priority: 'NORMAL' } }),
     prisma.supportTicket.count({ where: { priority: 'LOW' } })
   ]);
   
   // Get category statistics
   const categoryStats = await Promise.all([
     prisma.supportTicket.count({ where: { category: 'ACCOUNT_ISSUES' } }),
-    prisma.supportTicket.count({ where: { category: 'PAYMENT_PROBLEMS' } }),
-    prisma.supportTicket.count({ where: { category: 'BOOKING_ISSUES' } }),
-    prisma.supportTicket.count({ where: { category: 'TECHNICAL_ISSUES' } }),
-    prisma.supportTicket.count({ where: { category: 'SERVICE_LISTING' } }),
-    prisma.supportTicket.count({ where: { category: 'REVIEW_DISPUTES' } }),
+    prisma.supportTicket.count({ where: { category: 'PAYMENT_ISSUES' } }),
+    prisma.supportTicket.count({ where: { category: 'TECHNICAL_SUPPORT' } }),
     prisma.supportTicket.count({ where: { category: 'POLICY_QUESTIONS' } }),
-    prisma.supportTicket.count({ where: { category: 'FEATURE_REQUESTS' } }),
+    prisma.supportTicket.count({ where: { category: 'FEATURE_REQUEST' } }),
+    prisma.supportTicket.count({ where: { category: 'BUG_REPORT' } }),
+    prisma.supportTicket.count({ where: { category: 'APPROVAL_QUESTIONS' } }),
     prisma.supportTicket.count({ where: { category: 'OTHER' } })
   ]);
   
-  // Get average response time
-  const avgResponseTime = await prisma.supportTicket.aggregate({
-    where: { status: { in: ['RESOLVED', 'CLOSED'] } },
-    _avg: { responseTime: true }
+  // Get average satisfaction rating
+  const avgSatisfaction = await prisma.supportTicket.aggregate({
+    where: { 
+      status: { in: ['RESOLVED', 'CLOSED'] },
+      satisfactionRating: { not: null }
+    },
+    _avg: { satisfactionRating: true }
   });
   
   return json({
@@ -237,7 +238,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       featureRequests: categoryStats[7],
       other: categoryStats[8]
     },
-    avgResponseTime: avgResponseTime._avg.responseTime || 0,
+    avgSatisfaction: avgSatisfaction._avg.satisfactionRating || 0,
     pagination: {
       page,
       limit,
@@ -265,7 +266,7 @@ export async function action({ request }: ActionFunctionArgs) {
         where: { id: ticketId },
         data: { 
           assignedTo: assignedTo,
-          status: 'ASSIGNED',
+          status: 'IN_PROGRESS',
           assignedAt: new Date()
         }
       });
@@ -366,8 +367,7 @@ export default function SupportTickets() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'NEW': return 'bg-blue-100 text-blue-800';
-      case 'ASSIGNED': return 'bg-yellow-100 text-yellow-800';
-      case 'IN_PROGRESS': return 'bg-orange-100 text-orange-800';
+      case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800';
       case 'WAITING': return 'bg-purple-100 text-purple-800';
       case 'RESOLVED': return 'bg-green-100 text-green-800';
       case 'CLOSED': return 'bg-gray-100 text-gray-800';
@@ -378,7 +378,7 @@ export default function SupportTickets() {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'HIGH': return 'bg-red-100 text-red-800';
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
+      case 'NORMAL': return 'bg-yellow-100 text-yellow-800';
       case 'LOW': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -734,7 +734,7 @@ export default function SupportTickets() {
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
                         <div className="flex items-center space-x-2">
                           <User className="w-4 h-4" />
-                          <span>{ticket.user.name} ({ticket.user.role})</span>
+                          <span>{ticket.provider.name} ({ticket.provider.role})</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Calendar className="w-4 h-4" />
@@ -836,7 +836,6 @@ export default function SupportTickets() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Select Status</option>
-                    <option value="ASSIGNED">Assigned</option>
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="WAITING">Waiting</option>
                     <option value="RESOLVED">Resolved</option>

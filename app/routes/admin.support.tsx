@@ -70,19 +70,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.supportTicket.findMany({
       where,
       include: {
-        user: {
+        provider: {
           select: {
             id: true,
             name: true,
             email: true,
             phone: true,
-            role: true,
-            businessName: true
+            role: true
           }
         },
         messages: {
           include: {
-            user: {
+            sender: {
               select: {
                 id: true,
                 name: true,
@@ -103,7 +102,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   // Get status counts
   const statusCounts = await Promise.all([
-    prisma.supportTicket.count({ where: { status: 'OPEN' } }),
+    prisma.supportTicket.count({ where: { status: 'NEW' } }),
     prisma.supportTicket.count({ where: { status: 'IN_PROGRESS' } }),
     prisma.supportTicket.count({ where: { status: 'RESOLVED' } }),
     prisma.supportTicket.count({ where: { status: 'CLOSED' } })
@@ -112,7 +111,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Get priority counts
   const priorityCounts = await Promise.all([
     prisma.supportTicket.count({ where: { priority: 'LOW' } }),
-    prisma.supportTicket.count({ where: { priority: 'MEDIUM' } }),
+    prisma.supportTicket.count({ where: { priority: 'NORMAL' } }),
     prisma.supportTicket.count({ where: { priority: 'HIGH' } }),
     prisma.supportTicket.count({ where: { priority: 'URGENT' } })
   ]);
@@ -122,14 +121,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     tickets,
     totalCount,
     statusCounts: {
-      open: statusCounts[0],
+      new: statusCounts[0],
       inProgress: statusCounts[1],
       resolved: statusCounts[2],
       closed: statusCounts[3]
     },
     priorityCounts: {
       low: priorityCounts[0],
-      medium: priorityCounts[1],
+      normal: priorityCounts[1],
       high: priorityCounts[2],
       urgent: priorityCounts[3]
     },
@@ -165,7 +164,7 @@ export async function action({ request }: ActionFunctionArgs) {
         }
       });
       
-      // Update ticket status to IN_PROGRESS if it was OPEN
+      // Update ticket status to IN_PROGRESS if it was NEW
       await prisma.supportTicket.update({
         where: { id: ticketId },
         data: { status: 'IN_PROGRESS' }
@@ -262,7 +261,7 @@ export default function AdminSupport() {
   
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'OPEN': return 'bg-red-100 text-red-800';
+      case 'NEW': return 'bg-red-100 text-red-800';
       case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800';
       case 'RESOLVED': return 'bg-green-100 text-green-800';
       case 'CLOSED': return 'bg-gray-100 text-gray-800';
@@ -273,7 +272,7 @@ export default function AdminSupport() {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'LOW': return 'bg-green-100 text-green-800';
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
+      case 'NORMAL': return 'bg-yellow-100 text-yellow-800';
       case 'HIGH': return 'bg-orange-100 text-orange-800';
       case 'URGENT': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -292,7 +291,7 @@ export default function AdminSupport() {
   
   const statuses = [
     { value: 'all', label: 'All Status', count: totalCount },
-    { value: 'OPEN', label: 'Open', count: statusCounts.open },
+    { value: 'NEW', label: 'New', count: statusCounts.new },
     { value: 'IN_PROGRESS', label: 'In Progress', count: statusCounts.inProgress },
     { value: 'RESOLVED', label: 'Resolved', count: statusCounts.resolved },
     { value: 'CLOSED', label: 'Closed', count: statusCounts.closed }
@@ -301,7 +300,7 @@ export default function AdminSupport() {
   const priorities = [
     { value: 'all', label: 'All Priority', count: totalCount },
     { value: 'LOW', label: 'Low', count: priorityCounts.low },
-    { value: 'MEDIUM', label: 'Medium', count: priorityCounts.medium },
+    { value: 'NORMAL', label: 'Normal', count: priorityCounts.normal },
     { value: 'HIGH', label: 'High', count: priorityCounts.high },
     { value: 'URGENT', label: 'Urgent', count: priorityCounts.urgent }
   ];
@@ -439,16 +438,16 @@ export default function AdminSupport() {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
                         <div className="flex items-center space-x-2">
                           <User className="w-4 h-4" />
-                          <span>{ticket.user.name}</span>
+                          <span>{ticket.provider.name}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Mail className="w-4 h-4" />
-                          <span>{ticket.user.email}</span>
+                          <span>{ticket.provider.email}</span>
                         </div>
-                        {ticket.user.phone && (
+                        {ticket.provider.phone && (
                           <div className="flex items-center space-x-2">
                             <Phone className="w-4 h-4" />
-                            <span>{ticket.user.phone}</span>
+                            <span>{ticket.provider.phone}</span>
                           </div>
                         )}
                         <div className="flex items-center space-x-2">
@@ -459,10 +458,10 @@ export default function AdminSupport() {
                           <MessageCircle className="w-4 h-4" />
                           <span>{ticket.messages.length} messages</span>
                         </div>
-                        {ticket.user.businessName && (
+                        {ticket.provider.role !== 'CUSTOMER' && (
                           <div className="flex items-center space-x-2">
                             <Building className="w-4 h-4" />
-                            <span>{ticket.user.businessName}</span>
+                            <span>{ticket.provider.role}</span>
                           </div>
                         )}
                       </div>
@@ -503,7 +502,7 @@ export default function AdminSupport() {
                       onChange={(e) => handleStatusUpdate(ticket.id, e.target.value)}
                       className="px-2 py-1 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="OPEN">Open</option>
+                      <option value="NEW">New</option>
                       <option value="IN_PROGRESS">In Progress</option>
                       <option value="RESOLVED">Resolved</option>
                       <option value="CLOSED">Closed</option>
@@ -515,7 +514,7 @@ export default function AdminSupport() {
                       className="px-2 py-1 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="LOW">Low</option>
-                      <option value="MEDIUM">Medium</option>
+                      <option value="NORMAL">Normal</option>
                       <option value="HIGH">High</option>
                       <option value="URGENT">Urgent</option>
                     </select>
