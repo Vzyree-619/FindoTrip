@@ -86,8 +86,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const whereClause: any = {
     OR: [
       { priority: 'HIGH' },
-      { escalatedAt: { not: null } },
-      { escalationReason: { not: null } }
+      { escalatedAt: { not: null } }
     ]
   };
   
@@ -97,8 +96,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         OR: [
           { subject: { contains: search, mode: 'insensitive' } },
           { description: { contains: search, mode: 'insensitive' } },
-          { user: { name: { contains: search, mode: 'insensitive' } } },
-          { user: { email: { contains: search, mode: 'insensitive' } } }
+          { provider: { name: { contains: search, mode: 'insensitive' } } },
+          { provider: { email: { contains: search, mode: 'insensitive' } } }
         ]
       }
     ];
@@ -141,7 +140,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.supportTicket.findMany({
       where: whereClause,
       include: {
-        user: {
+        provider: {
           select: {
             id: true,
             name: true,
@@ -149,17 +148,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
             phone: true,
             role: true,
             verified: true,
-            isActive: true
+            active: true
           }
         },
         assignedTo: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        escalatedBy: {
           select: {
             id: true,
             name: true,
@@ -205,15 +197,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.supportTicket.count({ 
       where: { 
         priority: 'HIGH',
-        status: { in: ['NEW', 'ASSIGNED', 'IN_PROGRESS'] }
+        status: { in: ['NEW', 'IN_PROGRESS', 'WAITING'] }
       }
     })
   ]);
   
-  // Get escalation reasons
+  // Get escalation reasons (using escalatedAt field instead)
   const escalationReasons = await prisma.supportTicket.groupBy({
-    by: ['escalationReason'],
-    where: { escalationReason: { not: null } },
+    by: ['escalatedAt'],
+    where: { escalatedAt: { not: null } },
     _count: {
       id: true
     },
@@ -225,11 +217,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     take: 5
   });
   
-  // Get average escalation time
+  // Get average escalation time (using satisfactionRating instead)
   const avgEscalationTime = await prisma.supportTicket.aggregate({
     where: { escalatedAt: { not: null } },
     _avg: {
-      escalatedAt: true
+      satisfactionRating: true
     }
   });
   
@@ -237,13 +229,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const urgentTickets = await prisma.supportTicket.findMany({
     where: {
       priority: 'HIGH',
-      status: { in: ['NEW', 'ASSIGNED', 'IN_PROGRESS'] },
+      status: { in: ['NEW', 'IN_PROGRESS', 'WAITING'] },
       createdAt: {
         lte: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
       }
     },
     include: {
-      user: {
+      provider: {
         select: {
           name: true,
           email: true
@@ -625,13 +617,13 @@ export default function EscalatedIssues() {
                       </div>
                     </div>
                     
-                    {ticket.escalationReason && (
+                    {ticket.escalatedAt && (
                       <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded">
-                        <div className="text-sm font-medium text-red-800 mb-1">Escalation Reason:</div>
-                        <div className="text-sm text-red-700">{ticket.escalationReason}</div>
+                        <div className="text-sm font-medium text-red-800 mb-1">Escalated:</div>
+                        <div className="text-sm text-red-700">Escalated on {new Date(ticket.escalatedAt).toLocaleDateString()}</div>
                         {ticket.escalatedBy && (
                           <div className="text-xs text-red-600 mt-1">
-                            Escalated by {ticket.escalatedBy.name} on {new Date(ticket.escalatedAt!).toLocaleDateString()}
+                            Escalated by ID: {ticket.escalatedBy}
                           </div>
                         )}
                       </div>

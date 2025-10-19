@@ -43,8 +43,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (search) {
     where.OR = [
       { id: { contains: search, mode: 'insensitive' } },
-      { customer: { name: { contains: search, mode: 'insensitive' } } },
-      { customer: { email: { contains: search, mode: 'insensitive' } } }
+      { user: { name: { contains: search, mode: 'insensitive' } } },
+      { user: { email: { contains: search, mode: 'insensitive' } } }
     ];
   }
   
@@ -57,7 +57,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.propertyBooking.findMany({
       where: type === 'all' || type === 'property' ? where : { id: 'none' },
       include: {
-        customer: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -75,10 +75,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
             owner: {
               select: {
                 id: true,
-                name: true,
                 businessName: true,
-                email: true,
-                phone: true
+                businessEmail: true,
+                businessPhone: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    phone: true
+                  }
+                }
               }
             }
           }
@@ -91,7 +98,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.vehicleBooking.findMany({
       where: type === 'all' || type === 'vehicle' ? where : { id: 'none' },
       include: {
-        customer: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -109,10 +116,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
             owner: {
               select: {
                 id: true,
-                name: true,
                 businessName: true,
-                email: true,
-                phone: true
+                businessEmail: true,
+                businessPhone: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    phone: true
+                  }
+                }
               }
             }
           }
@@ -125,7 +139,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.tourBooking.findMany({
       where: type === 'all' || type === 'tour' ? where : { id: 'none' },
       include: {
-        customer: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -136,16 +150,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
         tour: {
           select: {
             id: true,
-            name: true,
-            location: true,
+            title: true,
+            city: true,
             difficulty: true,
             guide: {
               select: {
                 id: true,
-                name: true,
-                businessName: true,
-                email: true,
-                phone: true
+                firstName: true,
+                lastName: true,
+                businessEmail: true,
+                businessPhone: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    phone: true
+                  }
+                }
               }
             }
           }
@@ -165,20 +187,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   
   // Get booking counts
-  const [totalBookings, statusCounts] = await Promise.all([
-    prisma.propertyBooking.count() + prisma.vehicleBooking.count() + prisma.tourBooking.count(),
-    Promise.all([
-      prisma.propertyBooking.count({ where: { status: 'CONFIRMED' } }) + 
-      prisma.vehicleBooking.count({ where: { status: 'CONFIRMED' } }) + 
-      prisma.tourBooking.count({ where: { status: 'CONFIRMED' } }),
-      prisma.propertyBooking.count({ where: { status: 'PENDING' } }) + 
-      prisma.vehicleBooking.count({ where: { status: 'PENDING' } }) + 
-      prisma.tourBooking.count({ where: { status: 'PENDING' } }),
-      prisma.propertyBooking.count({ where: { status: 'CANCELLED' } }) + 
-      prisma.vehicleBooking.count({ where: { status: 'CANCELLED' } }) + 
-      prisma.tourBooking.count({ where: { status: 'CANCELLED' } })
-    ])
+  const [propertyCount, vehicleCount, tourCount, propertyConfirmed, vehicleConfirmed, tourConfirmed, propertyPending, vehiclePending, tourPending, propertyCancelled, vehicleCancelled, tourCancelled] = await Promise.all([
+    prisma.propertyBooking.count(),
+    prisma.vehicleBooking.count(),
+    prisma.tourBooking.count(),
+    prisma.propertyBooking.count({ where: { status: 'CONFIRMED' } }),
+    prisma.vehicleBooking.count({ where: { status: 'CONFIRMED' } }),
+    prisma.tourBooking.count({ where: { status: 'CONFIRMED' } }),
+    prisma.propertyBooking.count({ where: { status: 'PENDING' } }),
+    prisma.vehicleBooking.count({ where: { status: 'PENDING' } }),
+    prisma.tourBooking.count({ where: { status: 'PENDING' } }),
+    prisma.propertyBooking.count({ where: { status: 'CANCELLED' } }),
+    prisma.vehicleBooking.count({ where: { status: 'CANCELLED' } }),
+    prisma.tourBooking.count({ where: { status: 'CANCELLED' } })
   ]);
+  
+  const totalBookings = propertyCount + vehicleCount + tourCount;
+  const statusCounts = [
+    propertyConfirmed + vehicleConfirmed + tourConfirmed,
+    propertyPending + vehiclePending + tourPending,
+    propertyCancelled + vehicleCancelled + tourCancelled
+  ];
   
   return json({
     admin,
@@ -435,7 +464,7 @@ export default function AdminBookings() {
                         <h3 className="text-lg font-semibold text-gray-900">
                           {booking.bookingType === 'property' && booking.property?.name}
                           {booking.bookingType === 'vehicle' && `${booking.vehicle?.brand} ${booking.vehicle?.model}`}
-                          {booking.bookingType === 'tour' && booking.tour?.name}
+                          {booking.bookingType === 'tour' && booking.tour?.title}
                         </h3>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
                           {booking.status}
@@ -448,16 +477,16 @@ export default function AdminBookings() {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
                         <div className="flex items-center space-x-2">
                           <User className="w-4 h-4" />
-                          <span>{booking.customer.name}</span>
+                          <span>{booking.user.name}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Mail className="w-4 h-4" />
-                          <span>{booking.customer.email}</span>
+                          <span>{booking.user.email}</span>
                         </div>
-                        {booking.customer.phone && (
+                        {booking.user.phone && (
                           <div className="flex items-center space-x-2">
                             <Phone className="w-4 h-4" />
-                            <span>{booking.customer.phone}</span>
+                            <span>{booking.user.phone}</span>
                           </div>
                         )}
                         <div className="flex items-center space-x-2">
@@ -471,19 +500,19 @@ export default function AdminBookings() {
                         {booking.bookingType === 'property' && (
                           <div className="flex items-center space-x-2">
                             <Building className="w-4 h-4" />
-                            <span>{booking.property?.owner.businessName || booking.property?.owner.name}</span>
+                            <span>{booking.property?.owner.businessName || booking.property?.owner.user.name}</span>
                           </div>
                         )}
                         {booking.bookingType === 'vehicle' && (
                           <div className="flex items-center space-x-2">
                             <Car className="w-4 h-4" />
-                            <span>{booking.vehicle?.owner.businessName || booking.vehicle?.owner.name}</span>
+                            <span>{booking.vehicle?.owner.businessName || booking.vehicle?.owner.user.name}</span>
                           </div>
                         )}
                         {booking.bookingType === 'tour' && (
                           <div className="flex items-center space-x-2">
                             <MapPin className="w-4 h-4" />
-                            <span>{booking.tour?.guide.businessName || booking.tour?.guide.name}</span>
+                            <span>{`${booking.tour?.guide.firstName} ${booking.tour?.guide.lastName}` || booking.tour?.guide.user.name}</span>
                           </div>
                         )}
                       </div>
@@ -506,9 +535,9 @@ export default function AdminBookings() {
                         )}
                         {booking.bookingType === 'tour' && (
                           <div>
-                            <strong>Tour:</strong> {booking.tour?.name}
+                            <strong>Tour:</strong> {booking.tour?.title}
                             <br />
-                            <strong>Location:</strong> {booking.tour?.location} - {booking.tour?.difficulty}
+                            <strong>Location:</strong> {booking.tour?.city} - {booking.tour?.difficulty}
                           </div>
                         )}
                       </div>

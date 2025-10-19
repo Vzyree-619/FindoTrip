@@ -97,7 +97,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   if (rating !== 'all') {
     const minRating = parseFloat(rating);
-    whereClause.averageRating = { gte: minRating };
+    whereClause.rating = { gte: minRating };
   }
   
   if (owner) {
@@ -124,7 +124,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
             verificationLevel: true,
             totalProperties: true,
             totalRevenue: true,
-            averageRating: true,
             user: {
               select: {
                 id: true,
@@ -147,7 +146,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
                sort === 'oldest' ? { createdAt: 'asc' } :
                sort === 'price_low' ? { basePrice: 'asc' } :
                sort === 'price_high' ? { basePrice: 'desc' } :
-               sort === 'rating' ? { averageRating: 'desc' } :
+               sort === 'rating' ? { rating: 'desc' } :
                sort === 'bookings' ? { bookings: { _count: 'desc' } } :
                { createdAt: 'desc' },
       skip: (page - 1) * limit,
@@ -216,6 +215,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
     take: 5
   });
+
+  // Get unique cities for location dropdown
+  const uniqueCities = await prisma.property.findMany({
+    select: {
+      city: true
+    },
+    distinct: ['city'],
+    orderBy: {
+      city: 'asc'
+    }
+  });
   
   return json({
     admin,
@@ -228,6 +238,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       total: counts[3]
     },
     topPerformers,
+    uniqueCities: uniqueCities.map(city => city.city),
     pagination: {
       page,
       limit,
@@ -240,7 +251,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function PropertiesManagement() {
-  const { admin, properties, totalCount, counts, topPerformers, pagination, filters } = useLoaderData<typeof loader>();
+  const { admin, properties, totalCount, counts, topPerformers, uniqueCities, pagination, filters } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   
@@ -477,10 +488,11 @@ export default function PropertiesManagement() {
               className="px-3 py-1 border border-gray-300 rounded-md text-sm"
             >
               <option value="all">All Locations</option>
-              <option value="Islamabad">Islamabad</option>
-              <option value="Karachi">Karachi</option>
-              <option value="Lahore">Lahore</option>
-              <option value="Rawalpindi">Rawalpindi</option>
+              {uniqueCities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
             </select>
           </div>
           
@@ -663,7 +675,7 @@ export default function PropertiesManagement() {
                   <h3 className="font-semibold text-gray-900 truncate">{property.name}</h3>
                   <div className="flex items-center space-x-1">
                     <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span className="text-sm font-medium">{property.averageRating ? property.averageRating.toFixed(1) : '0.0'}</span>
+                    <span className="text-sm font-medium">{property.rating ? property.rating.toFixed(1) : '0.0'}</span>
                   </div>
                 </div>
                 
@@ -857,12 +869,12 @@ export default function PropertiesManagement() {
                         <div className="text-sm text-gray-900">{property.owner.businessName}</div>
                         <div className="text-sm text-gray-500">{property.owner.businessEmail}</div>
                         <div className="flex items-center space-x-1 mt-1">
-                          {property.owner.verified && (
+                          {property.owner.user.verified && (
                             <span className="px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                               Verified
                             </span>
                           )}
-                          {property.owner.isActive ? (
+                          {property.owner.user.active ? (
                             <span className="px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                               Active
                             </span>
@@ -883,7 +895,7 @@ export default function PropertiesManagement() {
                         <div className="flex items-center space-x-1">
                           <Star className="w-4 h-4 text-yellow-400 fill-current" />
                           <span className="text-sm font-medium text-gray-900">
-                            {property.averageRating ? property.averageRating.toFixed(1) : '0.0'}
+                            {property.rating ? property.rating.toFixed(1) : '0.0'}
                           </span>
                           <span className="text-xs text-gray-500">
                             ({property._count.reviews})
