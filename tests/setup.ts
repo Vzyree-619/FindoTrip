@@ -135,6 +135,7 @@ vi.mock('~/lib/db/db.server', () => ({
       update: vi.fn(),
       delete: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
     },
     property: {
       findMany: vi.fn(),
@@ -143,6 +144,7 @@ vi.mock('~/lib/db/db.server', () => ({
       update: vi.fn(),
       delete: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
     },
     vehicle: {
       findMany: vi.fn(),
@@ -151,6 +153,7 @@ vi.mock('~/lib/db/db.server', () => ({
       update: vi.fn(),
       delete: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
     },
     tour: {
       findMany: vi.fn(),
@@ -159,6 +162,7 @@ vi.mock('~/lib/db/db.server', () => ({
       update: vi.fn(),
       delete: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
     },
     propertyBooking: {
       findMany: vi.fn(),
@@ -167,6 +171,7 @@ vi.mock('~/lib/db/db.server', () => ({
       update: vi.fn(),
       delete: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
     },
     vehicleBooking: {
       findMany: vi.fn(),
@@ -175,6 +180,7 @@ vi.mock('~/lib/db/db.server', () => ({
       update: vi.fn(),
       delete: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
     },
     tourBooking: {
       findMany: vi.fn(),
@@ -183,6 +189,7 @@ vi.mock('~/lib/db/db.server', () => ({
       update: vi.fn(),
       delete: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
     },
     review: {
       findMany: vi.fn(),
@@ -191,6 +198,7 @@ vi.mock('~/lib/db/db.server', () => ({
       update: vi.fn(),
       delete: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
     },
     supportTicket: {
       findMany: vi.fn(),
@@ -199,6 +207,71 @@ vi.mock('~/lib/db/db.server', () => ({
       update: vi.fn(),
       delete: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
+    },
+    // Chat system models
+    conversation: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    message: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    // Notification system
+    notificationPreferences: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    // Favorites system
+    favorite: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    // Commission system
+    commission: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+      aggregate: vi.fn(),
+    },
+    // Add aggregate to all models that need it
+    notification: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+      count: vi.fn(),
+      aggregate: vi.fn(),
+    },
+    mediaFile: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+      aggregate: vi.fn(),
     },
   },
 }))
