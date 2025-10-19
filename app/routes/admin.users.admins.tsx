@@ -63,9 +63,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
   
   if (status === 'active') {
-    whereClause.isActive = true;
+    whereClause.active = true;
   } else if (status === 'inactive') {
-    whereClause.isActive = false;
+    whereClause.active = false;
   }
   
   if (dateFrom || dateTo) {
@@ -81,7 +81,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       include: {
         _count: {
           select: {
-            auditLogs: true
+            generalAuditLogs: true
           }
         }
       },
@@ -123,8 +123,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Get counts
   const counts = await Promise.all([
     prisma.user.count({ where: { role: 'SUPER_ADMIN' } }),
-    prisma.user.count({ where: { role: 'SUPER_ADMIN', isActive: true } }),
-    prisma.user.count({ where: { role: 'SUPER_ADMIN', isActive: false } }),
+    prisma.user.count({ where: { role: 'SUPER_ADMIN', active: true } }),
+    prisma.user.count({ where: { role: 'SUPER_ADMIN', active: false } }),
     prisma.user.count({ 
       where: { 
         role: 'SUPER_ADMIN',
@@ -196,7 +196,7 @@ export async function action({ request }: ActionFunctionArgs) {
         where: { id: adminId },
         data: { 
           role: 'CUSTOMER', // Default role
-          isActive: false
+          active: false
         }
       });
       
@@ -426,7 +426,7 @@ export default function Admins() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
-                        {adminUser.isActive ? (
+                        {adminUser.active ? (
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             Active
                           </span>
