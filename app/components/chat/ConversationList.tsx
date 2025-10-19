@@ -9,12 +9,14 @@ export function ConversationList({
   onSelect,
   onSearch,
   className,
+  currentUserId,
 }: {
   conversations: Conversation[];
   loading?: boolean;
   onSelect?: (id: string) => void;
   onSearch?: (q: string) => void;
   className?: string;
+  currentUserId?: string;
 }) {
   const [q, setQ] = useState("");
 
@@ -56,9 +58,19 @@ export function ConversationList({
         ) : (
           filtered
             .slice()
-            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+            .sort((a, b) => {
+              const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+              const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+              return dateB - dateA;
+            })
             .map((conv) => {
-              const p = conv.participants?.[0];
+              // Find the other participant (not the current user)
+              const p = conv.participants?.find(participant => participant.id !== currentUserId) || conv.participants?.[0];
+              const isServiceProvider = p?.role && ['PROPERTY_OWNER', 'VEHICLE_OWNER', 'TOUR_GUIDE'].includes(p.role);
+              const serviceType = p?.role === 'PROPERTY_OWNER' ? 'Property Owner' : 
+                                p?.role === 'VEHICLE_OWNER' ? 'Vehicle Owner' : 
+                                p?.role === 'TOUR_GUIDE' ? 'Tour Guide' : null;
+              
               return (
                 <button
                   key={conv.id}
@@ -70,8 +82,13 @@ export function ConversationList({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <div className="truncate font-medium">{p?.name || "Unknown"}</div>
-                        <div className="text-xs text-gray-500 whitespace-nowrap">{formatTimeAgo(conv.updatedAt)}</div>
+                        <div className="text-xs text-gray-500 whitespace-nowrap">{formatTimeAgo(conv.updatedAt || new Date())}</div>
                       </div>
+                      {isServiceProvider && serviceType && (
+                        <div className="text-xs text-[#01502E] font-medium mb-1">
+                          {serviceType}
+                        </div>
+                      )}
                       <div className="text-sm text-gray-500 truncate">{conv.lastMessage?.content || "No messages yet"}</div>
                     </div>
                     {conv.unreadCount ? (

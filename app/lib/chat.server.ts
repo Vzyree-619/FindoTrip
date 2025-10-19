@@ -560,7 +560,15 @@ async function hydrateParticipants(conversation: any) {
     where: { id: { in: conversation.participants } },
     select: { id: true, name: true, role: true, avatar: true, lastActiveAt: true },
   });
-  return { ...conversation, participants: users };
+  
+  // Add online status based on lastActiveAt
+  const usersWithOnlineStatus = users.map(user => ({
+    ...user,
+    online: user.lastActiveAt ? 
+      new Date().getTime() - new Date(user.lastActiveAt).getTime() < 5 * 60 * 1000 : false
+  }));
+  
+  return { ...conversation, participants: usersWithOnlineStatus };
 }
 
 /**
@@ -653,19 +661,15 @@ export async function sendChatNotification(
 
 function formatConversationSummary(conversation: any, userId: string): ConversationSummary {
   const otherParticipants = conversation.participants
-    .filter((id: string) => id !== userId)
-    .map((id: string) => {
-      const participant = conversation.participants.find((p: any) => p.id === id);
-      return {
-        id,
-        name: participant?.name || 'Unknown',
-        role: participant?.role || 'CUSTOMER',
-        avatar: participant?.avatar,
-        isOnline: participant?.lastActiveAt ? 
-          new Date().getTime() - new Date(participant.lastActiveAt).getTime() < 5 * 60 * 1000 : false,
-        lastActiveAt: participant?.lastActiveAt
-      };
-    });
+    .filter((p: any) => p.id !== userId)
+    .map((participant: any) => ({
+      id: participant.id,
+      name: participant.name || 'Unknown',
+      role: participant.role || 'CUSTOMER',
+      avatar: participant.avatar,
+      isOnline: participant.online || false,
+      lastActiveAt: participant.lastActiveAt
+    }));
 
   return {
     id: conversation.id,

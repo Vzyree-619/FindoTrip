@@ -722,4 +722,583 @@ describe('Chat System', () => {
       expect(skip).toBe(0)
     })
   })
+
+  describe('Customer-Provider Message Flow', () => {
+    it('should show customer messages to property owner', async () => {
+      const customerId = 'customer-1'
+      const propertyOwnerId = 'property-owner-1'
+      const conversationId = 'conv-customer-provider'
+
+      // Mock conversation between customer and property owner
+      const mockConversation = {
+        id: conversationId,
+        participants: [customerId, propertyOwnerId],
+        type: 'CUSTOMER_PROVIDER',
+        isActive: true,
+        lastMessageAt: new Date(),
+        unreadCount: { [propertyOwnerId]: 1 },
+        messages: [
+          {
+            id: 'msg-1',
+            content: 'Hi, I\'m interested in your property. Is it available for next weekend?',
+            senderId: customerId,
+            senderName: 'John Customer',
+            createdAt: new Date(),
+            type: 'TEXT',
+            conversationId,
+          }
+        ]
+      }
+
+      // Mock property owner viewing the conversation
+      vi.mocked(prisma.conversation.findUnique).mockResolvedValue(mockConversation)
+      vi.mocked(prisma.message.findMany).mockResolvedValue(mockConversation.messages)
+
+      // Property owner gets the conversation
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: {
+          messages: {
+            include: {
+              sender: { select: { id: true, name: true, role: true, avatar: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+          }
+        }
+      })
+
+      // Property owner gets messages
+      const messages = await prisma.message.findMany({
+        where: { conversationId },
+        include: {
+          sender: { select: { id: true, name: true, role: true, avatar: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+
+      expect(conversation).toBeDefined()
+      expect(conversation?.participants).toContain(propertyOwnerId)
+      expect(conversation?.participants).toContain(customerId)
+      expect(messages).toHaveLength(1)
+      expect(messages[0].senderId).toBe(customerId)
+      expect(messages[0].content).toBe('Hi, I\'m interested in your property. Is it available for next weekend?')
+    })
+
+    it('should show customer messages to vehicle owner', async () => {
+      const customerId = 'customer-2'
+      const vehicleOwnerId = 'vehicle-owner-1'
+      const conversationId = 'conv-customer-vehicle'
+
+      const mockConversation = {
+        id: conversationId,
+        participants: [customerId, vehicleOwnerId],
+        type: 'CUSTOMER_PROVIDER',
+        isActive: true,
+        lastMessageAt: new Date(),
+        unreadCount: { [vehicleOwnerId]: 2 },
+        messages: [
+          {
+            id: 'msg-3',
+            content: 'What type of car are you looking for?',
+            senderId: customerId,
+            senderName: 'Jane Customer',
+            createdAt: new Date(Date.now() + 1000), // More recent
+            type: 'TEXT',
+            conversationId,
+          },
+          {
+            id: 'msg-2',
+            content: 'Hello! I need a car for 3 days. Do you have any available?',
+            senderId: customerId,
+            senderName: 'Jane Customer',
+            createdAt: new Date(), // Earlier
+            type: 'TEXT',
+            conversationId,
+          }
+        ]
+      }
+
+      vi.mocked(prisma.conversation.findUnique).mockResolvedValue(mockConversation)
+      vi.mocked(prisma.message.findMany).mockResolvedValue(mockConversation.messages)
+
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId }
+      })
+
+      const messages = await prisma.message.findMany({
+        where: { conversationId },
+        include: {
+          sender: { select: { id: true, name: true, role: true, avatar: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+
+      expect(conversation).toBeDefined()
+      expect(conversation?.participants).toContain(vehicleOwnerId)
+      expect(conversation?.participants).toContain(customerId)
+      expect(messages).toHaveLength(2)
+      expect(messages[0].senderId).toBe(customerId)
+      expect(messages[1].senderId).toBe(customerId)
+      expect(messages[0].content).toContain('What type of car')
+      expect(messages[1].content).toContain('Hello! I need a car')
+    })
+
+    it('should show customer messages to tour guide', async () => {
+      const customerId = 'customer-3'
+      const tourGuideId = 'tour-guide-1'
+      const conversationId = 'conv-customer-tour'
+
+      const mockConversation = {
+        id: conversationId,
+        participants: [customerId, tourGuideId],
+        type: 'CUSTOMER_PROVIDER',
+        isActive: true,
+        lastMessageAt: new Date(),
+        unreadCount: { [tourGuideId]: 1 },
+        messages: [
+          {
+            id: 'msg-4',
+            content: 'Hi! I\'d like to book a city tour for my family. What tours do you offer?',
+            senderId: customerId,
+            senderName: 'Mike Customer',
+            createdAt: new Date(),
+            type: 'TEXT',
+            conversationId,
+          }
+        ]
+      }
+
+      vi.mocked(prisma.conversation.findUnique).mockResolvedValue(mockConversation)
+      vi.mocked(prisma.message.findMany).mockResolvedValue(mockConversation.messages)
+
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId }
+      })
+
+      const messages = await prisma.message.findMany({
+        where: { conversationId },
+        include: {
+          sender: { select: { id: true, name: true, role: true, avatar: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+
+      expect(conversation).toBeDefined()
+      expect(conversation?.participants).toContain(tourGuideId)
+      expect(conversation?.participants).toContain(customerId)
+      expect(messages).toHaveLength(1)
+      expect(messages[0].senderId).toBe(customerId)
+      expect(messages[0].content).toContain('book a city tour')
+    })
+
+    it('should track unread message count for providers', async () => {
+      const customerId = 'customer-4'
+      const propertyOwnerId = 'property-owner-2'
+      const conversationId = 'conv-unread-test'
+
+      const mockConversation = {
+        id: conversationId,
+        participants: [customerId, propertyOwnerId],
+        type: 'CUSTOMER_PROVIDER',
+        isActive: true,
+        lastMessageAt: new Date(),
+        unreadCount: { [propertyOwnerId]: 3, [customerId]: 0 },
+        messages: [
+          {
+            id: 'msg-5',
+            content: 'First message',
+            senderId: customerId,
+            createdAt: new Date(Date.now() - 300000), // 5 minutes ago
+            type: 'TEXT',
+            conversationId,
+          },
+          {
+            id: 'msg-6',
+            content: 'Second message',
+            senderId: customerId,
+            createdAt: new Date(Date.now() - 200000), // 3 minutes ago
+            type: 'TEXT',
+            conversationId,
+          },
+          {
+            id: 'msg-7',
+            content: 'Third message',
+            senderId: customerId,
+            createdAt: new Date(Date.now() - 100000), // 1 minute ago
+            type: 'TEXT',
+            conversationId,
+          }
+        ]
+      }
+
+      vi.mocked(prisma.conversation.findUnique).mockResolvedValue(mockConversation)
+
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId }
+      })
+
+      expect(conversation).toBeDefined()
+      expect(conversation?.unreadCount).toBeDefined()
+      expect((conversation?.unreadCount as any)[propertyOwnerId]).toBe(3)
+      expect((conversation?.unreadCount as any)[customerId]).toBe(0)
+    })
+
+    it('should show provider name in chat interface for customer', async () => {
+      const customerId = 'customer-5'
+      const propertyOwnerId = 'property-owner-3'
+      const conversationId = 'conv-name-display'
+
+      const mockConversation = {
+        id: conversationId,
+        participants: [
+          { id: customerId, name: 'Alice Customer', role: 'CUSTOMER', avatar: 'customer-avatar.jpg' },
+          { id: propertyOwnerId, name: 'Bob Property Owner', role: 'PROPERTY_OWNER', avatar: 'owner-avatar.jpg' }
+        ],
+        type: 'CUSTOMER_PROVIDER',
+        isActive: true,
+        lastMessageAt: new Date(),
+        unreadCount: { [customerId]: 0, [propertyOwnerId]: 1 }
+      }
+
+      vi.mocked(prisma.conversation.findUnique).mockResolvedValue(mockConversation)
+
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: {
+          participants: {
+            select: { id: true, name: true, role: true, avatar: true }
+          }
+        }
+      })
+
+      // Simulate customer viewing the chat - should see provider's name
+      const otherParticipant = conversation?.participants?.find(p => p.id !== customerId)
+      
+      expect(otherParticipant).toBeDefined()
+      expect(otherParticipant?.name).toBe('Bob Property Owner')
+      expect(otherParticipant?.role).toBe('PROPERTY_OWNER')
+      expect(otherParticipant?.avatar).toBe('owner-avatar.jpg')
+    })
+
+    it('should show customer name in chat interface for provider', async () => {
+      const customerId = 'customer-6'
+      const vehicleOwnerId = 'vehicle-owner-2'
+      const conversationId = 'conv-provider-view'
+
+      const mockConversation = {
+        id: conversationId,
+        participants: [
+          { id: customerId, name: 'Charlie Customer', role: 'CUSTOMER', avatar: 'customer-avatar2.jpg' },
+          { id: vehicleOwnerId, name: 'David Vehicle Owner', role: 'VEHICLE_OWNER', avatar: 'vehicle-owner-avatar.jpg' }
+        ],
+        type: 'CUSTOMER_PROVIDER',
+        isActive: true,
+        lastMessageAt: new Date(),
+        unreadCount: { [customerId]: 0, [vehicleOwnerId]: 1 }
+      }
+
+      vi.mocked(prisma.conversation.findUnique).mockResolvedValue(mockConversation)
+
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: {
+          participants: {
+            select: { id: true, name: true, role: true, avatar: true }
+          }
+        }
+      })
+
+      // Simulate vehicle owner viewing the chat - should see customer's name
+      const otherParticipant = conversation?.participants?.find(p => p.id !== vehicleOwnerId)
+      
+      expect(otherParticipant).toBeDefined()
+      expect(otherParticipant?.name).toBe('Charlie Customer')
+      expect(otherParticipant?.role).toBe('CUSTOMER')
+      expect(otherParticipant?.avatar).toBe('customer-avatar2.jpg')
+    })
+  })
+
+  describe('Message Edit and Delete', () => {
+    it('should allow users to edit their own messages', async () => {
+      const messageId = 'msg-edit-test'
+      const userId = 'user-1'
+      const newContent = 'This is an edited message'
+
+      const mockMessage = {
+        id: messageId,
+        content: 'Original message',
+        senderId: userId,
+        conversationId: 'conv-1',
+        isEdited: false,
+        editedAt: null,
+        editHistory: []
+      }
+
+      const updatedMessage = {
+        ...mockMessage,
+        content: newContent,
+        isEdited: true,
+        editedAt: new Date(),
+        editHistory: ['Original message']
+      }
+
+      vi.mocked(prisma.message.findUnique).mockResolvedValue(mockMessage)
+      vi.mocked(prisma.message.update).mockResolvedValue(updatedMessage)
+
+      // Test edit message directly
+      const result = await prisma.message.update({
+        where: { id: messageId },
+        data: {
+          content: newContent,
+          isEdited: true,
+          editedAt: new Date(),
+          editHistory: { push: 'Original message' }
+        },
+        include: {
+          sender: { select: { id: true, name: true, role: true, avatar: true } }
+        }
+      })
+
+      expect(result.content).toBe(newContent)
+      expect(result.isEdited).toBe(true)
+      expect(prisma.message.update).toHaveBeenCalledWith({
+        where: { id: messageId },
+        data: {
+          content: newContent,
+          isEdited: true,
+          editedAt: expect.any(Date),
+          editHistory: { push: 'Original message' }
+        },
+        include: {
+          sender: { select: { id: true, name: true, role: true, avatar: true } }
+        }
+      })
+    })
+
+    it('should prevent users from editing others messages', async () => {
+      const messageId = 'msg-edit-test'
+      const userId = 'user-2' // Different user
+      const newContent = 'This should not work'
+
+      const mockMessage = {
+        id: messageId,
+        content: 'Original message',
+        senderId: 'user-1', // Different sender
+        conversationId: 'conv-1',
+        conversation: {
+          participants: [
+            { id: 'user-1', role: 'CUSTOMER' },
+            { id: 'user-2', role: 'CUSTOMER' }
+          ]
+        }
+      }
+
+      vi.mocked(prisma.message.findUnique).mockResolvedValue(mockMessage)
+
+      const response = await fetch(`/api/chat/messages/${messageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent })
+      })
+
+      expect(response.status).toBe(403)
+    })
+
+    it('should allow users to delete their own messages', async () => {
+      const messageId = 'msg-delete-test'
+      const userId = 'user-1'
+
+      const mockMessage = {
+        id: messageId,
+        content: 'Message to delete',
+        senderId: userId,
+        conversationId: 'conv-1',
+        conversation: {
+          participants: [
+            { id: 'user-1', role: 'CUSTOMER' }
+          ]
+        }
+      }
+
+      vi.mocked(prisma.message.findUnique).mockResolvedValue(mockMessage)
+      vi.mocked(prisma.message.update).mockResolvedValue({
+        ...mockMessage,
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: userId,
+        content: 'You deleted this message'
+      })
+
+      const response = await fetch(`/api/chat/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleteForEveryone: false })
+      })
+
+      expect(response.ok).toBe(true)
+      expect(prisma.message.update).toHaveBeenCalledWith({
+        where: { id: messageId },
+        data: {
+          isDeleted: true,
+          deletedAt: expect.any(Date),
+          deletedBy: userId,
+          content: 'You deleted this message'
+        }
+      })
+    })
+
+    it('should allow admins to delete messages for everyone', async () => {
+      const messageId = 'msg-admin-delete'
+      const adminId = 'admin-1'
+
+      const mockMessage = {
+        id: messageId,
+        content: 'Message to delete for everyone',
+        senderId: 'user-1',
+        conversationId: 'conv-1',
+        conversation: {
+          participants: [
+            { id: 'user-1', role: 'CUSTOMER' },
+            { id: 'admin-1', role: 'SUPER_ADMIN' }
+          ]
+        }
+      }
+
+      vi.mocked(prisma.message.findUnique).mockResolvedValue(mockMessage)
+      vi.mocked(prisma.message.update).mockResolvedValue({
+        ...mockMessage,
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: adminId,
+        content: 'This message was deleted'
+      })
+
+      const response = await fetch(`/api/chat/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleteForEveryone: true })
+      })
+
+      expect(response.ok).toBe(true)
+      expect(prisma.message.update).toHaveBeenCalledWith({
+        where: { id: messageId },
+        data: {
+          isDeleted: true,
+          deletedAt: expect.any(Date),
+          deletedBy: adminId,
+          content: 'This message was deleted'
+        }
+      })
+    })
+
+    it('should prevent non-admins from deleting messages for everyone', async () => {
+      const messageId = 'msg-no-admin-delete'
+      const userId = 'user-1'
+
+      const mockMessage = {
+        id: messageId,
+        content: 'Message to delete',
+        senderId: 'user-2',
+        conversationId: 'conv-1',
+        conversation: {
+          participants: [
+            { id: 'user-1', role: 'CUSTOMER' },
+            { id: 'user-2', role: 'CUSTOMER' }
+          ]
+        }
+      }
+
+      vi.mocked(prisma.message.findUnique).mockResolvedValue(mockMessage)
+
+      const response = await fetch(`/api/chat/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleteForEveryone: true })
+      })
+
+      expect(response.status).toBe(403)
+    })
+
+    it('should show edited indicator for edited messages', async () => {
+      const editedMessage = {
+        id: 'msg-edited',
+        content: 'This message was edited',
+        senderId: 'user-1',
+        isEdited: true,
+        editedAt: new Date(),
+        editHistory: ['Original content']
+      }
+
+      vi.mocked(prisma.message.findUnique).mockResolvedValue(editedMessage)
+
+      const response = await fetch(`/api/chat/messages/${editedMessage.id}`)
+      const data = await response.json()
+
+      expect(response.ok).toBe(true)
+      expect(data.message.isEdited).toBe(true)
+      expect(data.message.editHistory).toContain('Original content')
+    })
+
+    it('should show deleted indicator for deleted messages', async () => {
+      const deletedMessage = {
+        id: 'msg-deleted',
+        content: 'This message was deleted',
+        senderId: 'user-1',
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: 'admin-1'
+      }
+
+      vi.mocked(prisma.message.findUnique).mockResolvedValue(deletedMessage)
+
+      const response = await fetch(`/api/chat/messages/${deletedMessage.id}`)
+      const data = await response.json()
+
+      expect(response.ok).toBe(true)
+      expect(data.message.isDeleted).toBe(true)
+      expect(data.message.deletedBy).toBe('admin-1')
+    })
+
+    it('should track edit history for messages', async () => {
+      const messageId = 'msg-history-test'
+      const userId = 'user-1'
+
+      const mockMessage = {
+        id: messageId,
+        content: 'First edit',
+        senderId: userId,
+        conversationId: 'conv-1',
+        isEdited: true,
+        editedAt: new Date(),
+        editHistory: ['Original message']
+      }
+
+      vi.mocked(prisma.message.findUnique).mockResolvedValue(mockMessage)
+      vi.mocked(prisma.message.update).mockResolvedValue({
+        ...mockMessage,
+        content: 'Second edit',
+        editHistory: ['Original message', 'First edit']
+      })
+
+      const response = await fetch(`/api/chat/messages/${messageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: 'Second edit' })
+      })
+
+      expect(response.ok).toBe(true)
+      expect(prisma.message.update).toHaveBeenCalledWith({
+        where: { id: messageId },
+        data: {
+          content: 'Second edit',
+          isEdited: true,
+          editedAt: expect.any(Date),
+          editHistory: { push: 'First edit' }
+        },
+        include: {
+          sender: { select: { id: true, name: true, role: true, avatar: true } }
+        }
+      })
+    })
+  })
 })

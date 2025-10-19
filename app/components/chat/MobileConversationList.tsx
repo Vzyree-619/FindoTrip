@@ -130,7 +130,7 @@ export function MobileConversationList({
                       <div className="flex items-center justify-between gap-2 mb-1">
                         <div className="font-medium truncate">{p?.name || "Unknown"}</div>
                         <div className="text-xs text-gray-500 whitespace-nowrap">
-                          {formatTimeAgo(conv.updatedAt)}
+                          {formatTimeAgo(conv.updatedAt || new Date())}
                         </div>
                       </div>
                       <div className="text-sm text-gray-500 truncate">

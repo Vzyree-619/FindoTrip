@@ -53,6 +53,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
         select: { id: true, name: true, role: true, avatar: true }
       });
 
+      // Add online status (mock for now)
+      const participantsWithStatus = participants.map(p => ({
+        ...p,
+        online: Math.random() > 0.5 // Mock online status
+      }));
+
       // Get unread count for this user
       const unreadCount = conv.unreadCount && typeof conv.unreadCount === 'object' 
         ? (conv.unreadCount as any)[userId] || 0 
@@ -60,7 +66,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       return {
         id: conv.id,
-        participants,
+        participants: participantsWithStatus,
         lastMessage: conv.messages[0] ? {
           id: conv.messages[0].id,
           content: conv.messages[0].content,

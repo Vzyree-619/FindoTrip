@@ -154,7 +154,8 @@ export function MobileChatInterface({
 
   if (!isOpen) return null;
 
-  const participant = conversation?.participants?.[0];
+  // Find the other participant (not the current user)
+  const participant = conversation?.participants?.find(p => p.id !== currentUserId) || conversation?.participants?.[0];
 
   return (
     <div className={clsx("fixed inset-0 z-50 bg-white flex flex-col", className)}>
@@ -177,6 +178,13 @@ export function MobileChatInterface({
             </div>
             <div>
               <div className="font-medium text-white">{participant?.name || "Chat"}</div>
+              {participant?.role && ['PROPERTY_OWNER', 'VEHICLE_OWNER', 'TOUR_GUIDE'].includes(participant.role) && (
+                <div className="text-xs text-white/90 font-medium">
+                  {participant.role === 'PROPERTY_OWNER' ? 'Property Owner' : 
+                   participant.role === 'VEHICLE_OWNER' ? 'Vehicle Owner' : 
+                   participant.role === 'TOUR_GUIDE' ? 'Tour Guide' : ''}
+                </div>
+              )}
               <div className="text-xs text-green-100">
                 {isTyping ? "typing…" : participant?.online ? "online" : "offline"}
               </div>

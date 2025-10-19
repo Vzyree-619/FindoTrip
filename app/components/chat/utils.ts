@@ -3,7 +3,9 @@ export function clsx(...classes: Array<string | false | null | undefined>) {
 }
 
 export function formatTimeAgo(input: Date | string): string {
+  if (!input) return "";
   const date = typeof input === "string" ? new Date(input) : input;
+  if (isNaN(date.getTime())) return "";
   const now = new Date();
   const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
   if (diff < 60) return `${diff || 1}s ago`;
@@ -22,7 +24,9 @@ export function formatTimeAgo(input: Date | string): string {
 }
 
 export function formatTimestamp(input: Date | string): string {
+  if (!input) return "";
   const d = typeof input === "string" ? new Date(input) : input;
+  if (isNaN(d.getTime())) return "";
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 

@@ -21,7 +21,7 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
   async function loadConversations() {
     setLoading(true);
     try {
-        const res = await fetch(`/api/chat/conversations?limit=50`);
+        const res = await fetch(`/chat-conversations?limit=50`);
       const json = await res.json();
       
       if (!json.success) {
@@ -35,7 +35,13 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
       setCurrentUserId(currentUserIdProp || json?.data?.currentUserId || json?.data?.userId);
       const mapped: Conversation[] = items.map((c: any) => ({
         id: c.id,
-        participants: c.participants?.map((p: any) => ({ id: p.id, name: p.name, avatar: p.avatar, role: p.role })) || [],
+        participants: c.participants?.map((p: any) => ({ 
+          id: p.id, 
+          name: p.name, 
+          avatar: p.avatar, 
+          role: p.role,
+          online: p.isOnline || p.online || false // Use isOnline from API or fallback to online
+        })) || [],
         lastMessage: c.lastMessage
           ? {
               id: c.lastMessage.id,
@@ -54,6 +60,9 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
       setConversations(mapped);
       if (mapped.length && !selectedId) {
         setSelectedId(mapped[0].id);
+        setOpen(true);
+      } else if (mapped.length === 0) {
+        // Show chat interface even when no conversations (for login prompt)
         setOpen(true);
       }
     } catch (e) {
@@ -94,11 +103,13 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
               conversations={conversations}
               loading={loading}
               onSelect={(id) => {
+                console.log('Conversation selected:', id);
                 setSelectedId(id);
                 setOpen(true);
               }}
               onSearch={() => {}}
               className="flex-1"
+              currentUserId={currentUserId}
             />
           </div>
           <div className="md:col-span-2 flex flex-col min-h-0">
@@ -109,24 +120,27 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
               currentUserId={currentUserId}
               variant="inline"
               className="flex-1"
-              onSendMessage={async ({ conversationId, text }) => {
-                const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ content: text }),
+              onSendMessage={async ({ targetUserId, text }) => {
+                const formData = new FormData();
+                formData.append('text', text);
+                if (targetUserId) formData.append('targetUserId', targetUserId);
+                
+                const res = await fetch('/chat-send', {
+                  method: 'POST',
+                  body: formData
                 });
                 const json = await res.json();
                 const msg = json?.data as Message;
                 // update list preview
                 setConversations((prev) =>
-                  prev.map((c) => (c.id === conversationId ? { ...c, lastMessage: msg, updatedAt: msg.createdAt } : c))
+                  prev.map((c) => (c.id === msg.conversationId ? { ...c, lastMessage: msg, updatedAt: msg.createdAt } : c))
                 );
                 return msg;
               }}
               onLoadMore={async ({ conversationId, before }) => {
-                const res = await fetch(`/api/chat/conversations/${conversationId}/messages?limit=50&before=${before}`);
+                const res = await fetch(`/chat-conversation?conversationId=${conversationId}&limit=50&before=${before}`);
                 const json = await res.json();
-                return (json?.data?.messages || []) as Message[];
+                return (json?.messages || []) as Message[];
               }}
             />
           </div>

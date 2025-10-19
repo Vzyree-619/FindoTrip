@@ -1,5 +1,5 @@
-import React from "react";
-import { Check, CheckCheck, MoreVertical } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Check, CheckCheck, MoreVertical, Edit2, Trash2, X, Save } from "lucide-react";
 import { formatTimestamp, clsx } from "./utils";
 import { useTheme } from "~/contexts/ThemeContext";
 import type { Message } from "./types";
@@ -13,17 +13,70 @@ export function MessageBubble({
   onEdit,
   onDelete,
   onReply,
+  currentUserId,
+  isAdmin = false,
 }: {
   message: Message;
   isSender: boolean;
   showAvatar?: boolean;
   showTimestamp?: boolean;
   avatarUrl?: string;
-  onEdit?: (m: Message) => void;
-  onDelete?: (m: Message) => void;
+  onEdit?: (messageId: string, newContent: string) => Promise<void>;
+  onDelete?: (messageId: string, deleteForEveryone?: boolean) => Promise<void>;
   onReply?: (m: Message) => void;
+  currentUserId?: string;
+  isAdmin?: boolean;
 }) {
   const { resolvedTheme } = useTheme();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(message.content);
+  const [showActions, setShowActions] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+
+  // Close actions menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+        setShowActions(false);
+      }
+    };
+
+    if (showActions) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showActions]);
+
+  const handleEdit = async () => {
+    if (editContent.trim() && editContent !== message.content && onEdit) {
+      try {
+        await onEdit(message.id, editContent.trim());
+        setIsEditing(false);
+      } catch (error) {
+        console.error('Failed to edit message:', error);
+      }
+    }
+  };
+
+  const handleDelete = async (deleteForEveryone = false) => {
+    if (onDelete) {
+      try {
+        setIsDeleting(true);
+        await onDelete(message.id, deleteForEveryone);
+        setShowActions(false);
+      } catch (error) {
+        console.error('Failed to delete message:', error);
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
+
+  const canEdit = isSender && !message.isDeleted && message.type === "text";
+  const canDelete = isSender || isAdmin;
+  const canDeleteForEveryone = isAdmin;
+
   const statusIcon = message.status === "read" ? (
     <CheckCheck className="w-4 h-4 text-[#01502E]" />
   ) : message.status === "delivered" ? (
@@ -41,7 +94,50 @@ export function MessageBubble({
           ? "bg-gray-800 text-gray-100 border border-gray-700" 
           : "bg-white text-gray-900 border border-gray-200"
     )}>
-      {message.type === "text" ? (
+      {message.isDeleted ? (
+        <div className="italic opacity-60">
+          {message.deletedBy === currentUserId ? "You deleted this message" : "This message was deleted"}
+        </div>
+      ) : isEditing ? (
+        <div className="space-y-2">
+          <textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            className="w-full p-2 rounded border bg-white text-gray-900 resize-none"
+            rows={3}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleEdit();
+              } else if (e.key === 'Escape') {
+                setIsEditing(false);
+                setEditContent(message.content);
+              }
+            }}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleEdit}
+              disabled={!editContent.trim() || editContent === message.content}
+              className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50"
+            >
+              <Save className="w-3 h-3" />
+              Save
+            </button>
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                setEditContent(message.content);
+              }}
+              className="flex items-center gap-1 px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
+            >
+              <X className="w-3 h-3" />
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : message.type === "text" ? (
         <span className="whitespace-pre-wrap break-words">
           {renderWithLinks(message.content)}
         </span>
@@ -52,9 +148,16 @@ export function MessageBubble({
           {message.attachments?.[0]?.name || message.content || "Attachment"}
         </a>
       )}
+      
+      {message.isEdited && !message.isDeleted && (
+        <div className={clsx("text-[10px] opacity-60 mt-1", isSender ? "text-white" : "text-gray-500")}>
+          edited
+        </div>
+      )}
+      
       {showTimestamp && (
         <div className={clsx("mt-1 text-[11px] opacity-70 flex items-center gap-1", isSender ? "text-white" : "text-gray-500")}
-             title={new Date(message.createdAt).toLocaleString()}>
+             title={message.createdAt ? new Date(message.createdAt).toLocaleString() : ""}>
           <span>{formatTimestamp(message.createdAt)}</span>
           {isSender && statusIcon}
         </div>
@@ -69,11 +172,56 @@ export function MessageBubble({
         <img src={avatarUrl || "/avatar.png"} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
       )}
       {content}
-      {isSender && (
-        <div className="relative">
-          <button className="p-1 opacity-60 hover:opacity-100" aria-label="Message actions">
+      {(isSender || isAdmin) && !message.isDeleted && (
+        <div className="relative" ref={actionsRef}>
+          <button 
+            className="p-1 opacity-60 hover:opacity-100" 
+            aria-label="Message actions"
+            onClick={() => setShowActions(!showActions)}
+          >
             <MoreVertical className="w-4 h-4" />
           </button>
+          
+          {showActions && (
+            <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[160px]">
+              {canEdit && (
+                <button
+                  onClick={() => {
+                    setIsEditing(true);
+                    setShowActions(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit
+                </button>
+              )}
+              
+              {canDelete && (
+                <>
+                  <button
+                    onClick={() => handleDelete(false)}
+                    disabled={isDeleting}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {isDeleting ? "Deleting..." : "Delete for me"}
+                  </button>
+                  
+                  {canDeleteForEveryone && (
+                    <button
+                      onClick={() => handleDelete(true)}
+                      disabled={isDeleting}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {isDeleting ? "Deleting..." : "Delete for everyone"}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
