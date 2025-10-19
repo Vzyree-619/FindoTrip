@@ -93,7 +93,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           }
         }
       },
-      orderBy: { flaggedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       skip,
       take: limit
     }),
@@ -111,7 +111,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.review.count({
       where: {
         flagged: true,
-        flaggedAt: {
+        createdAt: {
           gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
         }
       }
@@ -455,9 +455,9 @@ export default function FlaggedReviews() {
                         <div className="text-sm text-gray-500">
                           <span className="font-medium">{serviceInfo.type}:</span> {serviceInfo.name} • {serviceInfo.location}
                         </div>
-                        {review.flaggedAt && (
+                        {review.flagged && (
                           <div className="text-xs text-red-600 mt-1">
-                            Flagged on {new Date(review.flaggedAt).toLocaleDateString()}
+                            Flagged review
                           </div>
                         )}
                       </div>
