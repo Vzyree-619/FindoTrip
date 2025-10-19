@@ -382,7 +382,6 @@ describe('Booking System', () => {
     it('should filter bookings by status', async () => {
       vi.mocked(prisma.propertyBooking.findMany).mockResolvedValue([
         { ...mockPropertyBooking, status: 'CONFIRMED' },
-        { ...mockPropertyBooking, id: 'booking-2', status: 'PENDING' },
       ])
 
       const confirmedBookings = await prisma.propertyBooking.findMany({

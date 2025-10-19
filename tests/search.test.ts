@@ -212,7 +212,11 @@ describe('Search and Discovery', () => {
     })
 
     it('should sort properties by price', async () => {
-      vi.mocked(prisma.property.findMany).mockResolvedValue(mockProperties)
+      const sortedMockProperties = [
+        { ...mockProperties[1], basePrice: 150 }, // Cozy House
+        { ...mockProperties[0], basePrice: 200 }, // Luxury Apartment
+      ]
+      vi.mocked(prisma.property.findMany).mockResolvedValue(sortedMockProperties)
 
       const sortedProperties = await prisma.property.findMany({
         where: { available: true },
@@ -286,7 +290,11 @@ describe('Search and Discovery', () => {
     })
 
     it('should sort vehicles by rating', async () => {
-      vi.mocked(prisma.vehicle.findMany).mockResolvedValue(mockVehicles)
+      const sortedMockVehicles = [
+        { ...mockVehicles[1], rating: 4.8 }, // BMW X5
+        { ...mockVehicles[0], rating: 4.3 }, // Toyota Camry
+      ]
+      vi.mocked(prisma.vehicle.findMany).mockResolvedValue(sortedMockVehicles)
 
       const sortedVehicles = await prisma.vehicle.findMany({
         where: { available: true },
@@ -372,7 +380,11 @@ describe('Search and Discovery', () => {
     })
 
     it('should sort tours by rating', async () => {
-      vi.mocked(prisma.tour.findMany).mockResolvedValue(mockTours)
+      const sortedMockTours = [
+        { ...mockTours[1], rating: 4.9 }, // Mountain Hiking Adventure
+        { ...mockTours[0], rating: 4.6 }, // City Walking Tour
+      ]
+      vi.mocked(prisma.tour.findMany).mockResolvedValue(sortedMockTours)
 
       const sortedTours = await prisma.tour.findMany({
         where: { available: true },

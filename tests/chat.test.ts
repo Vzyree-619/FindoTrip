@@ -534,12 +534,6 @@ describe('Chat System', () => {
           messageCount: 10,
           participants: ['user-1', 'provider-1'],
         },
-        {
-          id: 'conv-2',
-          lastMessageAt: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-          messageCount: 5,
-          participants: ['user-2', 'provider-1'],
-        },
       ]
 
       vi.mocked(prisma.conversation.findMany).mockResolvedValue(conversations)

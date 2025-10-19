@@ -89,15 +89,16 @@ describe('Analytics and Reporting System', () => {
         newUsersThisMonth: 50,
       }
 
-      vi.mocked(prisma.user.count).mockResolvedValue(1000)
+      vi.mocked(prisma.user.count)
+        .mockResolvedValueOnce(1000) // total users
+        .mockResolvedValueOnce(800) // active users
+        .mockResolvedValueOnce(50) // new users this month
       vi.mocked(prisma.property.count).mockResolvedValue(250)
       vi.mocked(prisma.vehicle.count).mockResolvedValue(150)
       vi.mocked(prisma.tour.count).mockResolvedValue(100)
       vi.mocked(prisma.propertyBooking.count).mockResolvedValue(3000)
       vi.mocked(prisma.vehicleBooking.count).mockResolvedValue(1500)
       vi.mocked(prisma.tourBooking.count).mockResolvedValue(500)
-      vi.mocked(prisma.user.count).mockResolvedValueOnce(800) // active users
-      vi.mocked(prisma.user.count).mockResolvedValueOnce(50) // new users this month
 
       const [totalUsers, totalProperties, totalVehicles, totalTours, propertyBookings, vehicleBookings, tourBookings, activeUsers, newUsers] = await Promise.all([
         prisma.user.count(),
@@ -194,9 +195,10 @@ describe('Analytics and Reporting System', () => {
         conversionRate: 0.05,
       }
 
-      vi.mocked(prisma.user.count).mockResolvedValue(150) // daily active
-      vi.mocked(prisma.user.count).mockResolvedValue(500) // weekly active
-      vi.mocked(prisma.user.count).mockResolvedValue(800) // monthly active
+      vi.mocked(prisma.user.count)
+        .mockResolvedValueOnce(150) // daily active
+        .mockResolvedValueOnce(500) // weekly active
+        .mockResolvedValueOnce(800) // monthly active
 
       const [dailyActive, weeklyActive, monthlyActive] = await Promise.all([
         prisma.user.count({
@@ -406,9 +408,10 @@ describe('Analytics and Reporting System', () => {
         churnRate: 0.1,
       }
 
-      vi.mocked(prisma.user.count).mockResolvedValue(5000) // total logins
-      vi.mocked(prisma.user.count).mockResolvedValue(50) // most active
-      vi.mocked(prisma.user.count).mockResolvedValue(100) // inactive
+      vi.mocked(prisma.user.count)
+        .mockResolvedValueOnce(5000) // total logins
+        .mockResolvedValueOnce(50) // most active
+        .mockResolvedValueOnce(100) // inactive
 
       const [totalLogins, mostActive, inactive] = await Promise.all([
         prisma.user.count({

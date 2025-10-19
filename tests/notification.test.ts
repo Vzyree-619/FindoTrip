@@ -588,9 +588,10 @@ describe('Notification System', () => {
         engagementRate: 0.45,
       }
 
-      vi.mocked(prisma.notification.count).mockResolvedValue(100)
-      vi.mocked(prisma.notification.count).mockResolvedValueOnce(70) // read count
-      vi.mocked(prisma.notification.count).mockResolvedValueOnce(45) // clicked count
+      vi.mocked(prisma.notification.count)
+        .mockResolvedValueOnce(100) // total sent
+        .mockResolvedValueOnce(70) // read count
+        .mockResolvedValueOnce(45) // clicked count
 
       const [totalSent, totalRead, totalClicked] = await Promise.all([
         prisma.notification.count({ where: { userId: 'user-1' } }),

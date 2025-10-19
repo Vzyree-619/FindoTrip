@@ -82,9 +82,10 @@ describe('Dashboard System', () => {
         reviewsGiven: 2,
       }
 
-      vi.mocked(prisma.propertyBooking.count).mockResolvedValue(5)
-      vi.mocked(prisma.propertyBooking.count).mockResolvedValueOnce(2) // upcoming
-      vi.mocked(prisma.propertyBooking.count).mockResolvedValueOnce(3) // completed
+      vi.mocked(prisma.propertyBooking.count)
+        .mockResolvedValueOnce(5) // total bookings
+        .mockResolvedValueOnce(2) // upcoming
+        .mockResolvedValueOnce(3) // completed
       vi.mocked(prisma.propertyBooking.aggregate).mockResolvedValue({
         _sum: { totalAmount: 1500 },
       })
@@ -239,8 +240,9 @@ describe('Dashboard System', () => {
         occupancyRate: 0.75,
       }
 
-      vi.mocked(prisma.property.count).mockResolvedValue(3)
-      vi.mocked(prisma.property.count).mockResolvedValueOnce(2) // active
+      vi.mocked(prisma.property.count)
+        .mockResolvedValueOnce(3) // total properties
+        .mockResolvedValueOnce(2) // active properties
       vi.mocked(prisma.propertyBooking.count).mockResolvedValue(25)
       vi.mocked(prisma.propertyBooking.aggregate).mockResolvedValue({
         _sum: { totalAmount: 15000 },
@@ -392,15 +394,16 @@ describe('Dashboard System', () => {
         newUsersThisMonth: 50,
       }
 
-      vi.mocked(prisma.user.count).mockResolvedValue(1000)
+      vi.mocked(prisma.user.count)
+        .mockResolvedValueOnce(1000) // total users
+        .mockResolvedValueOnce(800) // active users
+        .mockResolvedValueOnce(50) // new users
       vi.mocked(prisma.property.count).mockResolvedValue(250)
       vi.mocked(prisma.vehicle.count).mockResolvedValue(150)
       vi.mocked(prisma.tour.count).mockResolvedValue(100)
       vi.mocked(prisma.propertyBooking.count).mockResolvedValue(3000)
       vi.mocked(prisma.vehicleBooking.count).mockResolvedValue(1500)
       vi.mocked(prisma.tourBooking.count).mockResolvedValue(500)
-      vi.mocked(prisma.user.count).mockResolvedValueOnce(800) // active users
-      vi.mocked(prisma.user.count).mockResolvedValueOnce(50) // new users
 
       const [totalUsers, totalProperties, totalVehicles, totalTours, propertyBookings, vehicleBookings, tourBookings, activeUsers, newUsers] = await Promise.all([
         prisma.user.count(),
@@ -438,10 +441,11 @@ describe('Dashboard System', () => {
         userGrowthRate: 12.5,
       }
 
-      vi.mocked(prisma.user.count).mockResolvedValue(25) // pending verifications
-      vi.mocked(prisma.user.count).mockResolvedValueOnce(5) // new users today
-      vi.mocked(prisma.user.count).mockResolvedValueOnce(50) // inactive users
-      vi.mocked(prisma.user.count).mockResolvedValueOnce(2) // banned users
+      vi.mocked(prisma.user.count)
+        .mockResolvedValueOnce(25) // pending verifications
+        .mockResolvedValueOnce(5) // new users today
+        .mockResolvedValueOnce(50) // inactive users
+        .mockResolvedValueOnce(2) // banned users
 
       const [pendingVerifications, newUsersToday, inactiveUsers, bannedUsers] = await Promise.all([
         prisma.user.count({
@@ -478,15 +482,18 @@ describe('Dashboard System', () => {
         rejectedServices: 23,
       }
 
-      vi.mocked(prisma.property.count).mockResolvedValue(10) // pending properties
-      vi.mocked(prisma.vehicle.count).mockResolvedValue(5) // pending vehicles
-      vi.mocked(prisma.tour.count).mockResolvedValue(8) // pending tours
-      vi.mocked(prisma.property.count).mockResolvedValueOnce(250) // total properties
-      vi.mocked(prisma.vehicle.count).mockResolvedValueOnce(150) // total vehicles
-      vi.mocked(prisma.tour.count).mockResolvedValueOnce(100) // total tours
-      vi.mocked(prisma.property.count).mockResolvedValueOnce(240) // approved properties
-      vi.mocked(prisma.vehicle.count).mockResolvedValueOnce(145) // approved vehicles
-      vi.mocked(prisma.tour.count).mockResolvedValueOnce(92) // approved tours
+      vi.mocked(prisma.property.count)
+        .mockResolvedValueOnce(10) // pending properties
+        .mockResolvedValueOnce(250) // total properties
+        .mockResolvedValueOnce(240) // approved properties
+      vi.mocked(prisma.vehicle.count)
+        .mockResolvedValueOnce(5) // pending vehicles
+        .mockResolvedValueOnce(150) // total vehicles
+        .mockResolvedValueOnce(145) // approved vehicles
+      vi.mocked(prisma.tour.count)
+        .mockResolvedValueOnce(8) // pending tours
+        .mockResolvedValueOnce(100) // total tours
+        .mockResolvedValueOnce(92) // approved tours
 
       const [pendingProperties, pendingVehicles, pendingTours, totalProperties, totalVehicles, totalTours, approvedProperties, approvedVehicles, approvedTours] = await Promise.all([
         prisma.property.count({ where: { approvalStatus: 'PENDING' } }),
@@ -519,9 +526,10 @@ describe('Dashboard System', () => {
         customerSatisfaction: 4.2,
       }
 
-      vi.mocked(prisma.supportTicket.count).mockResolvedValue(15) // open tickets
-      vi.mocked(prisma.supportTicket.count).mockResolvedValueOnce(200) // resolved tickets
-      vi.mocked(prisma.supportTicket.count).mockResolvedValueOnce(3) // high priority
+      vi.mocked(prisma.supportTicket.count)
+        .mockResolvedValueOnce(15) // open tickets
+        .mockResolvedValueOnce(200) // resolved tickets
+        .mockResolvedValueOnce(3) // high priority
       vi.mocked(prisma.supportTicket.aggregate).mockResolvedValue({
         _avg: { resolutionTime: 24 },
       })

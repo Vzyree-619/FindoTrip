@@ -115,6 +115,7 @@ describe('Review System', () => {
         id: 'review-2',
         vehicleId: 'vehicle-1',
         propertyId: null,
+        rating: 4,
       }
 
       vi.mocked(prisma.review.create).mockResolvedValue(vehicleReview)
