@@ -228,6 +228,7 @@ export function MobileChatInterface({
               showAvatar={m.senderId !== currentUserId && messages[idx - 1]?.senderId !== m.senderId}
               showTimestamp={idx === messages.length - 1 || messages[idx + 1]?.senderId !== m.senderId}
               avatarUrl={conversation?.participants?.find((p) => p.id === m.senderId)?.avatar}
+              senderName={conversation?.participants?.find((p) => p.id === m.senderId)?.name || m.senderName}
             />
           ))
         )}

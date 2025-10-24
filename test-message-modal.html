@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Modal Test</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .message-bubble {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            margin: 8px 0;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .message-bubble:hover {
+            opacity: 0.9;
+        }
+        .message-bubble.sent {
+            background-color: #01502E;
+            color: white;
+            margin-left: auto;
+        }
+        .message-bubble.received {
+            background-color: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .modal-body {
+            padding: 24px;
+            max-height: calc(90vh - 120px);
+            overflow-y: auto;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .close-btn:hover {
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function MessageModal({ message, isOpen, onClose, senderName, senderAvatar }) {
+            useEffect(() => {
+                if (isOpen) {
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    document.body.style.overflow = 'unset';
+                }
+
+                return () => {
+                    document.body.style.overflow = 'unset';
+                };
+            }, [isOpen]);
+
+            useEffect(() => {
+                const handleEscape = (e) => {
+                    if (e.key === 'Escape') {
+                        onClose();
+                    }
+                };
+
+                if (isOpen) {
+                    document.addEventListener('keydown', handleEscape);
+                    return () => document.removeEventListener('keydown', handleEscape);
+                }
+            }, [isOpen, onClose]);
+
+            if (!isOpen) return null;
+
+            return React.createElement('div', { className: 'modal-overlay' },
+                React.createElement('div', { className: 'modal-content' },
+                    React.createElement('div', { className: 'modal-header' },
+                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '12px' } },
+                            React.createElement('img', { 
+                                src: senderAvatar || '/avatar.png', 
+                                alt: 'avatar', 
+                                style: { width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }
+                            }),
+                            React.createElement('div', null,
+                                React.createElement('h3', { style: { margin: 0, fontSize: '16px', fontWeight: '600' } }, senderName || 'Unknown'),
+                                React.createElement('div', { style: { fontSize: '14px', color: '#666', marginTop: '4px' } }, 
+                                    new Date(message.createdAt).toLocaleString()
+                                )
+                            )
+                        ),
+                        React.createElement('button', { 
+                            className: 'close-btn',
+                            onClick: onClose,
+                            'aria-label': 'Close modal'
+                        }, '×')
+                    ),
+                    React.createElement('div', { className: 'modal-body' },
+                        message.isDeleted ? 
+                            React.createElement('div', { style: { textAlign: 'center', padding: '32px', color: '#666', fontStyle: 'italic' } }, 'This message was deleted') :
+                            message.type === 'text' ?
+                                React.createElement('div', { style: { whiteSpace: 'pre-wrap', wordBreak: 'break-word' } }, message.content) :
+                                message.type === 'image' ?
+                                    React.createElement('div', { style: { textAlign: 'center' } },
+                                        React.createElement('img', { 
+                                            src: message.attachments?.[0]?.url, 
+                                            alt: message.content || 'image', 
+                                            style: { maxWidth: '100%', maxHeight: '384px', objectFit: 'contain', margin: '0 auto', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }
+                                        }),
+                                        message.content && React.createElement('p', { style: { marginTop: '16px', color: '#666', fontStyle: 'italic' } }, message.content)
+                                    ) :
+                                    React.createElement('div', { style: { textAlign: 'center', padding: '32px' } },
+                                        React.createElement('div', { style: { backgroundColor: '#f5f5f5', borderRadius: '8px', padding: '24px', marginBottom: '16px' } },
+                                            React.createElement('div', { style: { fontSize: '32px', marginBottom: '8px' } }, '📎'),
+                                            React.createElement('h4', { style: { margin: '0 0 8px 0', fontWeight: '600' } }, message.attachments?.[0]?.name || 'Attachment'),
+                                            React.createElement('p', { style: { margin: '0 0 16px 0', fontSize: '14px', color: '#666' } }, message.content || 'No description'),
+                                            React.createElement('a', { 
+                                                href: message.attachments?.[0]?.url, 
+                                                target: '_blank', 
+                                                rel: 'noopener noreferrer',
+                                                style: { 
+                                                    display: 'inline-flex', 
+                                                    alignItems: 'center', 
+                                                    gap: '8px', 
+                                                    backgroundColor: '#01502E', 
+                                                    color: 'white', 
+                                                    padding: '8px 16px', 
+                                                    borderRadius: '8px', 
+                                                    textDecoration: 'none',
+                                                    transition: 'background-color 0.2s'
+                                                }
+                                            }, 'Download File')
+                                        )
+                                    ),
+                        message.isEdited && !message.isDeleted && 
+                            React.createElement('div', { style: { marginTop: '16px', fontSize: '12px', color: '#666', fontStyle: 'italic' } }, 'Edited')
+                    )
+                )
+            );
+        }
+
+        function MessageBubble({ message, isSender, onMessageClick, senderName, senderAvatar }) {
+            const [showModal, setShowModal] = useState(false);
+
+            const handleClick = () => {
+                if (!message.isDeleted) {
+                    setShowModal(true);
+                }
+            };
+
+            return React.createElement('div', null,
+                React.createElement('div', {
+                    className: `message-bubble ${isSender ? 'sent' : 'received'}`,
+                    onClick: handleClick,
+                    title: 'Click to view message details'
+                }, 
+                    message.isDeleted ? 
+                        React.createElement('div', { style: { fontStyle: 'italic', opacity: 0.6 } }, 
+                            message.deletedBy === 'current-user' ? 'You deleted this message' : 'This message was deleted'
+                        ) :
+                        message.type === 'text' ?
+                            React.createElement('span', { style: { whiteSpace: 'pre-wrap', wordBreak: 'break-word' } }, message.content) :
+                            message.type === 'image' ?
+                                React.createElement('img', { 
+                                    src: message.attachments?.[0]?.url, 
+                                    alt: message.content || 'image', 
+                                    style: { borderRadius: '8px', maxHeight: '256px' }
+                                }) :
+                                React.createElement('a', { 
+                                    href: message.attachments?.[0]?.url, 
+                                    style: { textDecoration: 'underline' }, 
+                                    target: '_blank', 
+                                    rel: 'noreferrer'
+                                }, message.attachments?.[0]?.name || message.content || 'Attachment'),
+                    message.isEdited && !message.isDeleted && 
+                        React.createElement('div', { style: { fontSize: '10px', opacity: 0.6, marginTop: '4px' } }, 'edited'),
+                    React.createElement('div', { style: { marginTop: '4px', fontSize: '11px', opacity: 0.7 } }, 
+                        new Date(message.createdAt).toLocaleString()
+                    )
+                ),
+                React.createElement(MessageModal, {
+                    message: message,
+                    isOpen: showModal,
+                    onClose: () => setShowModal(false),
+                    senderName: senderName,
+                    senderAvatar: senderAvatar
+                })
+            );
+        }
+
+        function App() {
+            const messages = [
+                {
+                    id: '1',
+                    content: 'Hello! How are you doing today?',
+                    type: 'text',
+                    createdAt: new Date().toISOString(),
+                    isDeleted: false,
+                    isEdited: false
+                },
+                {
+                    id: '2',
+                    content: 'I\'m doing great! Thanks for asking. How about you?',
+                    type: 'text',
+                    createdAt: new Date(Date.now() - 300000).toISOString(),
+                    isDeleted: false,
+                    isEdited: false
+                },
+                {
+                    id: '3',
+                    content: 'Here\'s a photo from my vacation!',
+                    type: 'image',
+                    attachments: [{ url: 'https://picsum.photos/400/300', name: 'vacation.jpg' }],
+                    createdAt: new Date(Date.now() - 600000).toISOString(),
+                    isDeleted: false,
+                    isEdited: false
+                },
+                {
+                    id: '4',
+                    content: 'Check out this document',
+                    type: 'file',
+                    attachments: [{ url: '#', name: 'important-document.pdf' }],
+                    createdAt: new Date(Date.now() - 900000).toISOString(),
+                    isDeleted: false,
+                    isEdited: true
+                }
+            ];
+
+            return React.createElement('div', { style: { maxWidth: '600px', margin: '0 auto', padding: '20px' } },
+                React.createElement('h1', { style: { textAlign: 'center', marginBottom: '30px' } }, 'Message Modal Test'),
+                React.createElement('p', { style: { textAlign: 'center', color: '#666', marginBottom: '30px' } }, 'Click on any message to open it in a modal'),
+                messages.map((message, index) => 
+                    React.createElement(MessageBubble, {
+                        key: message.id,
+                        message: message,
+                        isSender: index % 2 === 0,
+                        senderName: index % 2 === 0 ? 'You' : 'John Doe',
+                        senderAvatar: index % 2 === 0 ? null : 'https://i.pravatar.cc/40'
+                    })
+                )
+            );
+        }
+
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
+    </script>
+</body>
+</html>

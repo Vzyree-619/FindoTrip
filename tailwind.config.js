@@ -5,6 +5,7 @@ export default {
   "./app/routes/**/*.{js,jsx,ts,tsx}",
   "./app/styles/**/*.{js,jsx,ts,tsx}",
   "./index.html",],
+  darkMode: 'class',
   theme: {
     extend: {},
   },

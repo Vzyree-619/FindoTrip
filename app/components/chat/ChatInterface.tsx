@@ -323,8 +323,8 @@ export function ChatInterface({
       <div
         className={clsx(
           variant === 'modal'
-            ? "w-full sm:w-[720px] h-[80vh] sm:h-[600px] bg-white rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out]"
-            : "h-full bg-white border rounded-lg shadow-sm flex flex-col overflow-hidden"
+            ? "w-full sm:w-[720px] h-[80vh] sm:h-[600px] bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out]"
+            : "h-full bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-sm flex flex-col overflow-hidden"
         )}
       >
         {/* Header */}
@@ -363,19 +363,19 @@ export function ChatInterface({
           resolvedTheme === 'dark' ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
           {loading ? (
-            <div className="h-full flex items-center justify-center text-gray-500">
+            <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
               <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading chat…
             </div>
           ) : !conversationId && !targetUserId ? (
-            <div className="h-full flex items-center justify-center text-gray-500">
+            <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
               <div className="text-center">
-                <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium mb-2">No conversation selected</p>
-                <p className="text-sm">Select a conversation from the list to start chatting</p>
+                <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                <p className="text-lg font-medium mb-2 text-gray-900 dark:text-gray-100">No conversation selected</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Select a conversation from the list to start chatting</p>
               </div>
             </div>
           ) : messages.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-gray-500">Say hello 👋</div>
+            <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">Say hello 👋</div>
           ) : (
             messages.map((m, idx) => (
               <MessageBubble
@@ -385,6 +385,7 @@ export function ChatInterface({
                 showAvatar={m.senderId !== currentUserId && messages[idx - 1]?.senderId !== m.senderId}
                 showTimestamp={idx === messages.length - 1 || messages[idx + 1]?.senderId !== m.senderId}
                 avatarUrl={conversation?.participants?.find((p) => p.id === m.senderId)?.avatar || m.senderAvatar}
+                senderName={conversation?.participants?.find((p) => p.id === m.senderId)?.name || m.senderName}
                 currentUserId={currentUserId}
                 isAdmin={conversation?.participants?.find((p) => p.id === currentUserId)?.role === 'SUPER_ADMIN'}
                 onEdit={handleEditMessage}

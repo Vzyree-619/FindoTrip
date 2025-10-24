@@ -122,8 +122,8 @@ export default function Dashboard() {
   const isProviderRole = user.role === "PROPERTY_OWNER" || user.role === "VEHICLE_OWNER" || user.role === "TOUR_GUIDE";
   if (isProviderRole) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="flex h-screen">
+      <div className="bg-gray-50">
+        <div className="flex">
           {/* Provider Sidebar */}
           <div className="w-64 bg-white shadow-lg flex flex-col">
             <div className="p-6">
@@ -167,7 +167,7 @@ export default function Dashboard() {
               </div>
             </nav>
           </div>
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1">
             <Outlet />
           </main>
         </div>
@@ -188,13 +188,13 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="bg-gray-50">
+    <div className="bg-gray-50 dark:bg-gray-900">
       <div className="flex">
         {/* Sidebar */}
-        <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:left-0 md:top-20 md:h-[calc(100vh-5rem)] md:z-10">
-          <div className="bg-white border-r border-gray-200 h-full">
+        <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:left-0 md:top-20 md:z-10">
+          <div className="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen">
             {/* User Profile Summary */}
-            <div className="flex items-center px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center">
                 {safeUser.avatar ? (
                   <img
@@ -210,8 +210,8 @@ export default function Dashboard() {
                   </div>
                 )}
                 <div className="ml-3">
-                  <p className="text-base font-medium text-gray-900 truncate">{safeUser.name}</p>
-                  <p className="text-sm text-gray-500 truncate">{safeUser.email}</p>
+                  <p className="text-base font-medium text-gray-900 dark:text-gray-100 truncate">{safeUser.name}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{safeUser.email}</p>
                 </div>
               </div>
             </div>
@@ -227,7 +227,7 @@ export default function Dashboard() {
                     `group flex items-center px-4 py-3 text-base font-medium rounded-lg transition ${
                       isActive
                         ? "bg-[#01502E] text-white"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100"
                     }`
                   }
                 >
@@ -243,11 +243,11 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content */}
-        <div className="flex flex-col flex-1 md:ml-64 md:pt-4">
+        <div className="flex flex-col flex-1 md:ml-64">
           {/* Mobile Header */}
-          <div className="md:hidden bg-white shadow-sm border-b border-gray-200 px-4 py-3">
+          <div className="md:hidden bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
             <div className="flex items-center justify-between">
-              <h1 className="text-lg font-semibold text-gray-900">Dashboard</h1>
+              <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Dashboard</h1>
               <Link
                 to="/"
                 className="text-sm text-[#01502E] hover:text-[#013d23] font-medium"
@@ -258,7 +258,7 @@ export default function Dashboard() {
           </div>
 
           {/* Page Content */}
-          <main className="flex-1">
+          <main className="flex-1 pt-6">
             <Outlet />
           </main>
         </div>

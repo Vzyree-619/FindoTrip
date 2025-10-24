@@ -97,8 +97,8 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
   return (
     <ThemeProvider initialTheme={theme}>
       <div className={`${className} h-full flex flex-col`}>
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 min-h-0">
-          <div className="md:col-span-1 border rounded-md overflow-hidden flex flex-col">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4 min-h-0">
+          <div className="md:col-span-2 border rounded-md overflow-hidden flex flex-col">
             <ConversationList
               conversations={conversations}
               loading={loading}
@@ -112,7 +112,7 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
               currentUserId={currentUserId}
             />
           </div>
-          <div className="md:col-span-2 flex flex-col min-h-0">
+          <div className="md:col-span-3 flex flex-col min-h-0">
             <ChatInterface
               isOpen={open}
               onClose={() => setOpen(false)}

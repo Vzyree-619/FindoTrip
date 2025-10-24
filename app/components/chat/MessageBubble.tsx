@@ -3,6 +3,7 @@ import { Check, CheckCheck, MoreVertical, Edit2, Trash2, X, Save } from "lucide-
 import { formatTimestamp, clsx } from "./utils";
 import { useTheme } from "~/contexts/ThemeContext";
 import type { Message } from "./types";
+import MessageModal from "./MessageModal";
 
 export function MessageBubble({
   message,
@@ -15,6 +16,7 @@ export function MessageBubble({
   onReply,
   currentUserId,
   isAdmin = false,
+  senderName,
 }: {
   message: Message;
   isSender: boolean;
@@ -26,12 +28,14 @@ export function MessageBubble({
   onReply?: (m: Message) => void;
   currentUserId?: string;
   isAdmin?: boolean;
+  senderName?: string;
 }) {
   const { resolvedTheme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [showActions, setShowActions] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
 
   // Close actions menu when clicking outside
@@ -85,15 +89,25 @@ export function MessageBubble({
     <Check className="w-4 h-4 text-gray-400" />
   ) : null;
 
+  const handleMessageClick = () => {
+    if (!isEditing && !message.isDeleted) {
+      setShowModal(true);
+    }
+  };
+
   const content = (
-    <div className={clsx(
-      "max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow",
-      isSender 
-        ? "bg-[#01502E] text-white self-end" 
-        : resolvedTheme === 'dark' 
-          ? "bg-gray-800 text-gray-100 border border-gray-700" 
-          : "bg-white text-gray-900 border border-gray-200"
-    )}>
+    <div 
+      className={clsx(
+        "max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow cursor-pointer hover:opacity-90 transition-opacity",
+        isSender 
+          ? "bg-[#01502E] text-white self-end" 
+          : resolvedTheme === 'dark' 
+            ? "bg-gray-800 text-gray-100 border border-gray-700" 
+            : "bg-white text-gray-900 border border-gray-200"
+      )}
+      onClick={handleMessageClick}
+      title="Click to view message details"
+    >
       {message.isDeleted ? (
         <div className="italic opacity-60">
           {message.deletedBy === currentUserId ? "You deleted this message" : "This message was deleted"}
@@ -224,6 +238,15 @@ export function MessageBubble({
           )}
         </div>
       )}
+      
+      {/* Message Modal */}
+      <MessageModal
+        message={message}
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        senderName={senderName}
+        senderAvatar={avatarUrl}
+      />
     </div>
   );
 }
