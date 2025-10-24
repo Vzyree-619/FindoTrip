@@ -74,13 +74,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
   
   if (status === 'active') {
-    whereClause.status = 'ACTIVE';
+    whereClause.available = true;
+    whereClause.approvalStatus = 'APPROVED';
   } else if (status === 'inactive') {
-    whereClause.status = 'INACTIVE';
+    whereClause.available = false;
   } else if (status === 'pending') {
-    whereClause.status = 'PENDING';
+    whereClause.approvalStatus = 'PENDING';
   } else if (status === 'rejected') {
-    whereClause.status = 'REJECTED';
+    whereClause.approvalStatus = 'REJECTED';
   }
   
   if (type !== 'all') {
@@ -106,8 +107,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (owner) {
     whereClause.owner = {
       OR: [
-        { name: { contains: owner, mode: 'insensitive' } },
-        { email: { contains: owner, mode: 'insensitive' } }
+        { businessName: { contains: owner, mode: 'insensitive' } },
+        { businessEmail: { contains: owner, mode: 'insensitive' } },
+        { user: { name: { contains: owner, mode: 'insensitive' } } },
+        { user: { email: { contains: owner, mode: 'insensitive' } } }
       ]
     };
   }
@@ -120,10 +123,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
         owner: {
           select: {
             id: true,
-            name: true,
-            email: true,
+            businessName: true,
+            businessEmail: true,
             verified: true,
-            isActive: true
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                active: true
+              }
+            }
           }
         },
         _count: {
@@ -145,6 +155,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }),
     prisma.vehicle.count({ where: whereClause })
   ]);
+
   
   // Calculate additional metrics for each vehicle
   const vehiclesWithMetrics = await Promise.all(
@@ -178,22 +189,35 @@ export async function loader({ request }: LoaderFunctionArgs) {
       // Get maintenance status (simplified)
       const maintenanceStatus = 'Up to Date'; // This would come from actual maintenance data
       
+      // Compute display status
+      let displayStatus = 'UNKNOWN';
+      if (vehicle.approvalStatus === 'PENDING') {
+        displayStatus = 'PENDING';
+      } else if (vehicle.approvalStatus === 'REJECTED') {
+        displayStatus = 'REJECTED';
+      } else if (vehicle.approvalStatus === 'APPROVED' && vehicle.available) {
+        displayStatus = 'ACTIVE';
+      } else if (vehicle.approvalStatus === 'APPROVED' && !vehicle.available) {
+        displayStatus = 'INACTIVE';
+      }
+
       return {
         ...vehicle,
         totalRevenue: totalRevenue._sum.totalPrice || 0,
         lastBookingDate: lastBooking?.createdAt,
         utilizationRate: Math.min(utilizationRate, 100),
         insuranceStatus,
-        maintenanceStatus
+        maintenanceStatus,
+        displayStatus
       };
     })
   );
   
   // Get counts
   const counts = await Promise.all([
-    prisma.vehicle.count({ where: { status: 'ACTIVE' } }),
-    prisma.vehicle.count({ where: { status: 'INACTIVE' } }),
-    prisma.vehicle.count({ where: { status: 'PENDING' } }),
+    prisma.vehicle.count({ where: { available: true, approvalStatus: 'APPROVED' } }),
+    prisma.vehicle.count({ where: { available: false } }),
+    prisma.vehicle.count({ where: { approvalStatus: 'PENDING' } }),
     prisma.vehicle.count()
   ]);
   
@@ -541,17 +565,30 @@ export default function VehiclesManagement() {
           {vehicles.map((vehicle) => (
             <Card key={vehicle.id} className="overflow-hidden">
               <div className="relative">
-                <div className="h-48 bg-gray-200 flex items-center justify-center">
-                  <Car className="w-12 h-12 text-gray-400" />
+                <div className="h-48 bg-gray-200 flex items-center justify-center overflow-hidden">
+                  {vehicle.images && vehicle.images.length > 0 ? (
+                    <img 
+                      src={vehicle.images[0]} 
+                      alt={`${vehicle.brand} ${vehicle.model}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200" style={{ display: vehicle.images && vehicle.images.length > 0 ? 'none' : 'flex' }}>
+                    <Car className="w-12 h-12 text-gray-400" />
+                  </div>
                 </div>
                 <div className="absolute top-2 right-2">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    vehicle.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                    vehicle.status === 'INACTIVE' ? 'bg-red-100 text-red-800' :
-                    vehicle.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                    vehicle.displayStatus === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                    vehicle.displayStatus === 'INACTIVE' ? 'bg-red-100 text-red-800' :
+                    vehicle.displayStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-gray-100 text-gray-800'
                   }`}>
-                    {vehicle.status}
+                    {vehicle.displayStatus}
                   </span>
                 </div>
               </div>
@@ -561,7 +598,7 @@ export default function VehiclesManagement() {
                   <h3 className="font-semibold text-gray-900 truncate">{vehicle.brand} {vehicle.model}</h3>
                   <div className="flex items-center space-x-1">
                     <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span className="text-sm font-medium">{vehicle.averageRating.toFixed(1)}</span>
+                    <span className="text-sm font-medium">{(vehicle.averageRating || 0).toFixed(1)}</span>
                   </div>
                 </div>
                 
@@ -572,7 +609,7 @@ export default function VehiclesManagement() {
                 
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-lg font-bold text-gray-900">
-                    PKR {vehicle.basePrice.toLocaleString()}/day
+                    PKR {(vehicle.basePrice || 0).toLocaleString()}/day
                   </div>
                   <div className="text-sm text-gray-600">
                     {vehicle._count.bookings} rentals
@@ -582,15 +619,15 @@ export default function VehiclesManagement() {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Owner:</span>
-                    <span className="font-medium">{vehicle.owner.name}</span>
+                    <span className="font-medium">{vehicle.owner.user.name}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Revenue:</span>
-                    <span className="font-medium">PKR {vehicle.totalRevenue.toLocaleString()}</span>
+                    <span className="font-medium">PKR {(vehicle.totalRevenue || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Utilization:</span>
-                    <span className="font-medium">{vehicle.utilizationRate.toFixed(1)}%</span>
+                    <span className="font-medium">{(vehicle.utilizationRate || 0).toFixed(1)}%</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Insurance:</span>
@@ -681,8 +718,21 @@ export default function VehiclesManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
-                            <Car className="w-5 h-5 text-gray-600" />
+                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-4 overflow-hidden">
+                            {vehicle.images && vehicle.images.length > 0 ? (
+                              <img 
+                                src={vehicle.images[0]} 
+                                alt={`${vehicle.brand} ${vehicle.model}`}
+                                className="w-full h-full object-cover rounded-lg"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg" style={{ display: vehicle.images && vehicle.images.length > 0 ? 'none' : 'flex' }}>
+                              <Car className="w-5 h-5 text-gray-600" />
+                            </div>
                           </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900">{vehicle.brand} {vehicle.model}</div>
@@ -692,15 +742,15 @@ export default function VehiclesManagement() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{vehicle.owner.name}</div>
-                        <div className="text-sm text-gray-500">{vehicle.owner.email}</div>
+                        <div className="text-sm text-gray-900">{vehicle.owner.user.name}</div>
+                        <div className="text-sm text-gray-500">{vehicle.owner.user.email}</div>
                         <div className="flex items-center space-x-1 mt-1">
                           {vehicle.owner.verified && (
                             <span className="px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                               Verified
                             </span>
                           )}
-                          {vehicle.owner.isActive ? (
+                          {vehicle.owner.user.active ? (
                             <span className="px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                               Active
                             </span>
@@ -713,7 +763,7 @@ export default function VehiclesManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          PKR {vehicle.basePrice.toLocaleString()}
+                          PKR {(vehicle.basePrice || 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-gray-500">per day</div>
                       </td>
@@ -721,7 +771,7 @@ export default function VehiclesManagement() {
                         <div className="flex items-center space-x-1">
                           <Star className="w-4 h-4 text-yellow-400 fill-current" />
                           <span className="text-sm font-medium text-gray-900">
-                            {vehicle.averageRating.toFixed(1)}
+                            {(vehicle.averageRating || 0).toFixed(1)}
                           </span>
                           <span className="text-xs text-gray-500">
                             ({vehicle._count.reviews})
@@ -732,25 +782,25 @@ export default function VehiclesManagement() {
                         <div className="text-sm text-gray-900">
                           <div className="font-medium">{vehicle._count.bookings}</div>
                           <div className="text-xs text-gray-500">
-                            {vehicle.utilizationRate.toFixed(1)}% utilization
+                            {(vehicle.utilizationRate || 0).toFixed(1)}% utilization
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          <div className="font-medium">PKR {vehicle.totalRevenue.toLocaleString()}</div>
+                          <div className="font-medium">PKR {(vehicle.totalRevenue || 0).toLocaleString()}</div>
                           <div className="text-xs text-gray-500">Total earned</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="space-y-1">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            vehicle.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                            vehicle.status === 'INACTIVE' ? 'bg-red-100 text-red-800' :
-                            vehicle.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                            vehicle.displayStatus === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                            vehicle.displayStatus === 'INACTIVE' ? 'bg-red-100 text-red-800' :
+                            vehicle.displayStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
-                            {vehicle.status}
+                            {vehicle.displayStatus}
                           </span>
                           <div className="text-xs text-gray-500">
                             Insurance: {vehicle.insuranceStatus}

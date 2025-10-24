@@ -53,6 +53,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
         select: { id: true, name: true, role: true, avatar: true }
       });
 
+      // Add online status (mock for now)
+      const participantsWithStatus = participants.map(p => ({
+        ...p,
+        online: Math.random() > 0.5 // Mock online status
+      }));
+
       // Get unread count for this user
       const unreadCount = conv.unreadCount && typeof conv.unreadCount === 'object' 
         ? (conv.unreadCount as any)[userId] || 0 
@@ -60,7 +66,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       return {
         id: conv.id,
-        participants,
+        participants: participantsWithStatus,
         lastMessage: conv.messages[0] ? {
           id: conv.messages[0].id,
           content: conv.messages[0].content,
@@ -101,40 +107,39 @@ export default function MessagesDashboard() {
 
   return (
     <ThemeProvider initialTheme={chatSettings?.theme || 'light'}>
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="bg-gray-50 dark:bg-gray-900">
+        <div className="px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <MessageCircle className="w-8 h-8 text-[#01502E]" />
-              <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Messages</h1>
             </div>
             <ThemeToggle />
           </div>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             Chat with customers, service providers, and support team
           </p>
         </div>
 
         {/* Chat Interface */}
-        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 h-[500px]">
           <ChatContainer 
             currentUserId={user.id}
             theme={chatSettings?.theme || 'light'}
-            className="h-[70vh] min-h-[500px] max-h-[800px]"
             initialPeerId={peerId}
           />
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
             <div className="flex items-center gap-3 mb-3">
               <Users className="w-6 h-6 text-blue-600" />
-              <h3 className="font-semibold text-gray-900">Start New Chat</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Start New Chat</h3>
             </div>
-            <p className="text-gray-600 text-sm mb-4">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
               Start a conversation with any user on the platform
             </p>
             <button className="w-full bg-[#01502E] text-white px-4 py-2 rounded-md hover:bg-[#013d23] transition-colors">
@@ -142,12 +147,12 @@ export default function MessagesDashboard() {
             </button>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
             <div className="flex items-center gap-3 mb-3">
               <MessageCircle className="w-6 h-6 text-green-600" />
-              <h3 className="font-semibold text-gray-900">Support Chat</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Support Chat</h3>
             </div>
-            <p className="text-gray-600 text-sm mb-4">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
               Get help from our support team
             </p>
             <button className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
@@ -155,12 +160,12 @@ export default function MessagesDashboard() {
             </button>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
             <div className="flex items-center gap-3 mb-3">
               <Settings className="w-6 h-6 text-purple-600" />
-              <h3 className="font-semibold text-gray-900">Chat Settings</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Chat Settings</h3>
             </div>
-            <p className="text-gray-600 text-sm mb-4">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
               Manage your chat preferences and notifications
             </p>
             <a 

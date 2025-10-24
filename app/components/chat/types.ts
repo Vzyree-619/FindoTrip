@@ -29,6 +29,12 @@ export type Message = {
   createdAt: string | Date;
   status?: MessageStatus;
   replyToId?: string;
+  isEdited?: boolean;
+  editedAt?: string | Date;
+  editHistory?: string[];
+  isDeleted?: boolean;
+  deletedAt?: string | Date;
+  deletedBy?: string;
 };
 
 export type Participant = {

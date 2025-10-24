@@ -94,13 +94,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
             type: true,
             city: true,
             basePrice: true,
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
+            owner: {
+              select: {
+                id: true,
+                businessName: true,
+                businessEmail: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -129,13 +136,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
             category: true,
             city: true,
             basePrice: true,
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
+            owner: {
+              select: {
+                id: true,
+                businessName: true,
+                businessEmail: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -165,8 +179,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
             pricePerPerson: true,
             guide: {
               select: {
-                name: true,
-                email: true
+                id: true,
+                firstName: true,
+                lastName: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true
+                  }
+                }
               }
             }
           }
@@ -492,7 +514,7 @@ export default function AllBookings() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">PKR {revenueStats.totalRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">PKR {(revenueStats.totalRevenue || 0).toLocaleString()}</p>
             </div>
           </div>
         </Card>
@@ -504,7 +526,7 @@ export default function AllBookings() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Property Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">PKR {revenueStats.propertyRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">PKR {(revenueStats.propertyRevenue || 0).toLocaleString()}</p>
             </div>
           </div>
         </Card>
@@ -516,7 +538,7 @@ export default function AllBookings() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Vehicle Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">PKR {revenueStats.vehicleRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">PKR {(revenueStats.vehicleRevenue || 0).toLocaleString()}</p>
             </div>
           </div>
         </Card>
@@ -528,7 +550,7 @@ export default function AllBookings() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Tour Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">PKR {revenueStats.tourRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">PKR {(revenueStats.tourRevenue || 0).toLocaleString()}</p>
             </div>
           </div>
         </Card>
@@ -664,7 +686,9 @@ export default function AllBookings() {
             
             {allBookings.map((booking) => {
               const BookingIcon = getBookingIcon(booking.bookingType);
-              const service = booking.service;
+              const service = booking.bookingType === 'property' ? booking.property :
+                              booking.bookingType === 'vehicle' ? booking.vehicle :
+                              booking.tour;
               
               return (
                 <Card key={booking.id} className="p-4">
@@ -683,9 +707,9 @@ export default function AllBookings() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">
-                          {booking.bookingType === 'property' ? service?.name :
-                           booking.bookingType === 'vehicle' ? `${service?.brand} ${service?.model}` :
-                           service?.title}
+                          {booking.bookingType === 'property' ? (service as any)?.name :
+                           booking.bookingType === 'vehicle' ? `${(service as any)?.brand} ${(service as any)?.model}` :
+                           (service as any)?.title}
                         </h3>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBookingColor(booking.bookingType)}`}>
                           {booking.bookingType.toUpperCase()}
@@ -706,7 +730,7 @@ export default function AllBookings() {
                         </div>
                         <div className="flex items-center space-x-2">
                           <DollarSign className="w-4 h-4" />
-                          <span>PKR {booking.totalPrice.toLocaleString()}</span>
+                          <span>PKR {(booking.totalPrice || 0).toLocaleString()}</span>
                         </div>
                       </div>
                       
@@ -734,9 +758,9 @@ export default function AllBookings() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleBookingAction('confirm_booking', booking.id, booking.bookingType, 
-                            booking.bookingType === 'property' ? service?.name || '' :
-                            booking.bookingType === 'vehicle' ? `${service?.brand} ${service?.model}` || '' :
-                            service?.title || '')}
+                            booking.bookingType === 'property' ? (service as any)?.name || '' :
+                            booking.bookingType === 'vehicle' ? `${(service as any)?.brand} ${(service as any)?.model}` || '' :
+                            (service as any)?.title || '')}
                           disabled={fetcher.state === 'submitting'}
                           className="text-green-600 border-green-600 hover:bg-green-50"
                         >
@@ -750,9 +774,9 @@ export default function AllBookings() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleBookingAction('cancel_booking', booking.id, booking.bookingType,
-                            booking.bookingType === 'property' ? service?.name || '' :
-                            booking.bookingType === 'vehicle' ? `${service?.brand} ${service?.model}` || '' :
-                            service?.title || '')}
+                            booking.bookingType === 'property' ? (service as any)?.name || '' :
+                            booking.bookingType === 'vehicle' ? `${(service as any)?.brand} ${(service as any)?.model}` || '' :
+                            (service as any)?.title || '')}
                           disabled={fetcher.state === 'submitting'}
                           className="text-red-600 border-red-600 hover:bg-red-50"
                         >

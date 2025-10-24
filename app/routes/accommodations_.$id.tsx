@@ -649,15 +649,17 @@ export default function AccommodationDetail() {
           currentUserId={user?.id}
           initialMessage={`Hi, I'm interested in ${accommodation.name}${checkIn && checkOut ? ` for ${checkIn} to ${checkOut}` : ''}.`}
           fetchConversation={async ({ targetUserId }) => {
-            const response = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
+            const response = await fetch(`/chat-conversation?targetUserId=${targetUserId}`);
             if (!response.ok) throw new Error("Failed to fetch conversation");
             return response.json();
           }}
           onSendMessage={async ({ targetUserId, text }) => {
-            const response = await fetch('/api/chat.send', {
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('targetUserId', targetUserId);
+            const response = await fetch('/chat-send', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ targetUserId, text })
+              body: formData
             });
             if (!response.ok) throw new Error("Failed to send message");
             return response.json();

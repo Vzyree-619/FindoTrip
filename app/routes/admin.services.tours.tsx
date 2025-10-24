@@ -74,13 +74,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
   
   if (status === 'active') {
-    whereClause.status = 'ACTIVE';
+    whereClause.available = true;
+    whereClause.approvalStatus = 'APPROVED';
   } else if (status === 'inactive') {
-    whereClause.status = 'INACTIVE';
+    whereClause.available = false;
   } else if (status === 'pending') {
-    whereClause.status = 'PENDING';
+    whereClause.approvalStatus = 'PENDING';
   } else if (status === 'rejected') {
-    whereClause.status = 'REJECTED';
+    whereClause.approvalStatus = 'REJECTED';
   }
   
   if (category !== 'all') {
@@ -106,8 +107,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (guide) {
     whereClause.guide = {
       OR: [
-        { name: { contains: guide, mode: 'insensitive' } },
-        { email: { contains: guide, mode: 'insensitive' } }
+        { firstName: { contains: guide, mode: 'insensitive' } },
+        { lastName: { contains: guide, mode: 'insensitive' } },
+        { user: { name: { contains: guide, mode: 'insensitive' } } },
+        { user: { email: { contains: guide, mode: 'insensitive' } } }
       ]
     };
   }
@@ -120,10 +123,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
         guide: {
           select: {
             id: true,
-            name: true,
-            email: true,
+            firstName: true,
+            lastName: true,
             verified: true,
-            isActive: true
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                active: true
+              }
+            }
           }
         },
         _count: {
@@ -178,22 +188,35 @@ export async function loader({ request }: LoaderFunctionArgs) {
       // Get certification status (simplified)
       const certificationStatus = 'Certified'; // This would come from actual data
       
+      // Compute display status
+      let displayStatus = 'UNKNOWN';
+      if (tour.approvalStatus === 'PENDING') {
+        displayStatus = 'PENDING';
+      } else if (tour.approvalStatus === 'REJECTED') {
+        displayStatus = 'REJECTED';
+      } else if (tour.approvalStatus === 'APPROVED' && tour.available) {
+        displayStatus = 'ACTIVE';
+      } else if (tour.approvalStatus === 'APPROVED' && !tour.available) {
+        displayStatus = 'INACTIVE';
+      }
+      
       return {
         ...tour,
         totalRevenue: totalRevenue._sum.totalPrice || 0,
         lastBookingDate: lastBooking?.createdAt,
         utilizationRate: Math.min(utilizationRate, 100),
         languagesOffered,
-        certificationStatus
+        certificationStatus,
+        displayStatus
       };
     })
   );
   
   // Get counts
   const counts = await Promise.all([
-    prisma.tour.count({ where: { status: 'ACTIVE' } }),
-    prisma.tour.count({ where: { status: 'INACTIVE' } }),
-    prisma.tour.count({ where: { status: 'PENDING' } }),
+    prisma.tour.count({ where: { available: true, approvalStatus: 'APPROVED' } }),
+    prisma.tour.count({ where: { available: false } }),
+    prisma.tour.count({ where: { approvalStatus: 'PENDING' } }),
     prisma.tour.count()
   ]);
   
@@ -541,17 +564,30 @@ export default function ToursManagement() {
           {tours.map((tour) => (
             <Card key={tour.id} className="overflow-hidden">
               <div className="relative">
-                <div className="h-48 bg-gray-200 flex items-center justify-center">
-                  <MapPin className="w-12 h-12 text-gray-400" />
+                <div className="h-48 bg-gray-200 flex items-center justify-center overflow-hidden">
+                  {tour.images && tour.images.length > 0 ? (
+                    <img 
+                      src={tour.images[0]} 
+                      alt={`${tour.title}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200" style={{ display: tour.images && tour.images.length > 0 ? 'none' : 'flex' }}>
+                    <MapPin className="w-12 h-12 text-gray-400" />
+                  </div>
                 </div>
                 <div className="absolute top-2 right-2">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    tour.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                    tour.status === 'INACTIVE' ? 'bg-red-100 text-red-800' :
-                    tour.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                    tour.displayStatus === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                    tour.displayStatus === 'INACTIVE' ? 'bg-red-100 text-red-800' :
+                    tour.displayStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-gray-100 text-gray-800'
                   }`}>
-                    {tour.status}
+                    {tour.displayStatus}
                   </span>
                 </div>
               </div>
@@ -561,7 +597,7 @@ export default function ToursManagement() {
                   <h3 className="font-semibold text-gray-900 truncate">{tour.title}</h3>
                   <div className="flex items-center space-x-1">
                     <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span className="text-sm font-medium">{tour.averageRating.toFixed(1)}</span>
+                    <span className="text-sm font-medium">{(tour.averageRating || 0).toFixed(1)}</span>
                   </div>
                 </div>
                 
@@ -572,7 +608,7 @@ export default function ToursManagement() {
                 
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-lg font-bold text-gray-900">
-                    PKR {tour.pricePerPerson.toLocaleString()}/person
+                    PKR {(tour.pricePerPerson || 0).toLocaleString()}/person
                   </div>
                   <div className="text-sm text-gray-600">
                     {tour._count.bookings} bookings
@@ -582,11 +618,11 @@ export default function ToursManagement() {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Guide:</span>
-                    <span className="font-medium">{tour.guide.name}</span>
+                    <span className="font-medium">{tour.guide.user.name}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Revenue:</span>
-                    <span className="font-medium">PKR {tour.totalRevenue.toLocaleString()}</span>
+                    <span className="font-medium">PKR {(tour.totalRevenue || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Duration:</span>
@@ -677,8 +713,21 @@ export default function ToursManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
-                            <MapPin className="w-5 h-5 text-gray-600" />
+                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-4 overflow-hidden">
+                            {tour.images && tour.images.length > 0 ? (
+                              <img 
+                                src={tour.images[0]} 
+                                alt={`${tour.title}`}
+                                className="w-full h-full object-cover rounded-lg"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg" style={{ display: tour.images && tour.images.length > 0 ? 'none' : 'flex' }}>
+                              <MapPin className="w-5 h-5 text-gray-600" />
+                            </div>
                           </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900">{tour.title}</div>
@@ -688,15 +737,15 @@ export default function ToursManagement() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{tour.guide.name}</div>
-                        <div className="text-sm text-gray-500">{tour.guide.email}</div>
+                        <div className="text-sm text-gray-900">{tour.guide.user.name}</div>
+                        <div className="text-sm text-gray-500">{tour.guide.user.email}</div>
                         <div className="flex items-center space-x-1 mt-1">
                           {tour.guide.verified && (
                             <span className="px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                               Verified
                             </span>
                           )}
-                          {tour.guide.isActive ? (
+                          {tour.guide.user.active ? (
                             <span className="px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                               Active
                             </span>
@@ -709,7 +758,7 @@ export default function ToursManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          PKR {tour.pricePerPerson.toLocaleString()}
+                          PKR {(tour.pricePerPerson || 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-gray-500">per person</div>
                       </td>
@@ -717,7 +766,7 @@ export default function ToursManagement() {
                         <div className="flex items-center space-x-1">
                           <Star className="w-4 h-4 text-yellow-400 fill-current" />
                           <span className="text-sm font-medium text-gray-900">
-                            {tour.averageRating.toFixed(1)}
+                            {(tour.averageRating || 0).toFixed(1)}
                           </span>
                           <span className="text-xs text-gray-500">
                             ({tour._count.reviews})
@@ -728,25 +777,25 @@ export default function ToursManagement() {
                         <div className="text-sm text-gray-900">
                           <div className="font-medium">{tour._count.bookings}</div>
                           <div className="text-xs text-gray-500">
-                            {tour.utilizationRate.toFixed(1)}% utilization
+                            {(tour.utilizationRate || 0).toFixed(1)}% utilization
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          <div className="font-medium">PKR {tour.totalRevenue.toLocaleString()}</div>
+                          <div className="font-medium">PKR {(tour.totalRevenue || 0).toLocaleString()}</div>
                           <div className="text-xs text-gray-500">Total earned</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="space-y-1">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            tour.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                            tour.status === 'INACTIVE' ? 'bg-red-100 text-red-800' :
-                            tour.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                            tour.displayStatus === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                            tour.displayStatus === 'INACTIVE' ? 'bg-red-100 text-red-800' :
+                            tour.displayStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
-                            {tour.status}
+                            {tour.displayStatus}
                           </span>
                           <div className="text-xs text-gray-500">
                             Languages: {tour.languagesOffered.length}

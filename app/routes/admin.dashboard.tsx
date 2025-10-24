@@ -345,7 +345,7 @@ export default function AdminDashboard() {
   const statCards = [
     {
       title: 'Pending Approvals',
-      value: stats.totalPendingApprovals.toLocaleString(),
+      value: (stats.totalPendingApprovals || 0).toLocaleString(),
       icon: CheckCircle,
       color: 'orange',
       change: '+3 today',
@@ -354,7 +354,7 @@ export default function AdminDashboard() {
     },
     {
       title: 'Total Bookings',
-      value: stats.totalBookings.toLocaleString(),
+      value: (stats.totalBookings || 0).toLocaleString(),
       icon: Calendar,
       color: 'blue',
       change: '+12 today',
@@ -363,7 +363,7 @@ export default function AdminDashboard() {
     },
     {
       title: 'Revenue This Month',
-      value: `PKR ${stats.monthlyRevenue.toLocaleString()}`,
+      value: `PKR ${(stats.monthlyRevenue || 0).toLocaleString()}`,
       icon: DollarSign,
       color: 'green',
       change: '+$2,340',
@@ -372,7 +372,7 @@ export default function AdminDashboard() {
     },
     {
       title: 'Active Listings',
-      value: stats.totalActiveListings.toLocaleString(),
+      value: (stats.totalActiveListings || 0).toLocaleString(),
       icon: Building2,
       color: 'purple',
       change: '+8 today',
@@ -533,19 +533,19 @@ export default function AdminDashboard() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Customers:</span>
-                  <span className="text-sm font-medium">{stats.customers.toLocaleString()}</span>
+                  <span className="text-sm font-medium">{(stats.customers || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Property Owners:</span>
-                  <span className="text-sm font-medium">{stats.propertyOwners.toLocaleString()}</span>
+                  <span className="text-sm font-medium">{(stats.propertyOwners || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Vehicle Owners:</span>
-                  <span className="text-sm font-medium">{stats.vehicleOwners.toLocaleString()}</span>
+                  <span className="text-sm font-medium">{(stats.vehicleOwners || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Tour Guides:</span>
-                  <span className="text-sm font-medium">{stats.tourGuides.toLocaleString()}</span>
+                  <span className="text-sm font-medium">{(stats.tourGuides || 0).toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -555,15 +555,15 @@ export default function AdminDashboard() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Properties:</span>
-                  <span className="text-sm font-medium">{stats.propertyBookings.toLocaleString()}</span>
+                  <span className="text-sm font-medium">{(stats.propertyBookings || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Vehicles:</span>
-                  <span className="text-sm font-medium">{stats.vehicleBookings.toLocaleString()}</span>
+                  <span className="text-sm font-medium">{(stats.vehicleBookings || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Tours:</span>
-                  <span className="text-sm font-medium">{stats.tourBookings.toLocaleString()}</span>
+                  <span className="text-sm font-medium">{(stats.tourBookings || 0).toLocaleString()}</span>
                 </div>
               </div>
             </div>

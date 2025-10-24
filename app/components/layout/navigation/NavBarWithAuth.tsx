@@ -55,6 +55,12 @@ const NavBar = ({ user }: NavBarProps) => {
     user?.role === "PROPERTY_OWNER" ||
     user?.role === "VEHICLE_OWNER" ||
     user?.role === "TOUR_GUIDE";
+  
+  const isAdmin = 
+    user?.role === "ADMIN" ||
+    user?.role === "SUPER_ADMIN" ||
+    user?.role === "PROVIDER_ADMIN" ||
+    user?.role === "CUSTOMER_ADMIN";
 
   // Provider-specific labels/paths
   const providerManagePath =
@@ -114,7 +120,7 @@ const NavBar = ({ user }: NavBarProps) => {
 
       {/* Desktop Menu */}
       <ul className="hidden md:flex space-x-6 items-center">
-        {!isProvider && (
+        {!isProvider && !isAdmin && (
         <li>
           <Link 
             to="/accommodations"
@@ -128,7 +134,7 @@ const NavBar = ({ user }: NavBarProps) => {
           </Link>
         </li>
         )}
-        {!isProvider && (
+        {!isProvider && !isAdmin && (
         <li>
           <Link 
             to="/vehicles"
@@ -142,7 +148,7 @@ const NavBar = ({ user }: NavBarProps) => {
           </Link>
         </li>
         )}
-        {!isProvider && (
+        {!isProvider && !isAdmin && (
         <li>
           <Link 
             to="/tours"
@@ -156,7 +162,7 @@ const NavBar = ({ user }: NavBarProps) => {
           </Link>
         </li>
         )}
-        {!isProvider && (
+        {!isProvider && !isAdmin && (
         <li>
           <Link 
             to="/blogs"
@@ -169,6 +175,22 @@ const NavBar = ({ user }: NavBarProps) => {
             Blogs
           </Link>
         </li>
+        )}
+
+        {/* Admin Dashboard Link */}
+        {isAdmin && (
+          <li>
+            <Link
+              to="/admin"
+              className={`cursor-pointer transition-colors duration-200 ${
+                isActive('/admin') 
+                  ? 'font-semibold text-[#01502E]' 
+                  : 'font-normal text-gray-700 hover:text-orange-500'
+              }`}
+            >
+              Admin Panel
+            </Link>
+          </li>
         )}
 
         {/* Removed top-level Dashboard item to avoid duplication and reduce redirect loops */}
@@ -390,7 +412,7 @@ const NavBar = ({ user }: NavBarProps) => {
               </li>
             )}
 
-            {!isProvider && (
+            {!isProvider && !isAdmin && (
             <li>
               <Link 
                 to="/accommodations" 
@@ -405,7 +427,7 @@ const NavBar = ({ user }: NavBarProps) => {
               </Link>
             </li>
             )}
-            {!isProvider && (
+            {!isProvider && !isAdmin && (
             <li>
               <Link 
                 to="/vehicles" 
@@ -420,7 +442,7 @@ const NavBar = ({ user }: NavBarProps) => {
               </Link>
             </li>
             )}
-            {!isProvider && (
+            {!isProvider && !isAdmin && (
             <li>
               <Link 
                 to="/tours" 
@@ -435,7 +457,7 @@ const NavBar = ({ user }: NavBarProps) => {
               </Link>
             </li>
             )}
-            {!isProvider && (
+            {!isProvider && !isAdmin && (
             <li>
               <Link 
                 to="/blogs" 
@@ -449,6 +471,19 @@ const NavBar = ({ user }: NavBarProps) => {
                 Blogs
               </Link>
             </li>
+            )}
+
+            {isAdmin && (
+              <li className="pt-4 border-t border-gray-200">
+                <Link
+                  to="/admin"
+                  className="flex items-center gap-3 text-gray-700 hover:text-[#01502E] transition"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Settings size={18} />
+                  Admin Panel
+                </Link>
+              </li>
             )}
 
             {user ? (

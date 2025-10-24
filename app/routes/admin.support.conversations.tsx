@@ -113,7 +113,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.supportTicket.findMany({
       where: whereClause,
       include: {
-        user: {
+        provider: {
           select: {
             id: true,
             name: true,
@@ -121,7 +121,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             phone: true,
             role: true,
             verified: true,
-            isActive: true
+            active: true
           }
         },
         assignedTo: {
@@ -188,22 +188,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   // Get user type statistics
   const userTypeStats = await Promise.all([
-    prisma.supportTicket.count({ where: { user: { role: 'CUSTOMER' } } }),
-    prisma.supportTicket.count({ where: { user: { role: 'PROPERTY_OWNER' } } }),
-    prisma.supportTicket.count({ where: { user: { role: 'VEHICLE_OWNER' } } }),
-    prisma.supportTicket.count({ where: { user: { role: 'TOUR_GUIDE' } } })
+    prisma.supportTicket.count({ where: { provider: { role: 'CUSTOMER' } } }),
+    prisma.supportTicket.count({ where: { provider: { role: 'PROPERTY_OWNER' } } }),
+    prisma.supportTicket.count({ where: { provider: { role: 'VEHICLE_OWNER' } } }),
+    prisma.supportTicket.count({ where: { provider: { role: 'TOUR_GUIDE' } } })
   ]);
   
   // Get category statistics
   const categoryStats = await Promise.all([
     prisma.supportTicket.count({ where: { category: 'ACCOUNT_ISSUES' } }),
-    prisma.supportTicket.count({ where: { category: 'PAYMENT_PROBLEMS' } }),
-    prisma.supportTicket.count({ where: { category: 'BOOKING_ISSUES' } }),
-    prisma.supportTicket.count({ where: { category: 'TECHNICAL_ISSUES' } }),
-    prisma.supportTicket.count({ where: { category: 'SERVICE_LISTING' } }),
-    prisma.supportTicket.count({ where: { category: 'REVIEW_DISPUTES' } }),
+    prisma.supportTicket.count({ where: { category: 'PAYMENT_ISSUES' } }),
+    prisma.supportTicket.count({ where: { category: 'TECHNICAL_SUPPORT' } }),
+    prisma.supportTicket.count({ where: { category: 'APPROVAL_QUESTIONS' } }),
     prisma.supportTicket.count({ where: { category: 'POLICY_QUESTIONS' } }),
-    prisma.supportTicket.count({ where: { category: 'FEATURE_REQUESTS' } }),
+    prisma.supportTicket.count({ where: { category: 'FEATURE_REQUEST' } }),
+    prisma.supportTicket.count({ where: { category: 'BUG_REPORT' } }),
     prisma.supportTicket.count({ where: { category: 'OTHER' } })
   ]);
   
@@ -574,15 +573,15 @@ export default function AllConversations() {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(conversation.priority)}`}>
                         {conversation.priority}
                       </span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(conversation.user.role)}`}>
-                        {conversation.user.role}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(conversation.provider.role)}`}>
+                        {conversation.provider.role}
                       </span>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
                       <div className="flex items-center space-x-2">
                         <User className="w-4 h-4" />
-                        <span>{conversation.user.name}</span>
+                        <span>{conversation.provider.name}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Calendar className="w-4 h-4" />
