@@ -11,7 +11,6 @@ import {
   Heart,
   Star,
   Settings,
-  LogOut,
   Home,
   Bell,
   MessageCircle,
@@ -124,9 +123,9 @@ export default function Dashboard() {
   if (isProviderRole) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="flex">
+        <div className="flex h-screen">
           {/* Provider Sidebar */}
-          <div className="w-64 bg-white shadow-lg">
+          <div className="w-64 bg-white shadow-lg flex flex-col">
             <div className="p-6">
               <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
               <p className="text-sm text-gray-600 mt-1">Welcome back, {user.name}</p>
@@ -168,7 +167,7 @@ export default function Dashboard() {
               </div>
             </nav>
           </div>
-          <main className="flex-1">
+          <main className="flex-1 overflow-y-auto">
             <Outlet />
           </main>
         </div>
@@ -189,13 +188,13 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50">
       <div className="flex">
         {/* Sidebar */}
-        <div className="hidden md:flex md:w-64 md:flex-col">
-          <div className="flex flex-col flex-grow pt-5 overflow-y-auto bg-white border-r border-gray-200">
+        <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:left-0 md:top-20 md:h-[calc(100vh-5rem)] md:z-10">
+          <div className="bg-white border-r border-gray-200 h-full">
             {/* User Profile Summary */}
-            <div className="flex items-center flex-shrink-0 px-4 pb-4 border-b border-gray-200">
+            <div className="flex items-center px-6 py-4 border-b border-gray-200">
               <div className="flex items-center">
                 {safeUser.avatar ? (
                   <img
@@ -211,80 +210,40 @@ export default function Dashboard() {
                   </div>
                 )}
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900">{safeUser.name}</p>
-                  <p className="text-xs text-gray-500">{safeUser.email}</p>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#01502E]/10 text-[#01502E] mt-1">
-                    {safeUser.role.replace("_", " ")}
-                  </span>
+                  <p className="text-base font-medium text-gray-900 truncate">{safeUser.name}</p>
+                  <p className="text-sm text-gray-500 truncate">{safeUser.email}</p>
                 </div>
               </div>
             </div>
 
             {/* Navigation */}
-            <div className="mt-5 flex-grow flex flex-col">
-              <nav className="flex-1 px-2 space-y-1">
-                {navigation.map((item) => (
-                  <NavLink
-                    key={item.name}
-                    to={item.href}
-                    end={item.exact}
-                    className={({ isActive }) =>
-                      `group flex items-center px-2 py-2 text-sm font-medium rounded-md transition ${
-                        isActive
-                          ? "bg-[#01502E] text-white"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`
-                    }
-                  >
-                    <item.icon
-                      className="mr-3 flex-shrink-0 h-5 w-5"
-                      aria-hidden="true"
-                    />
-                    {item.name}
-                  </NavLink>
-                ))}
-              </nav>
-
-              {/* Quick Stats */}
-              <div className="px-2 py-4 border-t border-gray-200">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-blue-50 p-2 rounded text-center">
-                    <div className="font-semibold text-blue-900">{stats.upcomingBookings}</div>
-                    <div className="text-blue-600">Upcoming</div>
-                  </div>
-                  <div className="bg-green-50 p-2 rounded text-center">
-                    <div className="font-semibold text-green-900">{stats.bookingsCount}</div>
-                    <div className="text-green-600">Total Trips</div>
-                  </div>
-                  <div className="bg-red-50 p-2 rounded text-center">
-                    <div className="font-semibold text-red-900">{stats.favoritesCount}</div>
-                    <div className="text-red-600">Favorites</div>
-                  </div>
-                  <div className="bg-yellow-50 p-2 rounded text-center">
-                    <div className="font-semibold text-yellow-900">{stats.reviewsCount}</div>
-                    <div className="text-yellow-600">Reviews</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Logout */}
-              <div className="px-2 pb-4">
-                <form method="post" action="/logout">
-                  <button
-                    type="submit"
-                    className="group flex items-center w-full px-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-red-50 hover:text-red-600 transition"
-                  >
-                    <LogOut className="mr-3 flex-shrink-0 h-5 w-5" />
-                    Sign Out
-                  </button>
-                </form>
-              </div>
-            </div>
+            <nav className="px-4 py-4 space-y-1">
+              {navigation.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  end={item.exact}
+                  className={({ isActive }) =>
+                    `group flex items-center px-4 py-3 text-base font-medium rounded-lg transition ${
+                      isActive
+                        ? "bg-[#01502E] text-white"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`
+                  }
+                >
+                  <item.icon
+                    className="mr-4 flex-shrink-0 h-5 w-5"
+                    aria-hidden="true"
+                  />
+                  {item.name}
+                </NavLink>
+              ))}
+            </nav>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 md:ml-64 md:pt-4">
           {/* Mobile Header */}
           <div className="md:hidden bg-white shadow-sm border-b border-gray-200 px-4 py-3">
             <div className="flex items-center justify-between">
