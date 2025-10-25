@@ -157,16 +157,16 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="px-6 py-3 space-y-2">
-                <Link to="/dashboard/bookings" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                <Link to="/dashboard/guide/bookings" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   📅 My Bookings
                 </Link>
                 <Link to="/dashboard/messages" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   💬 Messages
                 </Link>
-                <Link to="/dashboard/reviews" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                <Link to="/dashboard/guide/reviews" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   ⭐ Reviews
                 </Link>
-                <Link to="/dashboard/profile" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                <Link to="/dashboard/guide/profile" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   ⚙️ Profile
                 </Link>
               </div>
