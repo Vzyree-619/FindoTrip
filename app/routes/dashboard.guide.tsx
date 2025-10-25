@@ -207,6 +207,9 @@ export default function TourGuideDashboard() {
             <p className="text-gray-600">Welcome, {guide ? `${guide.firstName} ${guide.lastName}` : user.name}</p>
           </div>
           <div className="flex items-center gap-3">
+            <Link to="/dashboard/guide/bookings" className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+              <Calendar className="w-4 h-4" /> My Bookings
+            </Link>
             <Link to="/dashboard/messages" className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
               <MessageCircle className="w-4 h-4" /> Messages
             </Link>
@@ -398,7 +401,7 @@ export default function TourGuideDashboard() {
                 {safeBookings.length > 5 && (
                   <div className="text-center pt-4">
                     <Link 
-                      to="/tour-guide/bookings" 
+                      to="/dashboard/guide/bookings" 
                       className="inline-flex items-center px-4 py-2 bg-[#01502E] text-white rounded-md hover:bg-[#013d23]"
                     >
                       View All Bookings

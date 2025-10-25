@@ -39,6 +39,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // SUPER_ADMIN would stay here for admin dashboard
   }
 
+  // Redirect tour guides from generic bookings to their specific bookings page
+  if (url.pathname === "/dashboard/bookings" && user?.role === "TOUR_GUIDE") {
+    throw redirect("/dashboard/guide/bookings");
+  }
+
   // Get dashboard stats - only for customers
   const [propertyBookings, vehicleBookings, tourBookings, reviewsCount, wishlists] = await Promise.all([
     prisma.propertyBooking.findMany({
