@@ -44,6 +44,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw redirect("/dashboard/guide/bookings");
   }
 
+  // Allow tour guide specific routes to pass through without redirect
+  if (user?.role === "TOUR_GUIDE" && (
+    url.pathname.startsWith("/dashboard/guide/") || 
+    url.pathname === "/dashboard/guide"
+  )) {
+    // Let the specific route handle the request
+    return json({ user: null });
+  }
+
   // Get dashboard stats - only for customers
   const [propertyBookings, vehicleBookings, tourBookings, reviewsCount, wishlists] = await Promise.all([
     prisma.propertyBooking.findMany({
