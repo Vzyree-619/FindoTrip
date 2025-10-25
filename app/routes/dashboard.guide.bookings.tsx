@@ -75,8 +75,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     orderBy: { createdAt: "desc" },
   });
 
-    console.log("Bookings loader completed successfully");
-    return json({ user, guide, bookings, error: null });
+  console.log("Bookings loader completed successfully");
+  return json({ user, guide, bookings, error: null });
   } catch (error) {
     console.error("Error in tour guide bookings loader:", error);
     return json({ 

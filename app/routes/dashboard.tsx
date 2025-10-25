@@ -21,7 +21,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, role: true, avatar: true }
+    select: { id: true, name: true, role: true, avatar: true, email: true }
   });
 
   // Redirect based on role only when visiting the root dashboard path
@@ -49,8 +49,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
     url.pathname.startsWith("/dashboard/guide/") || 
     url.pathname === "/dashboard/guide"
   )) {
-    // Let the specific route handle the request
-    return json({ user: null });
+    // Let the specific route handle the request, but still pass user data with default stats
+    return json({ 
+      user, 
+      stats: {
+        bookingsCount: 0,
+        upcomingBookings: 0,
+        reviewsCount: 0,
+        favoritesCount: 0
+      }
+    });
   }
 
   // Get dashboard stats - only for customers
