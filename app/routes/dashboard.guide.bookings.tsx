@@ -18,24 +18,33 @@ import {
 import { useState } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const userId = await requireUserId(request);
-  const user = await prisma.user.findUnique({ 
-    where: { id: userId }, 
-    select: { id: true, name: true, role: true } 
-  });
-  
-  if (!user || user.role !== "TOUR_GUIDE") {
-    throw new Response("Access restricted to tour guides", { status: 403 });
-  }
+  try {
+    const userId = await requireUserId(request);
+    console.log("Tour guide bookings loader - User ID:", userId);
+    
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId }, 
+      select: { id: true, name: true, role: true } 
+    });
+    
+    if (!user || user.role !== "TOUR_GUIDE") {
+      console.log("User not found or not a tour guide, throwing 403");
+      throw new Response("Access restricted to tour guides", { status: 403 });
+    }
 
-  const guide = await prisma.tourGuide.findUnique({ 
-    where: { userId }, 
-    select: { id: true, firstName: true, lastName: true, verified: true } 
-  });
-  
-  if (!guide) {
-    return json({ user, guide: null, bookings: [], error: "Tour guide profile not found" });
-  }
+    console.log("User found:", user.name, "Role:", user.role);
+
+    const guide = await prisma.tourGuide.findUnique({ 
+      where: { userId }, 
+      select: { id: true, firstName: true, lastName: true, verified: true } 
+    });
+    
+    if (!guide) {
+      console.log("Tour guide profile not found for user:", userId);
+      return json({ user, guide: null, bookings: [], error: "Tour guide profile not found" });
+    }
+
+    console.log("Tour guide found:", guide.firstName, guide.lastName);
 
   // Get tour guide's bookings
   const bookings = await prisma.tourBooking.findMany({
@@ -66,7 +75,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
     orderBy: { createdAt: "desc" },
   });
 
-  return json({ user, guide, bookings, error: null });
+    console.log("Bookings loader completed successfully");
+    return json({ user, guide, bookings, error: null });
+  } catch (error) {
+    console.error("Error in tour guide bookings loader:", error);
+    return json({ 
+      user: null, 
+      guide: null, 
+      bookings: [], 
+      error: "Failed to load bookings data" 
+    });
+  }
 }
 
 export default function TourGuideBookings() {
