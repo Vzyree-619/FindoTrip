@@ -301,10 +301,10 @@ export default function TourGuideDashboard() {
               </p>
               {isVerified && (
                 <div className="mt-6">
-                  <Link to="/dashboard/guide/create" className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">
+                  <a href="#create" className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">
                     <Plus className="h-4 w-4 mr-2" />
                     Create Tour
-                  </Link>
+                  </a>
                 </div>
               )}
             </div>
@@ -424,6 +424,55 @@ export default function TourGuideDashboard() {
             )}
           </div>
         </div>
+
+        {/* Create Tour Form */}
+        {isVerified && (
+          <div id="create" className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Plus className="w-5 h-5 text-[#01502E]" />
+              <h2 className="text-lg font-semibold">Create New Tour</h2>
+            </div>
+            <Form method="post" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label htmlFor="title" className="block text-sm font-medium mb-2">Tour Title *</label>
+                <input name="title" required className="w-full border rounded px-3 py-2" placeholder="Historical Lahore Walking Tour" />
+              </div>
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium mb-2">City *</label>
+                <input name="city" required className="w-full border rounded px-3 py-2" placeholder="Lahore" />
+              </div>
+              <div>
+                <label htmlFor="country" className="block text-sm font-medium mb-2">Country *</label>
+                <input name="country" required className="w-full border rounded px-3 py-2" placeholder="Pakistan" />
+              </div>
+              <div>
+                <label htmlFor="pricePerPerson" className="block text-sm font-medium mb-2">Price per Person (PKR) *</label>
+                <input name="pricePerPerson" type="number" min="0" step="1" required className="w-full border rounded px-3 py-2" placeholder="1500" />
+              </div>
+              <div>
+                <label htmlFor="maxGroupSize" className="block text-sm font-medium mb-2">Maximum Group Size *</label>
+                <input name="maxGroupSize" type="number" min="1" max="50" required className="w-full border rounded px-3 py-2" placeholder="15" />
+              </div>
+              <div>
+                <label htmlFor="duration" className="block text-sm font-medium mb-2">Duration *</label>
+                <input name="duration" required className="w-full border rounded px-3 py-2" placeholder="3 hours" />
+              </div>
+              <div className="md:col-span-2">
+                <label htmlFor="highlights" className="block text-sm font-medium mb-2">Tour Highlights (comma separated)</label>
+                <input name="highlights" className="w-full border rounded px-3 py-2" placeholder="Historical sites, Local culture, Traditional food" />
+              </div>
+              <div className="md:col-span-2">
+                <label htmlFor="description" className="block text-sm font-medium mb-2">Tour Description *</label>
+                <textarea name="description" rows={4} required className="w-full border rounded px-3 py-2" placeholder="Describe what makes this tour special..." />
+              </div>
+              <div className="md:col-span-2">
+                <button type="submit" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
+                  <Plus className="w-4 h-4" /> Create Tour
+                </button>
+              </div>
+            </Form>
+          </div>
+        )}
 
       </div>
     </div>
