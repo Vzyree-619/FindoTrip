@@ -203,18 +203,16 @@ export default function TourGuideDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Bookings</h1>
-            <p className="text-gray-600">Manage your current and past reservations</p>
+            <h1 className="text-2xl font-bold text-gray-900">Tour Guide Dashboard</h1>
+            <p className="text-gray-600">Welcome, {guide ? `${guide.firstName} ${guide.lastName}` : user.name}</p>
           </div>
           <div className="flex items-center gap-3">
             <Link to="/dashboard/messages" className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
               <MessageCircle className="w-4 h-4" /> Messages
             </Link>
-            {isVerified && (
-              <Link to="/dashboard/guide" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
-                <Plus className="w-4 h-4" /> Manage Tours
-              </Link>
-            )}
+            <Link to="/dashboard/guide/profile" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+              <Settings className="w-4 h-4" /> Update Profile
+            </Link>
           </div>
         </div>
 
@@ -273,52 +271,78 @@ export default function TourGuideDashboard() {
           </div>
         )}
 
-        {/* Bookings Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Calendar className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Upcoming</p>
-                <p className="text-2xl font-bold text-gray-900">{upcomingBookings.length}</p>
-              </div>
-            </div>
+        {/* My Tours Section */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <MapPin className="w-5 h-5 text-[#01502E]" />
+            <h2 className="text-lg font-semibold">My Tours</h2>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <CheckCircle2 className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Past</p>
-                <p className="text-2xl font-bold text-gray-900">{pastBookings.length}</p>
-              </div>
+          {safeTours.length === 0 ? (
+            <div className="text-center py-8">
+              <MapPin className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No tours created</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {isVerified ? "Get started by creating your first tour." : "Complete verification to start creating tours."}
+              </p>
+              {isVerified && (
+                <div className="mt-6">
+                  <Link to="/dashboard/guide/create" className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23]">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Tour
+                  </Link>
+                </div>
+              )}
             </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-red-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Cancelled</p>
-                <p className="text-2xl font-bold text-gray-900">{cancelledBookings.length}</p>
-              </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {safeTours.map((tour: any) => (
+                <div key={tour.id} className="border rounded-lg overflow-hidden">
+                  <img src={tour.images?.[0] || "/placeholder-tour.jpg"} className="w-full h-40 object-cover" />
+                  <div className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-gray-900 line-clamp-1">{tour.title}</h3>
+                        <div className="text-sm text-gray-600 flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> {tour.city}, {tour.country}
+                        </div>
+                      </div>
+                      <span className="text-sm px-2 py-1 rounded bg-gray-100">{tour.duration}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="text-[#01502E] font-semibold">PKR {tour.pricePerPerson.toLocaleString()}/person</div>
+                      <div className="flex items-center gap-1 text-sm text-gray-700">
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" /> {tour.rating.toFixed(1)} ({tour.reviewCount})
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 text-xs">
+                      <span className={`px-2 py-0.5 rounded ${tour.approvalStatus === "APPROVED" ? "bg-green-50 text-green-700" : tour.approvalStatus === "PENDING" ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-700"}`}>
+                        {tour.approvalStatus}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded ${tour.available ? "bg-[#01502E]/10 text-[#01502E]" : "bg-gray-100 text-gray-700"}`}>
+                        {tour.available ? "Available" : "Unavailable"}
+                      </span>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <Link to={`/tours/${tour.id}`} className="flex-1 text-center border rounded px-3 py-2">View</Link>
+                      <Link to={`/dashboard/guide/tours/${tour.id}/bookings`} className="flex-1 text-center bg-[#01502E] text-white rounded px-3 py-2">Bookings</Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Bookings List */}
+        {/* Recent Bookings from Customers */}
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Bookings</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Recent Bookings from Customers</h2>
+            <p className="text-sm text-gray-600 mt-1">People who booked your tours</p>
           </div>
           <div className="p-6">
             {safeBookings.length === 0 ? (
               <div className="text-center py-12">
-                <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+                <Users className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No bookings yet</h3>
                 <p className="mt-1 text-sm text-gray-500">
                   You don't have any bookings yet. Once customers book your tours, they'll appear here.
