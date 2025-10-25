@@ -17,19 +17,31 @@ import {
 } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const userId = await requireUserId(request);
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, role: true } });
-  if (!user) throw redirect("/login");
+  try {
+    const userId = await requireUserId(request);
+    console.log("Tour guide dashboard loader - User ID:", userId);
+    
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, role: true } });
+    if (!user) {
+      console.log("User not found, redirecting to login");
+      throw redirect("/login");
+    }
 
-  // Allow access but show appropriate message if not tour guide
-  if (user.role !== "TOUR_GUIDE") {
-    return json({ user, guide: null, tours: [], bookings: [], error: "Access restricted to tour guides" });
-  }
+    console.log("User found:", user.name, "Role:", user.role);
 
-  const guide = await prisma.tourGuide.findUnique({ where: { userId }, select: { id: true, firstName: true, lastName: true, verified: true } });
-  if (!guide) {
-    return json({ user, guide: null, tours: [], bookings: [], error: null });
-  }
+    // Allow access but show appropriate message if not tour guide
+    if (user.role !== "TOUR_GUIDE") {
+      console.log("User is not a tour guide, showing access restricted message");
+      return json({ user, guide: null, tours: [], bookings: [], error: "Access restricted to tour guides" });
+    }
+
+    const guide = await prisma.tourGuide.findUnique({ where: { userId }, select: { id: true, firstName: true, lastName: true, verified: true } });
+    if (!guide) {
+      console.log("Tour guide profile not found for user:", userId);
+      return json({ user, guide: null, tours: [], bookings: [], error: null });
+    }
+
+    console.log("Tour guide found:", guide.firstName, guide.lastName);
 
   // Get tour guide's bookings
   const bookings = await prisma.tourBooking.findMany({
@@ -79,7 +91,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  return json({ user, guide, tours, bookings, error: null });
+    console.log("Loader completed successfully");
+    return json({ user, guide, tours, bookings, error: null });
+  } catch (error) {
+    console.error("Error in tour guide dashboard loader:", error);
+    return json({ 
+      user: null, 
+      guide: null, 
+      tours: [], 
+      bookings: [], 
+      error: "Failed to load dashboard data" 
+    });
+  }
 }
 
 export async function action({ request }: ActionFunctionArgs) {
