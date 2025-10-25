@@ -2,7 +2,19 @@ import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from
 import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
-import { Plus, CheckCircle2, MapPin, Users, Star, Clock, AlertCircle, Info, MessageCircle, Settings, Calendar } from "lucide-react";
+import { 
+  Plus, 
+  CheckCircle2, 
+  MapPin, 
+  Users, 
+  Star, 
+  Clock, 
+  AlertCircle, 
+  Info, 
+  MessageCircle, 
+  Settings, 
+  Calendar 
+} from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
