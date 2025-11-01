@@ -23,8 +23,22 @@ export default function SupportButton({ userId, userRole }: SupportButtonProps) 
   if (!isProvider) return null;
 
   useEffect(() => {
-    // Fetch unread message count
-    fetcher.load("/api/support/unread-count");
+    // Fetch unread message count using plain fetch to avoid .data 404s in dev
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch('/api/support/unread-count', { signal: controller.signal });
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data?.unreadCount === 'number') {
+            setUnreadCount(data.unreadCount);
+          }
+        }
+      } catch (e) {
+        // Silently ignore network/abort errors
+      }
+    })();
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
