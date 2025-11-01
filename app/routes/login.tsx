@@ -5,6 +5,7 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { Form, Link, useActionData, useSearchParams, useNavigation, useLoaderData } from "@remix-run/react";
+import { useState } from "react";
 import { login, createUserSession, getUserId, getUser } from "~/lib/auth/auth.server";
 import { Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 
