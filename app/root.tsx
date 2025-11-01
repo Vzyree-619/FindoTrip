@@ -11,7 +11,7 @@ import { json } from "@remix-run/node";
 import { useState, useEffect } from "react";
 import NavBar from "~/components/layout/navigation/NavBarWithAuth";
 // Mobile navigation is now handled in NavBarWithAuth
-import { ErrorBoundary as CommonErrorBoundary } from "~/components/common/ErrorBoundary";
+import { ErrorBoundary } from "~/components/common/ErrorBoundary";
 import { OfflineIndicator, OnlineIndicator } from "~/components/common/LoadingStates";
 import { SkipToContent, ScreenReaderAnnouncement } from "~/hooks/useAccessibility";
 import { useNetwork } from "~/hooks/useNetwork";
@@ -152,17 +152,5 @@ export default function App() {
 }
 
 // Root-level ErrorBoundary must render a full HTML document
-export function ErrorBoundary() {
-  return (
-    <html lang="en" className="scroll-smooth">
-      <head>
-        <Meta />
-        <Links />
-      </head>
-      <body className="bg-white text-gray-900 antialiased">
-        <CommonErrorBoundary />
-        <Scripts />
-      </body>
-    </html>
-  );
-}
+// Export error boundary component (renders inside document)
+export { ErrorBoundary };
