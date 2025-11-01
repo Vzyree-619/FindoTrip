@@ -92,7 +92,7 @@ export default function InputForm() {
         </div>
       )}
       <div className="absolute inset-0 mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%] lg:6xl sm:2xl">
-        <form method="POST" action="#" className="w-full" onSubmit={(e) => e.preventDefault()}>
+        <form method="GET" action="#" className="w-full" onSubmit={(e) => e.preventDefault()}>
           <div className="flex w-full lg:w-fit mx-auto border border-orange-500 rounded-t-lg bg-white">
             {activeButton.map((item, index) => (
               <button
@@ -129,15 +129,15 @@ export default function InputForm() {
 // Hotel Component
 function Hotel({ formConfig, navigate }) {
   const [errors, setErrors] = useState({ destination: '', checkIn: '', checkOut: '' });
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  // Use the form element to build FormData, not the button
+  const handleSubmit = (formEl) => {
+    const formData = new FormData(formEl);
     const destination = formData.get('destination');
     const checkIn = formData.get('checkIn');
     const checkOut = formData.get('checkOut');
     const adults = formData.get('adults');
     const childs = formData.get('childs');
-    
+
     const totalGuests = (parseInt(adults?.toString() || '0') + parseInt(childs?.toString() || '0'));
     const params = new URLSearchParams();
     if (destination) params.set('city', destination.toString());
@@ -155,7 +155,7 @@ function Hotel({ formConfig, navigate }) {
       }
     }
     if (totalGuests > 0) params.set('guests', totalGuests.toString());
-    
+
     setErrors({ destination: '', checkIn: '', checkOut: '' });
     try {
       navigate(`/accommodations?${params.toString()}`);
@@ -183,22 +183,24 @@ function Hotel({ formConfig, navigate }) {
           </div>
         ))}
         <button
-          type="submit"
+          type="button"
           onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const form = e.currentTarget.closest('form');
-            const checkIn = form?.querySelector('input[name="checkIn"]').value;
-            const checkOut = form?.querySelector('input[name="checkOut"]').value;
-            const destination = form?.querySelector('input[name="destination"]').value;
+            const checkIn = form?.querySelector('input[name="checkIn"]')?.value;
+            const checkOut = form?.querySelector('input[name="checkOut"]')?.value;
+            const destination = form?.querySelector('input[name="destination"]')?.value;
             const newErrors = { destination: '', checkIn: '', checkOut: '' };
             if (!destination) newErrors.destination = 'Please enter a destination.';
             if (!checkIn) newErrors.checkIn = 'Please select a check-in date.';
             if (!checkOut) newErrors.checkOut = 'Please select a check-out date.';
             if (newErrors.destination || newErrors.checkIn || newErrors.checkOut) {
-              e.preventDefault();
               setErrors(newErrors);
               return;
             }
-            handleSubmit(e);
+            const formEl = e.currentTarget.closest('form');
+            if (formEl) handleSubmit(formEl);
           }}
           className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
@@ -224,17 +226,27 @@ function Hotel({ formConfig, navigate }) {
         ))}
         <Guests />
         <button
-          type="submit"
+          type="button"
           onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const form = e.currentTarget.closest('form');
-            const checkIn = form?.querySelector('input[name="checkIn"]').value;
-            const checkOut = form?.querySelector('input[name="checkOut"]').value;
-            if (!checkIn || !checkOut) {
-              e.preventDefault();
-              alert('Please select both check-in and check-out dates.');
+            const checkIn = form?.querySelector('input[name="checkIn"]')?.value;
+            const checkOut = form?.querySelector('input[name="checkOut"]')?.value;
+            const destination = form?.querySelector('input[name="destination"]')?.value;
+            const newErrors = { destination: '', checkIn: '', checkOut: '' };
+            if (!destination) newErrors.destination = 'Please enter a destination.';
+            if (!checkIn) newErrors.checkIn = 'Please select a check-in date.';
+            if (!checkOut) newErrors.checkOut = 'Please select a check-out date.';
+            if (newErrors.destination || newErrors.checkIn || newErrors.checkOut) {
+              setErrors(newErrors);
+              if (newErrors.checkIn || newErrors.checkOut) {
+                alert('Please select both check-in and check-out dates.');
+              }
               return;
             }
-            handleSubmit(e);
+            const formEl = e.currentTarget.closest('form');
+            if (formEl) handleSubmit(formEl);
           }}
           className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
@@ -248,13 +260,12 @@ function Hotel({ formConfig, navigate }) {
 // CarRental Component
 function CarRental({ formConfig, navigate }) {
   const [errors, setErrors] = useState({ pickupLocation: '', pickupDate: '', dropoffDate: '' });
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  const handleSubmit = (formEl) => {
+    const formData = new FormData(formEl);
     const pickupLocation = formData.get('pickupLocation');
     const pickupDate = formData.get('pickupDate');
     const dropoffDate = formData.get('dropoffDate');
-    
+
     const params = new URLSearchParams();
     if (pickupLocation) params.set('location', pickupLocation.toString());
     if (pickupDate) params.set('pickupDate', pickupDate.toString());
@@ -270,7 +281,7 @@ function CarRental({ formConfig, navigate }) {
         console.warn('Error calculating rental days:', error);
       }
     }
-    
+
     setErrors({ pickupLocation: '', pickupDate: '', dropoffDate: '' });
     try {
       navigate(`/vehicles?${params.toString()}`);
@@ -298,22 +309,24 @@ function CarRental({ formConfig, navigate }) {
           </div>
         ))}
         <button
-          type="submit"
+          type="button"
           onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const form = e.currentTarget.closest('form');
-            const pickupDate = form?.querySelector('input[name="pickupDate"]').value;
-            const dropoffDate = form?.querySelector('input[name="dropoffDate"]').value;
-            const pickupLocation = form?.querySelector('input[name="pickupLocation"]').value;
+            const pickupDate = form?.querySelector('input[name="pickupDate"]')?.value;
+            const dropoffDate = form?.querySelector('input[name="dropoffDate"]')?.value;
+            const pickupLocation = form?.querySelector('input[name="pickupLocation"]')?.value;
             const newErrors = { pickupLocation: '', pickupDate: '', dropoffDate: '' };
             if (!pickupLocation) newErrors.pickupLocation = 'Please enter a pick-up location.';
             if (!pickupDate) newErrors.pickupDate = 'Please select a pick-up date.';
             if (!dropoffDate) newErrors.dropoffDate = 'Please select a drop-off date.';
             if (newErrors.pickupLocation || newErrors.pickupDate || newErrors.dropoffDate) {
-              e.preventDefault();
               setErrors(newErrors);
               return;
             }
-            handleSubmit(e);
+            const formEl = e.currentTarget.closest('form');
+            if (formEl) handleSubmit(formEl);
           }}
           className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
@@ -336,17 +349,27 @@ function CarRental({ formConfig, navigate }) {
         ))}
 
         <button
-          type="submit"
+          type="button"
           onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const form = e.currentTarget.closest('form');
-            const pickupDate = form?.querySelector('input[name="pickupDate"]').value;
-            const dropoffDate = form?.querySelector('input[name="dropoffDate"]').value;
-            if (!pickupDate || !dropoffDate) {
-              e.preventDefault();
-              alert('Please select both pick-up and drop-off dates.');
+            const pickupDate = form?.querySelector('input[name="pickupDate"]')?.value;
+            const dropoffDate = form?.querySelector('input[name="dropoffDate"]')?.value;
+            const pickupLocation = form?.querySelector('input[name="pickupLocation"]')?.value;
+            const newErrors = { pickupLocation: '', pickupDate: '', dropoffDate: '' };
+            if (!pickupLocation) newErrors.pickupLocation = 'Please enter a pick-up location.';
+            if (!pickupDate) newErrors.pickupDate = 'Please select a pick-up date.';
+            if (!dropoffDate) newErrors.dropoffDate = 'Please select a drop-off date.';
+            if (newErrors.pickupLocation || newErrors.pickupDate || newErrors.dropoffDate) {
+              setErrors(newErrors);
+              if (newErrors.pickupDate || newErrors.dropoffDate) {
+                alert('Please select both pick-up and drop-off dates.');
+              }
               return;
             }
-            handleSubmit(e);
+            const formEl = e.currentTarget.closest('form');
+            if (formEl) handleSubmit(formEl);
           }}
           className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
@@ -360,16 +383,21 @@ function CarRental({ formConfig, navigate }) {
 // Tours Component
 function Tours({ formConfig, navigate }) {
   const [errors, setErrors] = useState({ location: '', tourDate: '' });
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  const handleSubmit = (formEl) => {
+    const formData = new FormData(formEl);
     const location = formData.get('location');
     const tourDate = formData.get('tourDate');
-    
+    const days = formData.get('days');
+    const activityType = formData.get('activityType');
+    const groupSize = formData.get('groupSize');
+
     const params = new URLSearchParams();
     if (location) params.set('search', location.toString());
     if (tourDate) params.set('date', tourDate.toString());
-    
+    if (days) params.set('days', days.toString());
+    if (activityType) params.set('activityType', activityType.toString());
+    if (groupSize) params.set('groupSize', groupSize.toString());
+
     setErrors({ location: '', tourDate: '' });
     try {
       navigate(`/tours?${params.toString()}`);
@@ -397,20 +425,22 @@ function Tours({ formConfig, navigate }) {
           </div>
         ))}
         <button
-          type="submit"
+          type="button"
           onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const form = e.currentTarget.closest('form');
-            const tourDate = form?.querySelector('input[name="tourDate"]').value;
-            const location = form?.querySelector('input[name="location"]').value;
+            const tourDate = form?.querySelector('input[name="tourDate"]')?.value;
+            const location = form?.querySelector('input[name="location"]')?.value;
             const newErrors = { location: '', tourDate: '' };
             if (!location) newErrors.location = 'Please enter a location.';
             if (!tourDate) newErrors.tourDate = 'Please select a tour start date.';
             if (newErrors.location || newErrors.tourDate) {
-              e.preventDefault();
               setErrors(newErrors);
               return;
             }
-            handleSubmit(e);
+            const formEl = e.currentTarget.closest('form');
+            if (formEl) handleSubmit(formEl);
           }}
           className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
@@ -437,16 +467,25 @@ function Tours({ formConfig, navigate }) {
         <TourDuration />
         <Guests />
         <button
-          type="submit"
+          type="button"
           onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const form = e.currentTarget.closest('form');
-            const tourDate = form?.querySelector('input[name="tourDate"]').value;
-            if (!tourDate) {
-              e.preventDefault();
-              alert('Please select a tour start date.');
+            const tourDate = form?.querySelector('input[name="tourDate"]')?.value;
+            const location = form?.querySelector('input[name="location"]')?.value;
+            const newErrors = { location: '', tourDate: '' };
+            if (!location) newErrors.location = 'Please enter a location.';
+            if (!tourDate) newErrors.tourDate = 'Please select a tour start date.';
+            if (newErrors.location || newErrors.tourDate) {
+              setErrors(newErrors);
+              if (newErrors.tourDate) {
+                alert('Please select a tour start date.');
+              }
               return;
             }
-            handleSubmit(e);
+            const formEl = e.currentTarget.closest('form');
+            if (formEl) handleSubmit(formEl);
           }}
           className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
@@ -460,16 +499,15 @@ function Tours({ formConfig, navigate }) {
 // Activities Component
 function Activities({ formConfig, navigate }) {
   const [errors, setErrors] = useState({ activity: '', activityDate: '' });
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  const handleSubmit = (formEl) => {
+    const formData = new FormData(formEl);
     const activity = formData.get('activity');
     const activityDate = formData.get('activityDate');
-    
+
     const params = new URLSearchParams();
     if (activity) params.set('search', activity.toString());
     if (activityDate) params.set('date', activityDate.toString());
-    
+
     setErrors({ activity: '', activityDate: '' });
     try {
       navigate(`/tours?${params.toString()}`);
@@ -497,20 +535,22 @@ function Activities({ formConfig, navigate }) {
           </div>
         ))}
         <button
-          type="submit"
+          type="button"
           onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const form = e.currentTarget.closest('form');
-            const activityDate = form?.querySelector('input[name="activityDate"]').value;
-            const activity = form?.querySelector('input[name="activity"]').value;
+            const activityDate = form?.querySelector('input[name="activityDate"]')?.value;
+            const activity = form?.querySelector('input[name="activity"]')?.value;
             const newErrors = { activity: '', activityDate: '' };
             if (!activity) newErrors.activity = 'Please enter an activity.';
             if (!activityDate) newErrors.activityDate = 'Please select an activity date.';
             if (newErrors.activity || newErrors.activityDate) {
-              e.preventDefault();
               setErrors(newErrors);
               return;
             }
-            handleSubmit(e);
+            const formEl = e.currentTarget.closest('form');
+            if (formEl) handleSubmit(formEl);
           }}
           className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
@@ -534,16 +574,25 @@ function Activities({ formConfig, navigate }) {
         <ActivityTypes />
         <GroupSize />
         <button
-          type="submit"
+          type="button"
           onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const form = e.currentTarget.closest('form');
-            const activityDate = form?.querySelector('input[name="activityDate"]').value;
-            if (!activityDate) {
-              e.preventDefault();
-              alert('Please select an activity date.');
+            const activityDate = form?.querySelector('input[name="activityDate"]')?.value;
+            const activity = form?.querySelector('input[name="activity"]')?.value;
+            const newErrors = { activity: '', activityDate: '' };
+            if (!activity) newErrors.activity = 'Please enter an activity.';
+            if (!activityDate) newErrors.activityDate = 'Please select an activity date.';
+            if (newErrors.activity || newErrors.activityDate) {
+              setErrors(newErrors);
+              if (newErrors.activityDate) {
+                alert('Please select an activity date.');
+              }
               return;
             }
-            handleSubmit(e);
+            const formEl = e.currentTarget.closest('form');
+            if (formEl) handleSubmit(formEl);
           }}
           className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
         >
