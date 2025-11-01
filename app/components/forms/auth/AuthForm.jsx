@@ -6,8 +6,10 @@ import {
   useNavigation,
 } from "@remix-run/react";
 import { FaLock, FaUserPlus } from "react-icons/fa";
+import { useState } from "react";
 
 function AuthForm() {
+  const [showPassword, setShowPassword] = useState(false);
   const [searchParams] = useSearchParams();
   const navigation = useNavigation();
   const validationErrors = useActionData();
@@ -31,7 +33,23 @@ function AuthForm() {
       </p>
       <p>
         <label htmlFor="password">Password</label>
-        <input type="password" id="password" name="password" minLength={7} />
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            id="password"
+            name="password"
+            minLength={7}
+            className="pr-10"
+          />
+          <button
+            type="button"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
+          >
+            {showPassword ? '🙈' : '👁️'}
+          </button>
+        </div>
       </p>
       {validationErrors && (
         <ul>

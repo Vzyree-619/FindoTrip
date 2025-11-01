@@ -116,6 +116,7 @@ export default function Register() {
   const [step, setStep] = useState<'role' | 'details'>(fromBooking ? 'details' : 'role');
   const [selectedRole, setSelectedRole] = useState<string>(fromBooking ? 'CUSTOMER' : '');
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [modalAgree, setModalAgree] = useState(false);
@@ -413,14 +414,22 @@ export default function Register() {
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
               </div>
               
               {/* Password Strength Bar */}
