@@ -11,7 +11,7 @@ import { json } from "@remix-run/node";
 import { useState, useEffect } from "react";
 import NavBar from "~/components/layout/navigation/NavBarWithAuth";
 // Mobile navigation is now handled in NavBarWithAuth
-import { ErrorBoundary } from "~/components/common/ErrorBoundary";
+import { ErrorBoundary as CommonErrorBoundary } from "~/components/common/ErrorBoundary";
 import { OfflineIndicator, OnlineIndicator } from "~/components/common/LoadingStates";
 import { SkipToContent, ScreenReaderAnnouncement } from "~/hooks/useAccessibility";
 import { useNetwork } from "~/hooks/useNetwork";
@@ -36,8 +36,7 @@ export const links: LinksFunction = () => [
   {
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
-    media: "print",
-    onLoad: "this.media='all'",
+    media: "all",
   },
   
   // Favicon and app icons
@@ -152,5 +151,18 @@ export default function App() {
   );
 }
 
-// Export error boundary for the app
-export { ErrorBoundary };
+// Root-level ErrorBoundary must render a full HTML document
+export function ErrorBoundary() {
+  return (
+    <html lang="en" className="scroll-smooth">
+      <head>
+        <Meta />
+        <Links />
+      </head>
+      <body className="bg-white text-gray-900 antialiased">
+        <CommonErrorBoundary />
+        <Scripts />
+      </body>
+    </html>
+  );
+}
