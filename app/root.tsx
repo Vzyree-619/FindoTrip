@@ -106,7 +106,7 @@ export default function App() {
         {/* Mobile navigation is now handled in NavBar */}
         
         {/* Main content */}
-        <main id="main-content" className="pb-16 lg:pb-0">
+        <main id="main-content" className="pb-0">
           <Outlet />
         </main>
         

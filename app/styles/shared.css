@@ -40,6 +40,7 @@ body {
   color: var(--color-gray-900);
   background: #ffffff;
   min-height: 100vh;
+  overflow-y: overlay;
 }
 
 ul,
@@ -273,4 +274,3 @@ button {
     transform: translateY(0);
   }
 }
-
