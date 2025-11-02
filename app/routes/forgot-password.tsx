@@ -57,7 +57,7 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState("");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#01502E]/5 to-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-[#01502E]/5 to-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md lg:max-w-lg w-full">
         {/* Back to Login */}
         <Link

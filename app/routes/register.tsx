@@ -218,7 +218,7 @@ export default function Register() {
 
   if (step === 'role') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#01502E]/5 to-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-[#01502E]/5 to-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="text-center mb-12">
@@ -316,7 +316,7 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#01502E]/5 to-gray-50 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-[#01502E]/5 to-gray-50 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md lg:max-w-lg w-full">
         {/* Header */}
         <div className="text-center mb-8">
