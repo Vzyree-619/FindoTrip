@@ -60,7 +60,9 @@ export async function getUser(request: Request) {
     });
     return user;
   } catch {
-    throw logout(request);
+    // Avoid redirect loops if the database is unavailable.
+    console.error('session.getUser: database error; returning null to avoid redirect loop');
+    return null;
   }
 }
 

@@ -72,7 +72,10 @@ export async function getUser(request: Request) {
     });
     return user;
   } catch {
-    throw logout(request);
+    // Avoid redirect loops (e.g., on /login) if the DB is unavailable.
+    // Instead, return null so callers can handle unauthenticated state gracefully.
+    console.error('getUser: database error; returning null to avoid redirect loop');
+    return null;
   }
 }
 
