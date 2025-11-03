@@ -1160,7 +1160,7 @@ export default function ToursPage() {
         <Card className="p-4">
           <div className="transition-opacity duration-300">
             {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {Array(6).fill(null).map((_, i) => (
                   <div key={i} className="animate-pulse">
                     <div className="bg-gray-200 rounded-lg h-64 mb-4"></div>
@@ -1186,7 +1186,7 @@ export default function ToursPage() {
 
         {/* Pagination */}
         {total > 0 && (
-          <div className="mt-8 flex items-center justify-between">
+          <div className="mt-8 flex items-center justify-between flex-col sm:flex-row gap-3 sm:gap-0">
             <div className="text-sm text-gray-700">
               Showing {((parseInt(searchParams.get("page") || "1") - 1) * parseInt(searchParams.get("limit") || "12")) + 1} to {Math.min(parseInt(searchParams.get("page") || "1") * parseInt(searchParams.get("limit") || "12"), total)} of {total} tours
             </div>
