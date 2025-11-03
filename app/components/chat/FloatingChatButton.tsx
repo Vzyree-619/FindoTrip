@@ -50,19 +50,15 @@ export function FloatingChatButton({ currentUserId, className }: FloatingChatBut
           return response.json();
         }}
         onSendMessage={async ({ conversationId, targetUserId, text, files }) => {
-          const response = await fetch("/api/chat.send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              conversationId,
-              targetUserId,
-              text,
-              files: files?.map(f => ({ name: f.name, type: f.type, size: f.size }))
-            })
-          });
-          
+          const form = new FormData();
+          if (conversationId) form.append("conversationId", conversationId);
+          if (targetUserId) form.append("targetUserId", targetUserId);
+          form.append("text", text);
+          files?.forEach(f => form.append("files", f));
+          const response = await fetch("/api/chat.send", { method: "POST", body: form });
           if (!response.ok) throw new Error("Failed to send message");
-          return response.json();
+          const json = await response.json();
+          return json.data;
         }}
         onLoadMore={async ({ conversationId, before }) => {
           const url = new URL(`/api/chat/conversations/${conversationId}/messages`, window.location.origin);

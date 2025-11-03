@@ -89,7 +89,7 @@ export function ChatInterface({
       if (conversationId) {
         console.log('Fetching conversation with ID:', conversationId);
         // Use the chat conversation API with conversationId
-        const res = await fetch(`/chat-conversation?conversationId=${conversationId}`);
+        const res = await fetch(`/api/chat.conversation?conversationId=${conversationId}`);
         const json = await res.json();
         console.log('Conversation API response:', json);
         return { 
@@ -99,7 +99,7 @@ export function ChatInterface({
       } else if (targetUserId) {
         console.log('Fetching conversation with targetUserId:', targetUserId);
         // Use the chat conversation API with targetUserId
-        const res = await fetch(`/chat-conversation?targetUserId=${targetUserId}`);
+        const res = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
         const json = await res.json();
         console.log('Conversation API response:', json);
         return { 
@@ -246,7 +246,7 @@ export function ChatInterface({
       if (targetUserId) formData.append('targetUserId', targetUserId);
       if (files) files.forEach(f => formData.append('files', f));
       
-      const res = await fetch('/chat-send', { 
+      const res = await fetch('/api/chat.send', { 
         method: 'POST', 
         body: formData 
       });
