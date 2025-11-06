@@ -140,8 +140,8 @@ export default function AdminLayout() {
       icon: Settings,
       current: false,
       children: [
-        { name: 'Platform Settings', href: '/admin/settings/platform', icon: Settings },
-        { name: 'Email Templates', href: '/admin/settings/email', icon: MessageSquare },
+        { name: 'General Settings', href: '/admin/settings/general', icon: Settings },
+        { name: 'Email Templates', href: '/admin/settings/emails', icon: MessageSquare },
         { name: 'Notification Settings', href: '/admin/settings/notifications', icon: Bell },
         { name: 'Security Settings', href: '/admin/settings/security', icon: Shield }
       ]

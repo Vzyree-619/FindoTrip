@@ -337,6 +337,98 @@ model User {
 }
 
 // ========================================
+// ADMIN PLATFORM CONFIGURATION MODELS
+// ========================================
+
+model PlatformSettings {
+  id                 String   @id @default("default") @map("_id") @db.ObjectId
+  platformName       String
+  platformDescription String?
+  platformLogo       String?
+  platformFavicon    String?
+  defaultCurrency    String   @default("USD")
+  defaultLanguage    String   @default("en")
+  timezone           String   @default("UTC")
+  dateFormat         String   @default("MM/DD/YYYY")
+  timeFormat         String   @default("12h")
+  commissionRate     Float    @default(10.0)
+  taxRate            Float    @default(0.0)
+  supportEmail       String?
+  supportPhone       String?
+  supportHours       String?
+  termsOfService     String?
+  privacyPolicy      String?
+  refundPolicy       String?
+  cancellationPolicy String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model PaymentGateway {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  type        String   // e.g., "stripe", "paypal", "razorpay"
+  isActive    Boolean  @default(true)
+  isPrimary   Boolean  @default(false)
+  isBackup    Boolean  @default(false)
+  testMode    Boolean  @default(false)
+  apiKey      String?
+  secretKey   String?
+  webhookSecret String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([type])
+  @@index([isActive])
+  @@index([isPrimary])
+}
+
+model AcceptedPaymentMethod {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  type      String   @unique // "credit_card", "paypal", "apple_pay", etc.
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([isEnabled])
+}
+
+model FeatureToggle {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  category    String   // "booking", "social", "communication", "marketing", "payment"
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([category])
+  @@index([isEnabled])
+}
+
+model PlatformLimit {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  category    String   // "user", "service", "content"
+  value       Int
+  unit        String   // "properties", "vehicles", "tours", "images", "characters"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([category])
+}
+
+model MaintenanceMode {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  isEnabled        Boolean  @default(false)
+  message          String?
+  estimatedEndTime DateTime?
+  startedBy        String?  @db.ObjectId
+  endedBy          String?  @db.ObjectId
+  endedAt          DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  @@index([isEnabled])
+}
+
+// ========================================
 // ROLE-BASED PROFILES WITH REAL RELATIONSHIPS
 // ========================================
 
@@ -2677,4 +2769,3 @@ model SecuritySetting {
   @@index([category])
   @@index([isEnabled])
 }
-
