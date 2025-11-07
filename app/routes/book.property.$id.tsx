@@ -135,6 +135,25 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     totalPrice = pricingBreakdown.total;
   }
 
+  const availabilityPreview = {};
+  if (roomTypeId) {
+    const start = new Date(); start.setHours(0,0,0,0);
+    const end = new Date(start); end.setDate(end.getDate() + 60);
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      const dayStart = new Date(cursor);
+      const dayEnd = new Date(cursor); dayEnd.setHours(23,59,59,999);
+      const inv = await prisma.roomInventoryDaily.findFirst({ where: { roomTypeId, date: dayStart } });
+      let capacity = 0;
+      if (inv && typeof inv.available === 'number') capacity = inv.available; else {
+        const rt = await prisma.roomType.findUnique({ where: { id: roomTypeId } });
+        capacity = rt?.inventory || 1;
+      }
+      const booked = await prisma.propertyBooking.count({ where: { propertyId, roomTypeId, status: { in: ['CONFIRMED','PENDING'] }, checkIn: { lte: dayEnd }, checkOut: { gte: dayStart } } });
+      availabilityPreview[dayStart.toISOString().split('T')[0]] = Math.max(0, capacity - booked);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
   return json({
     property,
     isAvailable,
@@ -142,6 +161,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     pricingBreakdown,
     totalPrice,
     nights,
+    availabilityPreview,
     searchParams: {
       checkIn,
       checkOut,
@@ -149,133 +169,6 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       roomTypeId,
     },
   });
-}
-
-export async function action({ request, params }: ActionFunctionArgs) {
-  const userId = await requireUserId(request);
-  const propertyId = params.id;
-  
-  if (!propertyId) {
-    throw new Response("Property ID is required", { status: 400 });
-  }
-
-  const formData = await request.formData();
-  const intent = formData.get("intent");
-
-  if (intent === "checkAvailability") {
-    const checkIn = formData.get("checkIn") as string;
-    const checkOut = formData.get("checkOut") as string;
-    const guests = parseInt(formData.get("guests") as string);
-
-    if (!checkIn || !checkOut) {
-      return json({ error: "Check-in and check-out dates are required" }, { status: 400 });
-    }
-
-    const checkInDate = new Date(checkIn);
-    const checkOutDate = new Date(checkOut);
-
-    if (checkInDate >= checkOutDate) {
-      return json({ error: "Check-out date must be after check-in date" }, { status: 400 });
-    }
-
-    // Check for conflicting bookings
-    const conflictingBookings: any[] = await prisma.propertyBooking.findMany({
-      where: {
-        propertyId,
-        status: { in: ["CONFIRMED", "PENDING"] },
-        OR: [
-          {
-            checkIn: { lte: checkOutDate },
-            checkOut: { gte: checkInDate },
-          },
-        ],
-      },
-    });
-
-    // Check unavailable dates
-    const unavailableDates = await prisma.unavailableDate.findMany({
-      where: {
-        serviceId: propertyId,
-        serviceType: "property",
-        OR: [
-          {
-            startDate: { lte: checkOutDate },
-            endDate: { gte: checkInDate },
-          },
-        ],
-      },
-    });
-
-    let isAvailable = conflictingBookings.length === 0 && unavailableDates.length === 0;
-
-    // Enforce room-type inventory if a specific room type is requested
-    if (isAvailable) {
-      const roomTypeIdSel = formData.get("roomTypeId") as string | null;
-      if (roomTypeIdSel) {
-        const roomType = await prisma.roomType.findUnique({ where: { id: roomTypeIdSel } });
-        if (!roomType) {
-          return json({ error: "Selected room type not found" }, { status: 404 });
-        }
-        const overlappingRoomBookings = await prisma.propertyBooking.count({
-          where: {
-            propertyId,
-            roomTypeId: roomTypeIdSel,
-            status: { in: ["CONFIRMED", "PENDING"] },
-            OR: [
-              {
-                checkIn: { lte: checkOutDate },
-                checkOut: { gte: checkInDate },
-              },
-            ],
-          },
-        });
-        if (overlappingRoomBookings >= (roomType.inventory || 1)) {
-          isAvailable = false;
-        }
-      }
-    }
-
-    if (!isAvailable) {
-      return json({ 
-        error: "Property is not available for the selected dates",
-        conflictingBookings,
-        unavailableDates,
-      }, { status: 400 });
-    }
-
-    // If a specific room type is requested, enforce nightly inventory using RoomInventoryDaily
-    const roomTypeIdSel = formData.get("roomTypeId") as string | null;
-    if (roomTypeIdSel) {
-      const roomType = await prisma.roomType.findUnique({ where: { id: roomTypeIdSel } });
-      if (!roomType) {
-        return json({ error: "Selected room type not found" }, { status: 404 });
-      }
-      const dayCursor = new Date(checkInDate);
-      while (dayCursor < checkOutDate) {
-        const dayStart = new Date(dayCursor);
-        dayStart.setHours(0,0,0,0);
-        const dayEnd = new Date(dayCursor);
-        dayEnd.setHours(23,59,59,999);
-
-        const inventoryRecord = await prisma.roomInventoryDaily.findUnique({
-          where: { roomTypeId_date: { roomTypeId: roomTypeIdSel, date: dayStart } }
-        }).catch(async () => {
-          // Some Prisma clients might not support composite unique in Mongo; fallback to findFirst
-          const rec = await prisma.roomInventoryDaily.findFirst({ where: { roomTypeId: roomTypeIdSel, date: dayStart } });
-          return rec as any;
-        });
-        const availableRooms = inventoryRecord?.available ?? (roomType.inventory || 1);
-
-        // Count overlapping bookings for this room type on the day
-        const bookedRooms = await prisma.propertyBooking.count({
-          where: {
-            propertyId,
-            roomTypeId: roomTypeIdSel,
-            status: { in: ["CONFIRMED", "PENDING"] },
-            checkIn: { lte: dayEnd },
-            checkOut: { gte: dayStart },
-          }
-        });
 
         if (bookedRooms >= availableRooms) {
           isAvailable = false;
@@ -566,7 +459,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function PropertyBooking() {
-  const { property, isAvailable, pricingBreakdown, totalPrice, nights, searchParams } = useLoaderData<typeof loader>();
+  const { property, isAvailable, pricingBreakdown, totalPrice, nights, searchParams, availabilityPreview } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const [searchParamsUrl, setSearchParamsUrl] = useSearchParams();
@@ -750,6 +643,21 @@ export default function PropertyBooking() {
                         selected={selectedDate}
                         onSelect={(d: Date | undefined) => setSelectedDate(d)}
                         footer={<div className="text-sm text-gray-600">Choose dates with better availability.</div>}
+                        components={{
+                          DayButton: ({ className, day, modifiers, ...props }: any) => {
+                            const key = day.date.toISOString().split('T')[0];
+                            const avail = availabilityPreview?.[key] ?? undefined;
+                            let color = '';
+                            if (typeof avail === 'number') {
+                              color = avail <= 0 ? 'bg-red-100 text-red-700' : avail <= 1 ? 'bg-orange-100 text-orange-700' : 'bg-green-50 text-green-700';
+                            }
+                            return (
+                              <button className={`aspect-square w-full rounded-md ${color}`} {...props}>
+                                {day.date.getDate()}
+                              </button>
+                            );
+                          }
+                        }}
                       />
                     </div>
                   )}
