@@ -62,6 +62,28 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return redirect(`/dashboard/provider/inventory/${roomTypeId}`);
   }
 
+  if (intent === "bulkSetInventory") {
+    const startStr = form.get("startDate") as string;
+    const endStr = form.get("endDate") as string;
+    const available = parseInt((form.get("available") as string) || "0", 10);
+    const note = (form.get("note") as string) || undefined;
+    if (!startStr || !endStr) return json({ error: "Start and end dates required" }, { status: 400 });
+    const start = normalizeDate(new Date(startStr));
+    const end = normalizeDate(new Date(endStr));
+    if (start > end) return json({ error: "End date must be after start date" }, { status: 400 });
+    const day = new Date(start);
+    while (day <= end) {
+      const existing = await prisma.roomInventoryDaily.findFirst({ where: { roomTypeId, date: day } });
+      if (existing) {
+        await prisma.roomInventoryDaily.update({ where: { id: existing.id }, data: { available, note } });
+      } else {
+        await prisma.roomInventoryDaily.create({ data: { roomTypeId, date: new Date(day), available, note, blocked: 0 } });
+      }
+      day.setDate(day.getDate() + 1);
+    }
+    return redirect(`/dashboard/provider/inventory/${roomTypeId}`);
+  }
+
   return json({ error: "Invalid action" }, { status: 400 });
 }
 
@@ -145,6 +167,29 @@ export default function RoomInventory() {
                 <input name="note" className="w-full border rounded px-3 py-2" placeholder="Optional note" />
               </div>
               <button className="px-4 py-2 bg-[#01502E] text-white rounded">Save</button>
+            </Form>
+          </div>
+          <div className="mt-6">
+            <h3 className="font-semibold mb-2">Bulk Update Range</h3>
+            <Form method="post" className="flex items-end gap-3 flex-wrap">
+              <input type="hidden" name="intent" value="bulkSetInventory" />
+              <div>
+                <label className="block text-sm font-medium">Start Date</label>
+                <input name="startDate" type="date" className="border rounded px-3 py-2" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">End Date</label>
+                <input name="endDate" type="date" className="border rounded px-3 py-2" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Available Rooms</label>
+                <input name="available" type="number" min={0} className="border rounded px-3 py-2" placeholder="e.g. 3" required />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium">Note</label>
+                <input name="note" className="w-full border rounded px-3 py-2" placeholder="Optional note" />
+              </div>
+              <button className="px-4 py-2 bg-[#01502E] text-white rounded">Apply to Range</button>
             </Form>
           </div>
           <div className="mt-6">

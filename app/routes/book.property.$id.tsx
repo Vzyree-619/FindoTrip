@@ -587,6 +587,7 @@ export default function PropertyBooking() {
   const [specialRequests, setSpecialRequests] = useState("");
   const [insurance, setInsurance] = useState(false);
   const [roomTypeId, setRoomTypeId] = useState<string | undefined>(searchParams.roomTypeId);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -737,6 +738,19 @@ export default function PropertyBooking() {
                           <option key={rt.id} value={rt.id}>{rt.name} — PKR {rt.basePrice.toLocaleString()}</option>
                         ))}
                       </select>
+                    </div>
+                  )}
+                  {/* Availability Calendar Preview */}
+                  {roomTypeId && (
+                    <div>
+                      <Label>Availability Preview</Label>
+                      <Calendar
+                        mode="single"
+                        numberOfMonths={2}
+                        selected={selectedDate}
+                        onSelect={(d: Date | undefined) => setSelectedDate(d)}
+                        footer={<div className="text-sm text-gray-600">Choose dates with better availability.</div>}
+                      />
                     </div>
                   )}
                   {/* Date Selection */}
