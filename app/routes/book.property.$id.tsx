@@ -173,48 +173,6 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   });
 
 
-    // Calculate pricing
-    const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-    const property = await prisma.property.findUnique({
-      where: { id: propertyId },
-      select: {
-        basePrice: true,
-        cleaningFee: true,
-        serviceFee: true,
-        taxRate: true,
-        
-      },
-    });
-
-    if (!property) {
-      return json({ error: "Property not found" }, { status: 404 });
-    }
-
-    const roomTypeId = formData.get("roomTypeId") as string | null;
-    const perNight = roomTypeId
-      ? (await prisma.roomType.findUnique({ where: { id: roomTypeId } }))?.basePrice ?? property.basePrice
-      : property.basePrice;
-    const basePrice = perNight * nights;
-    const cleaningFee = property.cleaningFee;
-    const serviceFee = property.serviceFee;
-    const taxes = (basePrice + cleaningFee + serviceFee) * (property.taxRate / 100);
-    const totalPrice = basePrice + cleaningFee + serviceFee + taxes;
-
-    return json({
-      success: true,
-      isAvailable: true,
-      pricingBreakdown: {
-        basePrice,
-        cleaningFee,
-        serviceFee,
-        taxes,
-        total: totalPrice,
-      },
-      nights,
-      totalPrice,
-    });
-  }
-
   if (intent === "createBooking") {
     const checkIn = formData.get("checkIn") as string;
     const checkOut = formData.get("checkOut") as string;
