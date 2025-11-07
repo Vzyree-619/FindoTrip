@@ -172,22 +172,6 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     },
   });
 
-        if (bookedRooms >= availableRooms) {
-          isAvailable = false;
-          break;
-        }
-
-        dayCursor.setDate(dayCursor.getDate() + 1);
-      }
-
-      if (!isAvailable) {
-        return json({ 
-          error: "Selected room type is fully booked for one or more nights",
-          conflictingBookings,
-          unavailableDates,
-        }, { status: 400 });
-      }
-    }
 
     // Calculate pricing
     const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
