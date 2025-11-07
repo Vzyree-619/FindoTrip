@@ -350,6 +350,11 @@ export default function ProviderDashboard() {
             <Plus className="w-5 h-5 text-[#01502E]" />
             <h2 className="text-lg font-semibold">Create New Property</h2>
           </div>
+          <div className="mb-4">
+            <Link to="/dashboard/provider/rooms" className="inline-flex items-center gap-2 px-3 py-2 border rounded hover:bg-gray-50">
+              Manage Room Types
+            </Link>
+          </div>
           <Form method="post" className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input type="hidden" name="intent" value="create" />
             <div>

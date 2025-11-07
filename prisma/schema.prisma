@@ -844,6 +844,9 @@ model Property {
   reviews       Review[]
   unavailableDates UnavailableDate[]
   
+  // Room types for multi-room properties (e.g., hotels)
+  roomTypes     RoomType[]
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -854,6 +857,49 @@ model Property {
   @@index([approvalStatus])
   @@index([available])
   @@index([rating])
+}
+
+// ========================================
+// ROOMS FOR PROPERTIES (MULTI-ROOM SUPPORT)
+// ========================================
+
+model RoomType {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  propertyId     String    @db.ObjectId
+  property       Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  // Descriptors
+  name           String    // e.g., Deluxe King, Standard Twin
+  description    String?
+
+  // Capacity & Bed config
+  maxGuests      Int
+  beds           Int?
+  bedType        String?   // e.g., King, Twin, Queen
+
+  // Inventory & Pricing
+  basePrice      Float     // price per night for this room type
+  inventory      Int       @default(1) // total rooms of this type
+  available      Boolean   @default(true)
+  amenities      String[]
+
+  // Media
+  images         String[]
+
+  // Stats
+  bookedCount    Int       @default(0)
+  rating         Float     @default(0)
+  reviewCount    Int       @default(0)
+
+  // Bookings referencing this room type
+  bookings       PropertyBooking[]
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([propertyId])
+  @@index([available])
+  @@index([basePrice])
 }
 
 model Vehicle {
@@ -1114,6 +1160,10 @@ model PropertyBooking {
   propertyId      String @db.ObjectId
   property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   
+  // Optional: specific room type booked (for multi-room properties)
+  roomTypeId      String? @db.ObjectId
+  roomType        RoomType? @relation(fields: [roomTypeId], references: [id])
+  
   // Chat integration
   conversationId String? @db.ObjectId
   conversation Conversation? @relation("PropertyBookingConversation", fields: [conversationId], references: [id])
@@ -1129,6 +1179,7 @@ model PropertyBooking {
 
   @@index([userId])
   @@index([propertyId])
+  @@index([roomTypeId])
   @@index([status])
   @@index([checkIn, checkOut])
 }

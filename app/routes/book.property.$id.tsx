@@ -32,6 +32,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const checkIn = url.searchParams.get("checkIn");
   const checkOut = url.searchParams.get("checkOut");
   const guests = url.searchParams.get("guests");
+  const roomTypeId = url.searchParams.get("roomTypeId") || undefined;
 
   const property = await prisma.property.findUnique({
     where: { id: propertyId },
@@ -70,6 +71,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
           startDate: "asc",
         },
       },
+      roomTypes: true,
     },
   });
 
@@ -127,7 +129,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     const checkOutDate = new Date(checkOut);
     nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
     
-    pricingBreakdown.basePrice = property.basePrice * nights;
+    const basePerNight = roomTypeId ? (property.roomTypes || []).find(rt => rt.id === roomTypeId)?.basePrice ?? property.basePrice : property.basePrice;
+    pricingBreakdown.basePrice = basePerNight * nights;
     pricingBreakdown.taxes = (pricingBreakdown.basePrice + pricingBreakdown.cleaningFee + pricingBreakdown.serviceFee) * (property.taxRate / 100);
     pricingBreakdown.total = pricingBreakdown.basePrice + pricingBreakdown.cleaningFee + pricingBreakdown.serviceFee + pricingBreakdown.taxes;
     totalPrice = pricingBreakdown.total;
@@ -144,6 +147,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       checkIn,
       checkOut,
       guests: guests ? parseInt(guests) : 1,
+      roomTypeId,
     },
   });
 }
@@ -203,7 +207,34 @@ export async function action({ request, params }: ActionFunctionArgs) {
       },
     });
 
-    const isAvailable = conflictingBookings.length === 0 && unavailableDates.length === 0;
+    let isAvailable = conflictingBookings.length === 0 && unavailableDates.length === 0;
+
+    // Enforce room-type inventory if a specific room type is requested
+    if (isAvailable) {
+      const roomTypeIdSel = formData.get("roomTypeId") as string | null;
+      if (roomTypeIdSel) {
+        const roomType = await prisma.roomType.findUnique({ where: { id: roomTypeIdSel } });
+        if (!roomType) {
+          return json({ error: "Selected room type not found" }, { status: 404 });
+        }
+        const overlappingRoomBookings = await prisma.propertyBooking.count({
+          where: {
+            propertyId,
+            roomTypeId: roomTypeIdSel,
+            status: { in: ["CONFIRMED", "PENDING"] },
+            OR: [
+              {
+                checkIn: { lte: checkOutDate },
+                checkOut: { gte: checkInDate },
+              },
+            ],
+          },
+        });
+        if (overlappingRoomBookings >= (roomType.inventory || 1)) {
+          isAvailable = false;
+        }
+      }
+    }
 
     if (!isAvailable) {
       return json({ 
@@ -222,6 +253,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         cleaningFee: true,
         serviceFee: true,
         taxRate: true,
+        roomTypes: true,
       },
     });
 
@@ -229,7 +261,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return json({ error: "Property not found" }, { status: 404 });
     }
 
-    const basePrice = property.basePrice * nights;
+    const roomTypeId = formData.get("roomTypeId") as string | null;
+    const perNight = roomTypeId ? (property.roomTypes || []).find(rt => rt.id === roomTypeId)?.basePrice ?? property.basePrice : property.basePrice;
+    const basePrice = perNight * nights;
     const cleaningFee = property.cleaningFee;
     const serviceFee = property.serviceFee;
     const taxes = (basePrice + cleaningFee + serviceFee) * (property.taxRate / 100);
@@ -323,6 +357,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
           specialRequests,
           userId,
           propertyId,
+          roomTypeId: (roomTypeId as string) || null,
         },
         include: {
           property: {
@@ -339,6 +374,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
               },
             },
           },
+          roomType: true,
         },
       });
 
@@ -358,15 +394,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
 
       // 2) Block availability immediately so other customers can't double-book
+      // Only block entire property for base bookings (no specific room type)
       try {
-        await blockServiceDates(
-          propertyId,
-          "property",
-          checkInDate,
-          checkOutDate,
-          "booked",
-          booking.property.ownerId
-        );
+        if (!booking.roomTypeId) {
+          await blockServiceDates(
+            propertyId,
+            "property",
+            checkInDate,
+            checkOutDate,
+            "booked",
+            booking.property.ownerId
+          );
+        }
       } catch (e) {
         console.error("Failed to block dates for property booking", e);
       }
@@ -495,6 +534,7 @@ export default function PropertyBooking() {
   });
   const [specialRequests, setSpecialRequests] = useState("");
   const [insurance, setInsurance] = useState(false);
+  const [roomTypeId, setRoomTypeId] = useState<string | undefined>(searchParams.roomTypeId);
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -521,6 +561,7 @@ export default function PropertyBooking() {
     if (selectedDates.checkIn) newSearchParams.set("checkIn", selectedDates.checkIn);
     if (selectedDates.checkOut) newSearchParams.set("checkOut", selectedDates.checkOut);
     newSearchParams.set("guests", guests.toString());
+    if (roomTypeId) newSearchParams.set("roomTypeId", roomTypeId);
     setSearchParamsUrl(newSearchParams);
   };
 
@@ -635,6 +676,17 @@ export default function PropertyBooking() {
               </CardHeader>
               <CardContent>
                 <Form method="post" className="space-y-6">
+                  {Array.isArray(property.roomTypes) && property.roomTypes.length > 0 && (
+                    <div>
+                      <Label>Room Type</Label>
+                      <select name="roomTypeId" value={roomTypeId || ''} onChange={(e) => setRoomTypeId(e.target.value || undefined)} className="mt-2 w-full border rounded px-3 py-2">
+                        <option value="">Default (Base)</option>
+                        {property.roomTypes.map((rt: any) => (
+                          <option key={rt.id} value={rt.id}>{rt.name} — PKR {rt.basePrice.toLocaleString()}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   {/* Date Selection */}
                   <div>
                     <Label htmlFor="checkIn">Check-in Date</Label>
