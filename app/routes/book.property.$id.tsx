@@ -162,6 +162,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     totalPrice,
     nights,
     availabilityPreview,
+    pricePreview,
+    suggestedRange,
     searchParams: {
       checkIn,
       checkOut,
@@ -459,7 +461,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 }
 
 export default function PropertyBooking() {
-  const { property, isAvailable, pricingBreakdown, totalPrice, nights, searchParams, availabilityPreview } = useLoaderData<typeof loader>();
+  const { property, isAvailable, pricingBreakdown, totalPrice, nights, searchParams, availabilityPreview, pricePreview, suggestedRange } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const [searchParamsUrl, setSearchParamsUrl] = useSearchParams();
@@ -481,9 +483,29 @@ export default function PropertyBooking() {
   const [insurance, setInsurance] = useState(false);
   const [roomTypeId, setRoomTypeId] = useState<string | undefined>(searchParams.roomTypeId);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [rangeWarning, setRangeWarning] = useState<string | null>(null);
 
   const isSubmitting = navigation.state === "submitting";
 
+  useEffect(() => {
+    if (!selectedDates.checkIn && !selectedDates.checkOut && suggestedRange) {
+      setSelectedDates({ checkIn: suggestedRange.checkIn, checkOut: suggestedRange.checkOut });
+    }
+  }, [suggestedRange]);
+
+  useEffect(() => {
+    if (!roomTypeId || !selectedDates.checkIn || !selectedDates.checkOut) { setRangeWarning(null); return; }
+    const start = new Date(selectedDates.checkIn);
+    const end = new Date(selectedDates.checkOut);
+    const probe = new Date(start);
+    let ok = true;
+    while (probe < end) {
+      const key = probe.toISOString().split('T')[0];
+      if ((availabilityPreview?.[key] ?? 0) <= 0) { ok = false; break; }
+      probe.setDate(probe.getDate() + 1);
+    }
+    setRangeWarning(ok ? null : 'Selected dates include fully booked nights. Please adjust or use the suggested range.');
+  }, [roomTypeId, selectedDates, availabilityPreview]);
   const handleDateChange = (field: string, value: string) => {
     setSelectedDates(prev => ({ ...prev, [field]: value }));
   };
@@ -647,19 +669,26 @@ export default function PropertyBooking() {
                           DayButton: ({ className, day, modifiers, ...props }: any) => {
                             const key = day.date.toISOString().split('T')[0];
                             const avail = availabilityPreview?.[key] ?? undefined;
+                            const price = pricePreview?.[key];
                             let color = '';
                             if (typeof avail === 'number') {
                               color = avail <= 0 ? 'bg-red-100 text-red-700' : avail <= 1 ? 'bg-orange-100 text-orange-700' : 'bg-green-50 text-green-700';
                             }
                             return (
-                              <button className={`aspect-square w-full rounded-md ${color}`} {...props}>
-                                {day.date.getDate()}
+                              <button className={`aspect-square w-full rounded-md flex flex-col items-center justify-center ${color}`} {...props}>
+                                <span>{day.date.getDate()}</span>
+                                {typeof price === 'number' && (
+                                  <span className="text-[10px] text-gray-700">{property.currency} {price}</span>
+                                )}
                               </button>
                             );
                           }
                         }}
                       />
                     </div>
+                  )}
+                  {rangeWarning && (
+                    <div className="p-3 border border-red-200 bg-red-50 text-red-700 rounded text-sm">{rangeWarning}</div>
                   )}
                   {/* Date Selection */}
                   <div>
