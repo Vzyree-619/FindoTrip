@@ -31,7 +31,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     orderBy: { date: "asc" }
   });
 
-  return json({ roomType, inventories });
+  return json({ roomType, inventories, capacity: roomType.inventory || 1 });
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -66,14 +66,38 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function RoomInventory() {
-  const { roomType, inventories } = useLoaderData<typeof loader>();
+  const { roomType, inventories, capacity } = useLoaderData<typeof loader>();
   const params = useParams();
+  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(undefined);
   // Build a map for quick lookup
   const invMap = new Map<string, any>();
   inventories.forEach((i: any) => {
     const key = new Date(i.date).toISOString().split('T')[0];
     invMap.set(key, i);
   });
+
+  const getAvailForDate = (date: Date) => {
+    const key = new Date(date).toISOString().split('T')[0];
+    const rec = invMap.get(key);
+    return typeof rec?.available === 'number' ? rec.available : capacity;
+  };
+
+  const DayButtonColored = ({ className, day, modifiers, ...props }: any) => {
+    const avail = getAvailForDate(day.date);
+    let colorClass = '';
+    if (avail <= 0) colorClass = 'bg-red-100 text-red-700';
+    else if (avail <= Math.max(1, Math.floor(capacity * 0.25))) colorClass = 'bg-orange-100 text-orange-700';
+    else if (avail <= Math.max(1, Math.floor(capacity * 0.5))) colorClass = 'bg-yellow-100 text-yellow-800';
+    else colorClass = 'bg-green-50 text-green-700';
+    return (
+      <button
+        className={`group/day relative aspect-square h-full w-full select-none p-0 text-center rounded-md ${colorClass}`}
+        {...props}
+      >
+        {day.date.getDate()}
+      </button>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -86,15 +110,31 @@ export default function RoomInventory() {
           <Calendar
             mode="single"
             numberOfMonths={2}
-            onDayClick={() => {}}
-            footer={<div className="text-sm text-gray-600">Select a date below to set available rooms.</div>}
+            selected={selectedDate}
+            onSelect={(d: Date | undefined) => setSelectedDate(d)}
+            components={{ DayButton: DayButtonColored }}
+            footer={
+              <div className="text-sm text-gray-600 flex items-center gap-3">
+                <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 bg-green-50 border rounded"></span> Good availability</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 bg-yellow-100 border rounded"></span> Moderate</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 bg-orange-100 border rounded"></span> Low</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 bg-red-100 border rounded"></span> Fully booked</span>
+              </div>
+            }
           />
           <div className="mt-6">
             <Form method="post" className="flex items-end gap-3">
               <input type="hidden" name="intent" value="setInventory" />
               <div>
                 <label className="block text-sm font-medium">Date</label>
-                <input name="date" type="date" className="border rounded px-3 py-2" required />
+                <input
+                  name="date"
+                  type="date"
+                  className="border rounded px-3 py-2"
+                  required
+                  value={selectedDate ? new Date(selectedDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) => setSelectedDate(e.target.value ? new Date(e.target.value) : undefined)}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium">Available Rooms</label>
@@ -124,4 +164,3 @@ export default function RoomInventory() {
     </div>
   );
 }
-
