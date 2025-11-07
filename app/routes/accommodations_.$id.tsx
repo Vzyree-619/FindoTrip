@@ -86,7 +86,14 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   });
 
   // Fetch room types separately (avoid relation include issues if client isn't regenerated)
-  const roomTypes = await prisma.roomType.findMany({ where: { propertyId: id } });
+  // Room types fetched separately; guard for environments where Prisma client isn't regenerated yet
+  let roomTypes: any[] = [];
+  try {
+    const anyPrisma: any = prisma as any;
+    if (anyPrisma.roomType?.findMany) {
+      roomTypes = await anyPrisma.roomType.findMany({ where: { propertyId: id } });
+    }
+  } catch {}
 
   // Map property -> accommodation shape used by UI
   const accommodation = { ...property, roomTypes, pricePerNight: property.basePrice, currency: (property as any).currency || 'PKR' } as any;
