@@ -71,7 +71,6 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
           startDate: "asc",
         },
       },
-      roomTypes: true,
     },
   });
 
@@ -304,7 +303,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         cleaningFee: true,
         serviceFee: true,
         taxRate: true,
-        roomTypes: true,
+        
       },
     });
 
@@ -313,7 +312,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     const roomTypeId = formData.get("roomTypeId") as string | null;
-    const perNight = roomTypeId ? (property.roomTypes || []).find(rt => rt.id === roomTypeId)?.basePrice ?? property.basePrice : property.basePrice;
+    const perNight = roomTypeId
+      ? (await prisma.roomType.findUnique({ where: { id: roomTypeId } }))?.basePrice ?? property.basePrice
+      : property.basePrice;
     const basePrice = perNight * nights;
     const cleaningFee = property.cleaningFee;
     const serviceFee = property.serviceFee;

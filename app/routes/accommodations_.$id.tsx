@@ -44,7 +44,6 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         include: { user: { select: { name: true, avatar: true } } },
         take: 10,
       },
-      roomTypes: true,
     },
   });
 
@@ -86,8 +85,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     orderBy: { rating: "desc" },
   });
 
+  // Fetch room types separately (avoid relation include issues if client isn't regenerated)
+  const roomTypes = await prisma.roomType.findMany({ where: { propertyId: id } });
+
   // Map property -> accommodation shape used by UI
-  const accommodation = { ...property, pricePerNight: property.basePrice, currency: (property as any).currency || 'PKR' } as any;
+  const accommodation = { ...property, roomTypes, pricePerNight: property.basePrice, currency: (property as any).currency || 'PKR' } as any;
 
   return json({ 
     accommodation, 
