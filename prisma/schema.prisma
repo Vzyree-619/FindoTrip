@@ -893,6 +893,7 @@ model RoomType {
 
   // Bookings referencing this room type
   bookings       PropertyBooking[]
+  inventories    RoomInventoryDaily[]
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -900,6 +901,27 @@ model RoomType {
   @@index([propertyId])
   @@index([available])
   @@index([basePrice])
+}
+
+// ========================================
+// ROOM-TYPE NIGHTLY INVENTORY
+// ========================================
+
+model RoomInventoryDaily {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  roomTypeId  String    @db.ObjectId
+  roomType    RoomType  @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  
+  // Date should be normalized to 00:00:00 UTC for the day
+  date        DateTime
+  available   Int       // available rooms for this date
+  blocked     Int       @default(0)
+  note        String?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([roomTypeId])
 }
 
 model Vehicle {

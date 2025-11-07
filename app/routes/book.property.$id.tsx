@@ -244,6 +244,57 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }, { status: 400 });
     }
 
+    // If a specific room type is requested, enforce nightly inventory using RoomInventoryDaily
+    const roomTypeIdSel = formData.get("roomTypeId") as string | null;
+    if (roomTypeIdSel) {
+      const roomType = await prisma.roomType.findUnique({ where: { id: roomTypeIdSel } });
+      if (!roomType) {
+        return json({ error: "Selected room type not found" }, { status: 404 });
+      }
+      const dayCursor = new Date(checkInDate);
+      while (dayCursor < checkOutDate) {
+        const dayStart = new Date(dayCursor);
+        dayStart.setHours(0,0,0,0);
+        const dayEnd = new Date(dayCursor);
+        dayEnd.setHours(23,59,59,999);
+
+        const inventoryRecord = await prisma.roomInventoryDaily.findUnique({
+          where: { roomTypeId_date: { roomTypeId: roomTypeIdSel, date: dayStart } }
+        }).catch(async () => {
+          // Some Prisma clients might not support composite unique in Mongo; fallback to findFirst
+          const rec = await prisma.roomInventoryDaily.findFirst({ where: { roomTypeId: roomTypeIdSel, date: dayStart } });
+          return rec as any;
+        });
+        const availableRooms = inventoryRecord?.available ?? (roomType.inventory || 1);
+
+        // Count overlapping bookings for this room type on the day
+        const bookedRooms = await prisma.propertyBooking.count({
+          where: {
+            propertyId,
+            roomTypeId: roomTypeIdSel,
+            status: { in: ["CONFIRMED", "PENDING"] },
+            checkIn: { lte: dayEnd },
+            checkOut: { gte: dayStart },
+          }
+        });
+
+        if (bookedRooms >= availableRooms) {
+          isAvailable = false;
+          break;
+        }
+
+        dayCursor.setDate(dayCursor.getDate() + 1);
+      }
+
+      if (!isAvailable) {
+        return json({ 
+          error: "Selected room type is fully booked for one or more nights",
+          conflictingBookings,
+          unavailableDates,
+        }, { status: 400 });
+      }
+    }
+
     // Calculate pricing
     const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
     const property = await prisma.property.findUnique({

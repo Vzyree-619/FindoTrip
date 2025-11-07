@@ -147,6 +147,7 @@ export default function ProviderRooms() {
                         <input type="hidden" name="id" value={rt.id} />
                         <button className="border rounded px-3 py-2">{rt.available ? 'Disable' : 'Enable'}</button>
                       </Form>
+                      <Link to={`/dashboard/provider/inventory/${rt.id}`} className="border rounded px-3 py-2">Inventory</Link>
                       <Form method="post" className="flex items-center gap-2">
                         <input type="hidden" name="intent" value="update" />
                         <input type="hidden" name="id" value={rt.id} />

@@ -1,0 +1,127 @@
+import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
+import { Form, useLoaderData, useParams, Link } from "@remix-run/react";
+import { prisma } from "~/lib/db/db.server";
+import { requireUserId } from "~/lib/auth/auth.server";
+import { Calendar } from "~/components/ui/calendar";
+
+function normalizeDate(d: Date) {
+  const x = new Date(d);
+  x.setHours(0,0,0,0);
+  return x;
+}
+
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  const userId = await requireUserId(request);
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
+  if (!user || user.role !== "PROPERTY_OWNER") throw redirect("/login");
+
+  const roomTypeId = params.roomTypeId!;
+  const roomType = await prisma.roomType.findUnique({ where: { id: roomTypeId }, include: { property: true } });
+  if (!roomType) throw new Response("Not found", { status: 404 });
+
+  const owner = await prisma.propertyOwner.findUnique({ where: { id: roomType.property.ownerId } });
+  if (!owner || owner.userId !== userId) throw new Response("Forbidden", { status: 403 });
+
+  // Load next 60 days inventory
+  const start = normalizeDate(new Date());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 60);
+  const inventories = await prisma.roomInventoryDaily.findMany({
+    where: { roomTypeId, date: { gte: start, lte: end } },
+    orderBy: { date: "asc" }
+  });
+
+  return json({ roomType, inventories });
+}
+
+export async function action({ request, params }: ActionFunctionArgs) {
+  const userId = await requireUserId(request);
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
+  if (!user || user.role !== "PROPERTY_OWNER") return json({ error: "Not authorized" }, { status: 403 });
+
+  const roomTypeId = params.roomTypeId!;
+  const roomType = await prisma.roomType.findUnique({ where: { id: roomTypeId }, include: { property: true } });
+  if (!roomType) return json({ error: "Room type not found" }, { status: 404 });
+  const owner = await prisma.propertyOwner.findUnique({ where: { id: roomType.property.ownerId } });
+  if (!owner || owner.userId !== userId) return json({ error: "Forbidden" }, { status: 403 });
+
+  const form = await request.formData();
+  const intent = form.get("intent");
+  if (intent === "setInventory") {
+    const dateStr = form.get("date") as string;
+    const available = parseInt((form.get("available") as string) || "0", 10);
+    const note = (form.get("note") as string) || undefined;
+    if (!dateStr) return json({ error: "Date required" }, { status: 400 });
+    const date = normalizeDate(new Date(dateStr));
+    const existing = await prisma.roomInventoryDaily.findFirst({ where: { roomTypeId, date } });
+    if (existing) {
+      await prisma.roomInventoryDaily.update({ where: { id: existing.id }, data: { available, note } });
+    } else {
+      await prisma.roomInventoryDaily.create({ data: { roomTypeId, date, available, note, blocked: 0 } });
+    }
+    return redirect(`/dashboard/provider/inventory/${roomTypeId}`);
+  }
+
+  return json({ error: "Invalid action" }, { status: 400 });
+}
+
+export default function RoomInventory() {
+  const { roomType, inventories } = useLoaderData<typeof loader>();
+  const params = useParams();
+  // Build a map for quick lookup
+  const invMap = new Map<string, any>();
+  inventories.forEach((i: any) => {
+    const key = new Date(i.date).toISOString().split('T')[0];
+    invMap.set(key, i);
+  });
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">Inventory — {roomType.name}</h1>
+          <Link to="/dashboard/provider/rooms" className="text-[#01502E] underline">Back to Room Types</Link>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <Calendar
+            mode="single"
+            numberOfMonths={2}
+            onDayClick={() => {}}
+            footer={<div className="text-sm text-gray-600">Select a date below to set available rooms.</div>}
+          />
+          <div className="mt-6">
+            <Form method="post" className="flex items-end gap-3">
+              <input type="hidden" name="intent" value="setInventory" />
+              <div>
+                <label className="block text-sm font-medium">Date</label>
+                <input name="date" type="date" className="border rounded px-3 py-2" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Available Rooms</label>
+                <input name="available" type="number" min={0} className="border rounded px-3 py-2" placeholder="e.g. 3" required />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium">Note</label>
+                <input name="note" className="w-full border rounded px-3 py-2" placeholder="Optional note" />
+              </div>
+              <button className="px-4 py-2 bg-[#01502E] text-white rounded">Save</button>
+            </Form>
+          </div>
+          <div className="mt-6">
+            <h2 className="font-semibold mb-2">Upcoming 60 days</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {inventories.map((i: any) => (
+                <div key={i.id} className="border rounded p-3">
+                  <div className="text-sm text-gray-600">{new Date(i.date).toISOString().split('T')[0]}</div>
+                  <div className="font-semibold">Available: {i.available}</div>
+                  {i.note && <div className="text-sm text-gray-700">{i.note}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
