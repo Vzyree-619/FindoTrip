@@ -109,6 +109,7 @@ export function ChatInterface({
         console.log('Fetching conversation with ID:', conversationId);
         // Use the chat conversation API with conversationId
         const res = await fetch(`/api/chat.conversation?conversationId=${conversationId}`);
+        if (!res.ok) throw new Error('Failed to fetch conversation');
         const json = await res.json();
         console.log('Conversation API response:', json);
         return { 
@@ -119,6 +120,7 @@ export function ChatInterface({
         console.log('Fetching conversation with targetUserId:', targetUserId);
         // Use the chat conversation API with targetUserId
         const res = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
+        if (!res.ok) throw new Error('Failed to fetch conversation');
         const json = await res.json();
         console.log('Conversation API response:', json);
         return { 
@@ -268,8 +270,22 @@ export function ChatInterface({
   }, [conversationId]);
 
   const onSend = async (text: string, files?: File[]) => {
-    const defaultSend = async ({ text, files }: { targetUserId?: string; text: string; files?: File[] }) => {
-      const cid = conversation?.id || conversationId;
+    const defaultSend = async ({ text, files, targetUserId: tuid }: { targetUserId?: string; text: string; files?: File[] }) => {
+      let cid = conversation?.id || conversationId;
+      // If no conversation yet, create or fetch it using targetUserId
+      if (!cid && tuid) {
+        try {
+          const resp = await fetch(`/api/chat.conversation?targetUserId=${tuid}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            cid = data?.conversation?.id;
+            if (cid) {
+              setConversation(data.conversation);
+              setMessages((data.messages || []) as any);
+            }
+          }
+        } catch {}
+      }
       if (!cid) return undefined;
       const payload: any = { content: text };
       if (files?.length) {
@@ -313,10 +329,7 @@ export function ChatInterface({
     try {
       const result = await (onSendMessage || defaultSend)({ targetUserId, text, files });
       if (result) {
-        setMessages((prev) => {
-          const withoutTemp = prev.filter((m) => m.id !== temp.id);
-          return [...withoutTemp, result];
-        });
+        setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...result, status: "sent" } : m)));
       } else {
         setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...m, status: "sent" } : m)));
       }

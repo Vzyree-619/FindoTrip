@@ -270,6 +270,7 @@ export default function TourDetailPage() {
   const [selectedTime, setSelectedTime] = useState((tour as any).timeSlots?.[0] || '');
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatConversationId, setChatConversationId] = useState<string | undefined>(undefined);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [extras, setExtras] = useState<{ key: string; label: string; price: number; selected: boolean }[]>([
     { key: 'lunch', label: 'Lunch', price: 1500, selected: false },
@@ -337,6 +338,20 @@ export default function TourDetailPage() {
   };
 
   const handleMessageGuide = () => setChatOpen(true);
+
+  // Pre-resolve a real conversationId when chat opens to keep it stable
+  useEffect(() => {
+    const resolveConversation = async () => {
+      try {
+        if (!chatOpen || !user?.id || !(tour as any)?.guide?.userId) return;
+        const res = await fetch(`/api/chat.conversation?targetUserId=${(tour as any).guide.userId}`);
+        const json = await res.json();
+        const cid = json?.conversation?.id;
+        if (cid) setChatConversationId(cid);
+      } catch {}
+    };
+    resolveConversation();
+  }, [chatOpen, user?.id, (tour as any)?.guide?.userId]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -811,6 +826,7 @@ export default function TourDetailPage() {
         isOpen={chatOpen}
         onClose={() => setChatOpen(false)}
         targetUserId={(tour as any).guide?.userId}
+        conversationId={chatConversationId}
         currentUserId={user?.id}
         initialMessage={`Hi ${tour.guide.name}, I'm interested in the ${tour.title}${selectedDate ? ` on ${selectedDate}` : ''}.`}
         fetchConversation={async ({ targetUserId }) => {
