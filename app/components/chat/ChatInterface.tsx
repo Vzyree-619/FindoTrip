@@ -6,6 +6,7 @@ import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
 import AttachmentPreview from "./AttachmentPreview";
 import { useTheme } from "~/contexts/ThemeContext";
+import { useNotificationsStream } from "~/hooks/useNotificationsStream";
 
 export type ChatInterfaceProps = {
   isOpen: boolean;
@@ -79,8 +80,26 @@ export function ChatInterface({
   const lastTypingSentRef = useRef<number>(0);
   const stopTypingTimerRef = useRef<number | null>(null);
 
-  // Real-time chat events would be handled here in a production app
-  // For now, we'll use a simple implementation without SSE
+  // Wire up SSE for real-time chat updates (messages + typing)
+  useNotificationsStream(
+    () => {},
+    (msg) => {
+      try {
+        const cid = conversation?.id || conversationId;
+        if (!cid || !msg) return;
+        if (msg.type === "chat_message" && msg.conversationId === cid && msg.message) {
+          setMessages((prev) => {
+            const exists = prev.find((m) => m.id === msg.message.id);
+            return exists ? prev : [...prev, msg.message];
+          });
+          scrollToBottomSmooth();
+        }
+        if (msg.type === "typing" && msg.conversationId === cid) {
+          setIsTyping(Boolean(msg.typing) && msg.senderId !== currentUserId);
+        }
+      } catch {}
+    }
+  );
 
   const load = async () => {
     console.log('ChatInterface load called with:', { conversationId, targetUserId });
@@ -114,21 +133,30 @@ export function ChatInterface({
       const res = await (fetchConversation || defaultFetch)({ conversationId, targetUserId });
       console.log('Load result:', res);
       setConversation(res.conversation);
-      setMessages(res.messages || []);
+      // Merge loaded messages with any optimistic temps to avoid losing them during in-flight load
+      setMessages((prev) => {
+        const loaded = res.messages || [];
+        const temps = prev.filter((m) => typeof m.id === 'string' && m.id.startsWith('temp-'));
+        if (!temps.length) return loaded;
+        const merged = [...loaded];
+        for (const t of temps) {
+          if (!merged.find((m) => m.id === t.id)) merged.push(t);
+        }
+        return merged;
+      });
       if (initialMessage && res.conversation?.id) {
         try {
           const sendFn =
             onSendMessage ||
-            (async ({ targetUserId, text }: { targetUserId?: string; text: string; files?: File[] }) => {
-              const formData = new FormData();
-              formData.append('text', text);
-              if (targetUserId) formData.append('targetUserId', targetUserId);
-              
-              const res = await fetch('/chat-send', {
+            (async ({ text }: { targetUserId?: string; text: string; files?: File[] }) => {
+              if (!res.conversation?.id) return undefined;
+              const payload = { content: text };
+              const sendRes = await fetch(`/api/chat/conversations/${res.conversation.id}/messages`, {
                 method: 'POST',
-                body: formData,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
               });
-              const json = await res.json();
+              const json = await sendRes.json();
               return json?.data as Message;
             });
           const sent = await sendFn({ targetUserId, text: initialMessage, files: [] });
@@ -143,7 +171,7 @@ export function ChatInterface({
 
   const handleEditMessage = async (messageId: string, newContent: string) => {
     try {
-      const res = await fetch(`/chat-messages-${messageId}`, {
+      const res = await fetch(`/api/chat/messages/${messageId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newContent })
@@ -164,7 +192,7 @@ export function ChatInterface({
 
   const handleDeleteMessage = async (messageId: string, deleteForEveryone = false) => {
     try {
-      const res = await fetch(`/chat-messages-${messageId}`, {
+      const res = await fetch(`/api/chat/messages/${messageId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deleteForEveryone })
@@ -240,18 +268,35 @@ export function ChatInterface({
   }, [conversationId]);
 
   const onSend = async (text: string, files?: File[]) => {
-    const defaultSend = async ({ targetUserId, text, files }: { targetUserId?: string; text: string; files?: File[] }) => {
-      const formData = new FormData();
-      formData.append('text', text);
-      if (targetUserId) formData.append('targetUserId', targetUserId);
-      if (files) files.forEach(f => formData.append('files', f));
-      
-      const res = await fetch('/api/chat.send', { 
-        method: 'POST', 
-        body: formData 
+    const defaultSend = async ({ text, files }: { targetUserId?: string; text: string; files?: File[] }) => {
+      const cid = conversation?.id || conversationId;
+      if (!cid) return undefined;
+      const payload: any = { content: text };
+      if (files?.length) {
+        payload.attachments = files.map(f => ({ url: `/uploads/${(f as any).name}`, name: (f as any).name, type: (f as any).type || 'file', size: (f as any).size || 0 }));
+      }
+      const res = await fetch(`/api/chat/conversations/${cid}/messages`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
       const json = await res.json();
-      return json?.data as Message;
+      const m = json?.data as any;
+      if (!m) return undefined;
+      // Normalize to UI shape
+      const normalized: Message = {
+        id: m.id,
+        conversationId: cid,
+        senderId: m.senderId,
+        senderName: m.senderName || m.sender?.name,
+        senderAvatar: m.senderAvatar || m.sender?.avatar,
+        content: m.content,
+        type: (m.type || 'text').toString().toLowerCase(),
+        attachments: Array.isArray(m.attachments) ? m.attachments : [],
+        createdAt: m.createdAt,
+        status: 'sent',
+      };
+      return normalized;
     };
     const temp: Message = {
       id: `temp-${Date.now()}`,
@@ -268,7 +313,10 @@ export function ChatInterface({
     try {
       const result = await (onSendMessage || defaultSend)({ targetUserId, text, files });
       if (result) {
-        setMessages((prev) => prev.map((m) => (m.id === temp.id ? result : m)));
+        setMessages((prev) => {
+          const withoutTemp = prev.filter((m) => m.id !== temp.id);
+          return [...withoutTemp, result];
+        });
       } else {
         setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...m, status: "sent" } : m)));
       }
@@ -285,7 +333,7 @@ export function ChatInterface({
     if (!el || el.scrollTop > 50 || !onLoadMore || !conversation?.id) return;
     const oldest = messages[0];
     const defaultLoadMore = async ({ conversationId, before }: { conversationId: string; before?: string }) => {
-      const res = await fetch(`/api/chat/conversations/${conversationId}/messages?limit=50&before=${before}`);
+      const res = await fetch(`/api/chat/conversations/${conversationId}/messages?limit=50&before=${before || ''}`);
       const json = await res.json();
       return (json?.data?.messages || []) as Message[];
     };

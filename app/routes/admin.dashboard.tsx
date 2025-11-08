@@ -416,7 +416,21 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
           <p className="text-gray-600">Welcome back, {admin.name || admin.email}!</p>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/seed-stays', { method: 'POST', headers: { 'x-seed-token': 'dev' } });
+                const j = await res.json();
+                alert(res.ok ? `Seeded: ${j.created} properties, ${j.roomTypesCreated} room types` : `Seed failed: ${j.error || res.status}`);
+                location.reload();
+              } catch {}
+            }}
+          >
+            <Plus className="w-4 h-4 mr-2" /> Seed Demo Stays
+          </Button>
           <Button variant="outline" size="sm">
             <Activity className="w-4 h-4 mr-2" />
             Refresh Data

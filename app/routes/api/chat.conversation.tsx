@@ -11,41 +11,49 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const targetUserId = url.searchParams.get("targetUserId");
 
   try {
-    let peerId: string | null = null;
+    let conversation: any = null;
+    // Case 1: conversationKey is a composite key "userA:userB"
     if (conversationKey && conversationKey.includes(":")) {
       const [a, b] = conversationKey.split(":");
       if (a !== userId && b !== userId) return json({ error: "Forbidden" }, { status: 403 });
-      peerId = a === userId ? b : a;
-    } else if (targetUserId) {
-      peerId = targetUserId;
+      const peerId = a === userId ? b : a;
+      conversation = await getOrCreateConversation(
+        userId,
+        peerId,
+        "CUSTOMER_PROVIDER" as any,
+        undefined,
+        undefined
+      );
+    }
+    // Case 2: targeted user provided — create or fetch
+    else if (targetUserId) {
+      conversation = await getOrCreateConversation(
+        userId,
+        targetUserId,
+        "CUSTOMER_PROVIDER" as any,
+        undefined,
+        undefined
+      );
+    }
+    // Case 3: conversationKey is an actual conversation ID
+    else if (conversationKey) {
+      conversation = await prisma.conversation.findUnique({ where: { id: conversationKey } });
+      if (!conversation) return json({ error: "Conversation not found" }, { status: 404 });
+      if (!conversation.participants?.includes(userId)) return json({ error: "Forbidden" }, { status: 403 });
     } else {
       return json({ error: "Missing conversationId or targetUserId" }, { status: 400 });
     }
 
-    // Get or create conversation using the new system
-    const conversation = await getOrCreateConversation(
-      userId,
-      peerId!,
-      "CUSTOMER_PROVIDER" as any,
-      undefined,
-      undefined
-    );
-
     // Fetch messages for this conversation
     const messages = await prisma.message.findMany({
-      where: { 
-        conversationId: conversation.id,
-        isDeleted: false
-      },
-      include: {
-        sender: { select: { id: true, name: true, role: true, avatar: true } }
-      },
+      where: { conversationId: conversation.id, isDeleted: false },
+      include: { sender: { select: { id: true, name: true, role: true, avatar: true } } },
       orderBy: { createdAt: 'asc' }
     });
 
     // Participants with online status
     const users = await prisma.user.findMany({
-      where: { id: { in: [userId, peerId!] } },
+      where: { id: { in: conversation.participants as string[] } },
       select: { id: true, name: true, role: true, avatar: true, lastActiveAt: true },
     });
 

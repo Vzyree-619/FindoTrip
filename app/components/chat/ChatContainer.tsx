@@ -120,17 +120,17 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
               currentUserId={currentUserId}
               variant="inline"
               className="flex-1"
-            onSendMessage={async ({ targetUserId, text }) => {
-                const formData = new FormData();
-                formData.append('text', text);
-                if (targetUserId) formData.append('targetUserId', targetUserId);
-                const res = await fetch('/api/chat.send', { method: 'POST', body: formData });
+              onSendMessage={async ({ text }) => {
+                const cid = selectedId;
+                if (!cid) return;
+                const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ content: text })
+                });
                 const json = await res.json();
                 const msg = json?.data as Message;
-                // update list preview
-                setConversations((prev) =>
-                  prev.map((c) => (c.id === msg.conversationId ? { ...c, lastMessage: msg, updatedAt: msg.createdAt } : c))
-                );
+                setConversations((prev) => prev.map((c) => (c.id === msg.conversationId ? { ...c, lastMessage: msg, updatedAt: msg.createdAt } : c)));
                 return msg;
               }}
             />

@@ -699,16 +699,34 @@ export default function AccommodationDetail() {
             if (!response.ok) throw new Error("Failed to fetch conversation");
             return response.json();
           }}
-          onSendMessage={async ({ targetUserId, text }) => {
-            const formData = new FormData();
-            formData.append('text', text);
-            formData.append('targetUserId', targetUserId);
-            const response = await fetch('/api/chat.send', {
+          onSendMessage={async ({ conversationId, targetUserId, text }) => {
+            let cid = conversationId;
+            if (!cid && targetUserId) {
+              const convRes = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
+              const convJson = await convRes.json();
+              cid = convJson?.conversation?.id;
+            }
+            if (!cid) throw new Error('Missing conversation ID');
+            const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
               method: 'POST',
-              body: formData
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content: text })
             });
-            if (!response.ok) throw new Error("Failed to send message");
-            return response.json();
+            const json = await res.json();
+            if (!res.ok || !json?.success) throw new Error('Failed to send message');
+            const m = json.data;
+            return {
+              id: m.id,
+              conversationId: cid,
+              senderId: m.senderId,
+              senderName: m.senderName || m.sender?.name,
+              senderAvatar: m.senderAvatar || m.sender?.avatar,
+              content: m.content,
+              type: (m.type || 'text').toString().toLowerCase(),
+              attachments: Array.isArray(m.attachments) ? m.attachments : [],
+              createdAt: m.createdAt,
+              status: 'sent',
+            };
           }}
         />
       )}
