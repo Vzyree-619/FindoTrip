@@ -67,24 +67,31 @@ export default function PriceRangeSlider({
         <p className="text-sm text-gray-600">Select your budget range</p>
       </div>
 
-      {/* Price Display - Column layout */}
-      <div className="mb-6 flex flex-col items-center gap-3">
+      {/* Price Display: row on mobile, column on desktop */}
+      <div className="mb-6 flex flex-row md:flex-col items-stretch md:items-center gap-3">
         {/* Min Card */}
-        <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 text-center w-full md:w-[300px]">
-          <div className="text-xs text-gray-500 mb-1">Min Price</div>
-          <div className="font-bold text-[#01502E] text-base md:text-lg whitespace-nowrap">
-            {formatPrice(minValue)}
+        <div className="flex-1 md:w-[300px] min-w-0">
+          <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 text-center w-full">
+            <div className="text-xs text-gray-500 mb-1">Min Price</div>
+            <div className="font-bold text-[#01502E] text-base md:text-lg whitespace-normal md:whitespace-nowrap">
+              {formatPrice(minValue)}
+            </div>
           </div>
         </div>
-        {/* Center line */}
-        <div className="flex items-center justify-center w-full">
-          <div className="h-px w-20 md:w-24 bg-gradient-to-r from-[#01502E] to-[#22c55e]" />
+        {/* Separator: vertical on mobile, horizontal on desktop */}
+        <div className="flex items-center justify-center">
+          {/* Vertical line (mobile) */}
+          <div className="h-10 w-px bg-gradient-to-b from-[#01502E] to-[#22c55e] md:hidden" />
+          {/* Horizontal line (desktop) */}
+          <div className="hidden md:block h-px w-24 bg-gradient-to-r from-[#01502E] to-[#22c55e]" />
         </div>
         {/* Max Card */}
-        <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 text-center w-full md:w-[300px]">
-          <div className="text-xs text-gray-500 mb-1">Max Price</div>
-          <div className="font-bold text-[#01502E] text-base md:text-lg whitespace-nowrap">
-            {formatPrice(maxValue)}
+        <div className="flex-1 md:w-[300px] min-w-0">
+          <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 text-center w-full">
+            <div className="text-xs text-gray-500 mb-1">Max Price</div>
+            <div className="font-bold text-[#01502E] text-base md:text-lg whitespace-normal md:whitespace-nowrap">
+              {formatPrice(maxValue)}
+            </div>
           </div>
         </div>
       </div>
