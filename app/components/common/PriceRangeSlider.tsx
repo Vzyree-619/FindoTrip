@@ -60,27 +60,30 @@ export default function PriceRangeSlider({
   const maxPercentage = ((maxValue - minPrice) / (maxPrice - minPrice)) * 100;
 
   return (
-    <div className="w-full max-w-full p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="w-full max-w-full md:max-w-xl lg:max-w-2xl xl:max-w-3xl 2xl:max-w-4xl mx-auto p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200 shadow-sm overflow-hidden overflow-x-hidden box-border">
       {/* Header */}
       <div className="text-center mb-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-2">Price Range</h3>
         <p className="text-sm text-gray-600">Select your budget range</p>
       </div>
 
-      {/* Price Display Cards */}
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 min-w-[120px] flex-1 text-center">
+      {/* Price Display - Column layout */}
+      <div className="mb-6 flex flex-col items-center gap-3">
+        {/* Min Card */}
+        <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 text-center w-full md:w-[300px]">
           <div className="text-xs text-gray-500 mb-1">Min Price</div>
-          <div className="text-lg font-bold text-[#01502E]">
+          <div className="font-bold text-[#01502E] text-base md:text-lg whitespace-nowrap">
             {formatPrice(minValue)}
           </div>
         </div>
-        <div className="hidden md:flex items-center flex-none">
-          <div className="w-8 h-0.5 bg-gradient-to-r from-[#01502E] to-[#22c55e]"></div>
+        {/* Center line */}
+        <div className="flex items-center justify-center w-full">
+          <div className="h-px w-20 md:w-24 bg-gradient-to-r from-[#01502E] to-[#22c55e]" />
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 min-w-[120px] flex-1 text-center">
+        {/* Max Card */}
+        <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 text-center w-full md:w-[300px]">
           <div className="text-xs text-gray-500 mb-1">Max Price</div>
-          <div className="text-lg font-bold text-[#01502E]">
+          <div className="font-bold text-[#01502E] text-base md:text-lg whitespace-nowrap">
             {formatPrice(maxValue)}
           </div>
         </div>
@@ -89,15 +92,17 @@ export default function PriceRangeSlider({
       {/* Enhanced Slider Container */}
       <div className="relative mb-6">
         {/* Background Track with Gradient */}
-        <div className="w-full h-3 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 rounded-full shadow-inner overflow-hidden">
+        <div className="relative w-full h-3 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 rounded-full shadow-inner overflow-hidden">
           {/* Active Range with Gradient */}
-          <div
-            className="absolute h-3 bg-gradient-to-r from-[#01502E] via-[#22c55e] to-[#01502E] rounded-full shadow-lg"
-            style={{
-              left: `${minPercentage}%`,
-              width: `${maxPercentage - minPercentage}%`,
-            }}
-          />
+          <div className="absolute inset-0 pointer-events-none">
+            <div
+              className="absolute top-0 bottom-0 bg-gradient-to-r from-[#01502E] via-[#22c55e] to-[#01502E] rounded-full shadow-lg"
+              style={{
+                left: `${Math.min(minPercentage, maxPercentage)}%`,
+                width: `${Math.max(0, maxPercentage - minPercentage)}%`,
+              }}
+            />
+          </div>
         </div>
 
         {/* Min Slider */}
@@ -145,25 +150,25 @@ export default function PriceRangeSlider({
       <div className="mt-6 grid grid-cols-2 gap-2">
         <button
           onClick={() => handleSliderChange(minPrice, Math.floor(maxPrice * 0.3))}
-          className="px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg hover:bg-[#01502E] hover:text-white transition-all duration-200 text-center"
+          className="w-full px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-[#01502E] hover:text-white transition-all duration-200 text-center"
         >
           Budget
         </button>
         <button
           onClick={() => handleSliderChange(Math.floor(maxPrice * 0.3), Math.floor(maxPrice * 0.6))}
-          className="px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg hover:bg-[#01502E] hover:text-white transition-all duration-200 text-center"
+          className="w-full px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-[#01502E] hover:text-white transition-all duration-200 text-center"
         >
           Mid-range
         </button>
         <button
           onClick={() => handleSliderChange(Math.floor(maxPrice * 0.6), Math.floor(maxPrice * 0.8))}
-          className="px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg hover:bg-[#01502E] hover:text-white transition-all duration-200 text-center"
+          className="w-full px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-[#01502E] hover:text-white transition-all duration-200 text-center"
         >
           Premium
         </button>
         <button
           onClick={() => handleSliderChange(Math.floor(maxPrice * 0.8), maxPrice)}
-          className="px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg hover:bg-[#01502E] hover:text-white transition-all duration-200 text-center"
+          className="w-full px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-[#01502E] hover:text-white transition-all duration-200 text-center"
         >
           Luxury
         </button>
