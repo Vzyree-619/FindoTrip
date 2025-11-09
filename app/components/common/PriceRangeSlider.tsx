@@ -60,7 +60,7 @@ export default function PriceRangeSlider({
   const maxPercentage = ((maxValue - minPrice) / (maxPrice - minPrice)) * 100;
 
   return (
-    <div className="w-full p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200 shadow-sm">
+    <div className="w-full max-w-full p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       {/* Header */}
       <div className="text-center mb-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-2">Price Range</h3>
@@ -68,17 +68,17 @@ export default function PriceRangeSlider({
       </div>
 
       {/* Price Display Cards */}
-      <div className="flex justify-between items-center mb-8">
-        <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 min-w-[120px] text-center">
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 min-w-[120px] flex-1 text-center">
           <div className="text-xs text-gray-500 mb-1">Min Price</div>
           <div className="text-lg font-bold text-[#01502E]">
             {formatPrice(minValue)}
           </div>
         </div>
-        <div className="flex items-center">
+        <div className="hidden md:flex items-center flex-none">
           <div className="w-8 h-0.5 bg-gradient-to-r from-[#01502E] to-[#22c55e]"></div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 min-w-[120px] text-center">
+        <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200 min-w-[120px] flex-1 text-center">
           <div className="text-xs text-gray-500 mb-1">Max Price</div>
           <div className="text-lg font-bold text-[#01502E]">
             {formatPrice(maxValue)}
@@ -89,7 +89,7 @@ export default function PriceRangeSlider({
       {/* Enhanced Slider Container */}
       <div className="relative mb-6">
         {/* Background Track with Gradient */}
-        <div className="w-full h-3 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 rounded-full shadow-inner">
+        <div className="w-full h-3 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 rounded-full shadow-inner overflow-hidden">
           {/* Active Range with Gradient */}
           <div
             className="absolute h-3 bg-gradient-to-r from-[#01502E] via-[#22c55e] to-[#01502E] rounded-full shadow-lg"
@@ -108,7 +108,7 @@ export default function PriceRangeSlider({
           step={step}
           value={minValue}
           onChange={handleMinChange}
-          className="absolute w-full h-3 bg-transparent appearance-none cursor-pointer slider-thumb-min"
+          className="absolute inset-0 w-full h-6 bg-transparent appearance-none cursor-pointer slider-thumb-min"
           style={{
             background: 'transparent',
             zIndex: 3,
@@ -123,7 +123,7 @@ export default function PriceRangeSlider({
           step={step}
           value={maxValue}
           onChange={handleMaxChange}
-          className="absolute w-full h-3 bg-transparent appearance-none cursor-pointer slider-thumb-max"
+          className="absolute inset-0 w-full h-6 bg-transparent appearance-none cursor-pointer slider-thumb-max"
           style={{
             background: 'transparent',
             zIndex: 4,
@@ -132,7 +132,7 @@ export default function PriceRangeSlider({
       </div>
 
       {/* Price Range Labels */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-2">
         <div className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full border">
           {formatPrice(minPrice)}
         </div>
@@ -142,7 +142,7 @@ export default function PriceRangeSlider({
       </div>
 
       {/* Quick Price Buttons */}
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="mt-6 grid grid-cols-2 gap-2">
         <button
           onClick={() => handleSliderChange(minPrice, Math.floor(maxPrice * 0.3))}
           className="px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg hover:bg-[#01502E] hover:text-white transition-all duration-200 text-center"

@@ -8,6 +8,7 @@ import {
   type MessageWithSender
 } from "~/lib/chat.server";
 import { prisma } from "~/lib/db/db.server";
+import { publishToUser } from "~/lib/realtime.server";
 import { checkRateLimit } from "~/lib/middleware/rate-limit.server";
 import DOMPurify from "isomorphic-dompurify";
 
@@ -121,6 +122,31 @@ export async function action({ request, params }: ActionFunctionArgs) {
       body.replyToId,
       body.type || MessageType.TEXT
     );
+
+    // Broadcast via SSE to all other participants for real-time updates
+    try {
+      const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
+      const participants = conv?.participants || [];
+      const wireMessage = {
+        id: message.id,
+        conversationId,
+        senderId: message.senderId,
+        content: message.content,
+        type: (message.type || MessageType.TEXT).toString().toLowerCase(),
+        attachments: message.attachments || [],
+        createdAt: (message as any).createdAt || new Date().toISOString(),
+        status: "sent" as const,
+        senderName: (message as any).senderName,
+        senderAvatar: (message as any).sender?.avatar,
+      };
+      for (const pid of participants) {
+        if (pid === userId) continue;
+        publishToUser(pid, "message", { type: "chat_message", conversationId, message: wireMessage });
+      }
+    } catch (err) {
+      // non-fatal
+      console.error("SSE publish error (chat message)", err);
+    }
 
     const response: MessageResponse = {
       success: true,
