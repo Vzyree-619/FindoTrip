@@ -1,5 +1,5 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
-import { Form, Link, useLoaderData } from "@remix-run/react";
+import { Form, Link, useLoaderData, useActionData } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { v2 as cloudinary } from "cloudinary";
@@ -91,6 +91,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   };
 
   const data: any = {};
+  const errors: Record<string, string> = {};
   const fields = [
     "name","description","type","address","city","state","country","postalCode",
     "checkInTime","checkOutTime","currency"
@@ -135,6 +136,50 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (safety) data.safetyFeatures = safety;
   if (access) data.accessibility = access;
   if (rules) data.houseRules = rules;
+
+  // Validations
+  if (data.latitude !== undefined && (data.latitude < -90 || data.latitude > 90)) {
+    errors.latitude = "Latitude must be between -90 and 90";
+  }
+  if (data.longitude !== undefined && (data.longitude < -180 || data.longitude > 180)) {
+    errors.longitude = "Longitude must be between -180 and 180";
+  }
+  if (data.basePrice !== undefined && data.basePrice < 0) {
+    errors.basePrice = "Base price cannot be negative";
+  }
+  if (data.cleaningFee !== undefined && data.cleaningFee < 0) {
+    errors.cleaningFee = "Cleaning fee cannot be negative";
+  }
+  if (data.serviceFee !== undefined && data.serviceFee < 0) {
+    errors.serviceFee = "Service fee cannot be negative";
+  }
+  if (data.taxRate !== undefined && (data.taxRate < 0 || data.taxRate > 1)) {
+    errors.taxRate = "Tax rate should be a fraction (e.g., 0.02 for 2%)";
+  }
+  if (data.weekendPricing !== undefined && data.weekendPricing < 0.5) {
+    errors.weekendPricing = "Weekend multiplier should be >= 0.5 (typical 1.1–1.5)";
+  }
+  if (data.weeklyDiscount !== undefined && (data.weeklyDiscount < 0 || data.weeklyDiscount > 100)) {
+    errors.weeklyDiscount = "Weekly discount should be 0–100 (%)";
+  }
+  if (data.monthlyDiscount !== undefined && (data.monthlyDiscount < 0 || data.monthlyDiscount > 100)) {
+    errors.monthlyDiscount = "Monthly discount should be 0–100 (%)";
+  }
+  if (data.minStay !== undefined && data.minStay < 1) {
+    errors.minStay = "Min stay must be at least 1 night";
+  }
+  if (data.maxStay !== undefined && data.maxStay < 1) {
+    errors.maxStay = "Max stay must be at least 1 night";
+  }
+  if (data.minStay !== undefined && data.maxStay !== undefined && data.maxStay < data.minStay) {
+    errors.maxStay = "Max stay must be greater than or equal to min stay";
+  }
+  if (data.advanceNotice !== undefined && data.advanceNotice < 0) {
+    errors.advanceNotice = "Advance notice cannot be negative";
+  }
+  if (Object.keys(errors).length) {
+    return json({ errors }, { status: 400 });
+  }
 
   // Images (append new uploads)
   const imageFiles = (form.getAll('images') as File[]).filter(Boolean);
@@ -185,6 +230,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 export default function EditProperty() {
   const { property } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>() as any;
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -193,6 +239,16 @@ export default function EditProperty() {
           <Link to="/dashboard/provider" className="inline-flex items-center px-4 py-2 border rounded">Back</Link>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
+          {actionData?.errors && (
+            <div className="mb-4 p-3 rounded bg-red-50 text-red-700">
+              <div className="font-semibold mb-1">Please fix the following:</div>
+              <ul className="list-disc list-inside text-sm">
+                {Object.entries(actionData.errors).map(([k, v]) => (
+                  <li key={k}>{v as any}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <Form method="post" encType="multipart/form-data" className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input type="hidden" name="intent" value="update" />
             <div>
@@ -239,10 +295,12 @@ export default function EditProperty() {
             <div>
               <label className="block text-sm font-medium mb-1">Latitude</label>
               <input name="latitude" defaultValue={property.latitude ?? ''} className="w-full border rounded px-3 py-2" />
+              <p className="text-xs text-gray-500 mt-1">Range -90 to 90</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Longitude</label>
               <input name="longitude" defaultValue={property.longitude ?? ''} className="w-full border rounded px-3 py-2" />
+              <p className="text-xs text-gray-500 mt-1">Range -180 to 180</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Base Price (PKR)</label>
@@ -259,6 +317,7 @@ export default function EditProperty() {
             <div>
               <label className="block text-sm font-medium mb-1">Tax Rate</label>
               <input name="taxRate" type="number" step="0.01" min="0" defaultValue={property.taxRate ?? 0} className="w-full border rounded px-3 py-2" />
+              <p className="text-xs text-gray-500 mt-1">Use fractional value (e.g., 0.02 for 2%)</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Currency</label>
@@ -267,14 +326,17 @@ export default function EditProperty() {
             <div>
               <label className="block text-sm font-medium mb-1">Weekend Pricing Multiplier</label>
               <input name="weekendPricing" type="number" step="0.01" min="0" defaultValue={property.weekendPricing ?? ''} className="w-full border rounded px-3 py-2" />
+              <p className="text-xs text-gray-500 mt-1">Typical 1.1–1.5; 1.0 means no change</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Weekly Discount (%)</label>
               <input name="weeklyDiscount" type="number" step="0.1" min="0" defaultValue={property.weeklyDiscount ?? 0} className="w-full border rounded px-3 py-2" />
+              <p className="text-xs text-gray-500 mt-1">0–100</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Monthly Discount (%)</label>
               <input name="monthlyDiscount" type="number" step="0.1" min="0" defaultValue={property.monthlyDiscount ?? 0} className="w-full border rounded px-3 py-2" />
+              <p className="text-xs text-gray-500 mt-1">0–100</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Max Guests</label>
@@ -295,14 +357,17 @@ export default function EditProperty() {
             <div>
               <label className="block text-sm font-medium mb-1">Min Stay (nights)</label>
               <input name="minStay" type="number" min="1" defaultValue={property.minStay} className="w-full border rounded px-3 py-2" />
+              <p className="text-xs text-gray-500 mt-1">Must be at least 1 night</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Max Stay (nights)</label>
               <input name="maxStay" type="number" min="1" defaultValue={property.maxStay} className="w-full border rounded px-3 py-2" />
+              <p className="text-xs text-gray-500 mt-1">Should be ≥ Min Stay</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Advance Notice (hours)</label>
               <input name="advanceNotice" type="number" min="0" defaultValue={property.advanceNotice} className="w-full border rounded px-3 py-2" />
+              <p className="text-xs text-gray-500 mt-1">0 for none</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Check-in Time</label>
@@ -370,4 +435,3 @@ export default function EditProperty() {
     </div>
   );
 }
-
