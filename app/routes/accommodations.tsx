@@ -39,45 +39,61 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   try {
-    // Build where clause
-    const where: any = {
+    // Build base where clause (without price) for computing bounds
+    const baseWhere: any = {
       approvalStatus: 'APPROVED',
       available: true
     };
 
     if (city) {
-      where.city = { contains: city, mode: 'insensitive' };
+      baseWhere.city = { contains: city, mode: 'insensitive' };
     }
 
     if (country) {
-      where.country = { contains: country, mode: 'insensitive' };
+      baseWhere.country = { contains: country, mode: 'insensitive' };
     }
 
     if (type) {
-      where.type = type;
+      baseWhere.type = type;
     }
 
     if (name) {
-      where.name = { contains: name, mode: 'insensitive' };
+      baseWhere.name = { contains: name, mode: 'insensitive' };
     }
 
     // Smart search: if we have a search term but no specific name/city, search both
     const searchTerm = url.searchParams.get("search");
     if (searchTerm && !name && !city) {
-      where.OR = [
+      baseWhere.OR = [
         { name: { contains: searchTerm, mode: 'insensitive' } },
         { city: { contains: searchTerm, mode: 'insensitive' } }
       ];
     }
 
+    if (guests) {
+      baseWhere.maxGuests = { gte: guests };
+    }
+
+    // Compute dynamic price bounds for the current filter context
+    const priceAgg = await prisma.property.aggregate({
+      where: baseWhere,
+      _min: { basePrice: true },
+      _max: { basePrice: true },
+    });
+    let boundsMin = (priceAgg._min.basePrice as number | null) ?? 0;
+    let boundsMax = (priceAgg._max.basePrice as number | null) ?? 50000;
+    if (boundsMin === boundsMax) {
+      // Expand trivial range slightly for a usable slider
+      boundsMin = Math.max(0, boundsMin - 1000);
+      boundsMax = boundsMax + 1000;
+    }
+
+    // Apply price filters to the actual query where clause
+    const where: any = { ...baseWhere };
     if (minPrice !== undefined || maxPrice !== undefined) {
       where.basePrice = {};
       if (minPrice !== undefined) where.basePrice.gte = minPrice;
       if (maxPrice !== undefined) where.basePrice.lte = maxPrice;
-    }
-
-    if (guests) {
-      where.maxGuests = { gte: guests };
     }
 
     // Get accommodations
@@ -134,8 +150,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       })
     );
     const accommodations = accommodationsRaw.map((p: any) => ({ ...p, roomTypeCount: countsMap.get(p.id) || 0 }));
-    // Fallback: if no accommodations found, return mock demo stays so the UI has fresh data without DB seeding
-    if (accommodations.length === 0 || total === 0) {
+    // Fallback only when no filters are active; otherwise return empty results
+    const hasActiveFilters = Boolean(
+      city || country || type || name || searchTerm || (minPrice !== undefined) || (maxPrice !== undefined) || guests || checkIn || checkOut
+    );
+    if ((accommodations.length === 0 || total === 0) && !hasActiveFilters) {
       const demoCities = [
         { city: 'Islamabad', country: 'Pakistan' },
         { city: 'Lahore', country: 'Pakistan' },
@@ -185,6 +204,33 @@ export async function loader({ request }: LoaderFunctionArgs) {
         limit,
         totalPages: 1,
         filters: filtersOut,
+        priceBounds: { min: 0, max: 50000 },
+        searchParams: {
+          city,
+          country,
+          type,
+          name,
+          search: url.searchParams.get("search") || undefined,
+          minPrice,
+          maxPrice,
+          guests,
+          checkIn: checkIn?.toISOString().split('T')[0],
+          checkOut: checkOut?.toISOString().split('T')[0]
+        }
+      });
+    }
+    if ((accommodations.length === 0 || total === 0) && hasActiveFilters) {
+      return json({
+        accommodations: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+        filters: {
+          types: types.map(t => t.type),
+          cities: cities.map(c => `${c.city}, ${c.country}`)
+        },
+        priceBounds: { min: boundsMin, max: boundsMax },
         searchParams: {
           city,
           country,
@@ -210,6 +256,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         types: types.map(t => t.type),
         cities: cities.map(c => `${c.city}, ${c.country}`)
       },
+      priceBounds: { min: boundsMin, max: boundsMax },
       searchParams: {
         city,
         country,
@@ -230,7 +277,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function AccommodationsPage() {
-  const { accommodations, total, page, totalPages, filters, searchParams } = useLoaderData<typeof loader>();
+  const { accommodations, total, page, totalPages, filters, priceBounds } = useLoaderData<typeof loader>();
   const [searchParams_, setSearchParams] = useSearchParams();
   const [searchInput, setSearchInput] = useState('');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -377,10 +424,18 @@ export default function AccommodationsPage() {
               {/* Price Range Slider */}
               <div className="mb-6">
                 <PriceRangeSlider
-                  minPrice={0}
-                  maxPrice={50000}
-                  currentMin={parseInt(searchParams_.get("minPrice") || "0")}
-                  currentMax={parseInt(searchParams_.get("maxPrice") || "50000")}
+                  minPrice={priceBounds?.min ?? 0}
+                  maxPrice={priceBounds?.max ?? 50000}
+                  currentMin={(() => {
+                    const v = parseInt(searchParams_.get("minPrice") || "");
+                    if (isNaN(v)) return priceBounds?.min ?? 0;
+                    return Math.max(priceBounds?.min ?? 0, Math.min(v, priceBounds?.max ?? v));
+                  })()}
+                  currentMax={(() => {
+                    const v = parseInt(searchParams_.get("maxPrice") || "");
+                    if (isNaN(v)) return priceBounds?.max ?? 50000;
+                    return Math.min(priceBounds?.max ?? 50000, Math.max(v, priceBounds?.min ?? 0));
+                  })()}
                   onRangeChange={(min, max) => {
                     const newParams = new URLSearchParams(searchParams_);
                     newParams.set("minPrice", min.toString());
@@ -389,7 +444,7 @@ export default function AccommodationsPage() {
                     setSearchParams(newParams);
                   }}
                   currency="PKR"
-                  step={500}
+                  step={Math.max(100, Math.round(((priceBounds?.max ?? 50000) - (priceBounds?.min ?? 0)) / 40))}
                 />
               </div>
 
