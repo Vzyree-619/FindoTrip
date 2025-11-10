@@ -275,6 +275,19 @@ export async function action({ request }: ActionFunctionArgs) {
       });
       
       await logAdminAction(admin.id, 'PROVIDER_INFO_REQUESTED', `Requested additional info from provider: ${providerId}`, request);
+    } else if (action === 'toggle_verify') {
+      // Explicitly toggle provider verification without relying on properties
+      const user = await prisma.user.findUnique({ where: { id: providerId }, select: { role: true, verified: true } });
+      const next = !user?.verified;
+      await prisma.user.update({ where: { id: providerId }, data: { verified: next } });
+      if (user?.role === 'PROPERTY_OWNER') {
+        await prisma.propertyOwner.updateMany({ where: { userId: providerId }, data: { verified: next, verificationLevel: next ? 'VERIFIED' : 'BASIC' } });
+      } else if (user?.role === 'VEHICLE_OWNER') {
+        await prisma.vehicleOwner.updateMany({ where: { userId: providerId }, data: { verified: next, verificationLevel: next ? 'VERIFIED' : 'BASIC' } });
+      } else if (user?.role === 'TOUR_GUIDE') {
+        await prisma.tourGuide.updateMany({ where: { userId: providerId }, data: { verified: next, verificationLevel: next ? 'VERIFIED' : 'BASIC' } });
+      }
+      await logAdminAction(admin.id, next ? 'PROVIDER_VERIFIED' : 'PROVIDER_UNVERIFIED', `${next ? 'Verified' : 'Unverified'} provider: ${providerId}`, request);
     }
     
     return json({ success: true });
@@ -616,6 +629,21 @@ export default function PendingProviderApprovals() {
                   </div>
                   
                   <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const fd = new FormData();
+                        fd.append('action', 'toggle_verify');
+                        fd.append('providerId', provider.id);
+                        fetcher.submit(fd, { method: 'post' });
+                      }}
+                      disabled={fetcher.state === 'submitting'}
+                      className="text-gray-700 border-gray-300 hover:bg-gray-50"
+                    >
+                      <UserCheck className="w-4 h-4 mr-1" />
+                      {provider.verified ? 'Unverify' : 'Verify'}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

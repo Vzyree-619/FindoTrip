@@ -221,7 +221,7 @@ export default function PriceRangeSlider({
         </button>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .slider-thumb-min::-webkit-slider-thumb {
           appearance: none;
           width: 24px;

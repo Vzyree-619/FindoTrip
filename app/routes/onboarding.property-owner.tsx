@@ -60,28 +60,55 @@ export async function action({ request }: ActionFunctionArgs) {
   const accountNumber = formData.get("accountNumber") as string;
   const routingNumber = formData.get("routingNumber") as string;
 
-  // Handle document uploads
-  const documents = [];
-  const documentFiles = ["businessLicenseDoc", "taxIdDoc", "bankStatementDoc"];
+  // Handle document uploads with enum-safe mapping
+  const documents: Array<{ type: 'BUSINESS_LICENSE' | 'TAX_CERTIFICATE'; name: string; url: string }> = [];
+  const documentFiles = ["businessLicenseDoc", "taxIdDoc", "bankStatementDoc"] as const;
 
   for (const docType of documentFiles) {
-    const file = formData.get(docType) as File;
-    if (file && file.size > 0) {
-      // In a real app, you'd upload to cloud storage and get a URL
-      // For now, we'll store the filename
-      const filename = `${userId}_${docType}_${Date.now()}.${file.name.split('.').pop()}`;
-      documents.push({
-        type: docType,
-        name: filename,
-        url: `/uploads/${filename}` // This would be the actual URL after upload
-      });
+    const file = formData.get(docType) as File | null;
+    if (file && (file as any).size > 0) {
+      const ext = (file as any).name?.includes('.') ? (file as any).name.split('.').pop() : 'pdf';
+      const filename = `${userId}_${docType}_${Date.now()}.${ext}`;
+
+      // Map to supported DocumentType enum
+      let mapped: 'BUSINESS_LICENSE' | 'TAX_CERTIFICATE' | null = null;
+      if (docType === 'businessLicenseDoc') mapped = 'BUSINESS_LICENSE';
+      else if (docType === 'taxIdDoc') mapped = 'TAX_CERTIFICATE';
+      else mapped = null; // skip unsupported types like bankStatement for now
+
+      if (mapped) {
+        documents.push({
+          type: mapped,
+          name: filename,
+          url: `/uploads/${filename}`,
+        });
+      }
     }
   }
 
   try {
-    // Create property owner profile
-    const owner = await prisma.propertyOwner.create({
-      data: {
+    // Create or update property owner profile (idempotent on userId)
+    const owner = await prisma.propertyOwner.upsert({
+      where: { userId },
+      update: {
+        businessName,
+        businessType,
+        businessLicense,
+        taxId,
+        businessPhone,
+        businessEmail,
+        businessAddress,
+        businessCity,
+        businessState,
+        businessCountry,
+        businessPostalCode,
+        bankName,
+        accountNumber,
+        routingNumber,
+        documentsSubmitted: documents.map(d => d.type),
+        verified: false,
+      },
+      create: {
         userId,
         businessName,
         businessType,
@@ -108,12 +135,14 @@ export async function action({ request }: ActionFunctionArgs) {
         data: documents.map(doc => ({
           userId,
           userRole: "PROPERTY_OWNER",
-          type: doc.type as any,
+          type: doc.type, // enum-safe
           name: doc.name,
-          originalName: doc.name, // Add originalName
+          originalName: doc.name,
           url: doc.url,
-          size: 0, // You'd get actual file size
-          mimeType: "application/pdf", // You'd detect actual mime type
+          size: 0,
+          mimeType: "application/pdf",
+          relatedId: owner.id,
+          relatedType: "profile",
         }))
       });
     }
@@ -210,9 +239,8 @@ export default function PropertyOwnerOnboarding() {
         {/* Form */}
         <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10">
           <Form method="post" encType="multipart/form-data" className="space-y-6">
-            {/* Step 1: Business Information */}
-            {step === 1 && (
-              <div className="space-y-6">
+            {/* Step 1: Business Information (always mounted to preserve values) */}
+            <div className={`space-y-6 ${step === 1 ? '' : 'hidden'}`}>
                 <div className="border-b border-gray-200 pb-4">
                   <h3 className="text-xl font-semibold text-gray-900 flex items-center">
                     <Building className="h-6 w-6 mr-2 text-green-500" />
@@ -230,7 +258,7 @@ export default function PropertyOwnerOnboarding() {
                       type="text"
                       id="businessName"
                       name="businessName"
-                      required
+                      required={step === 1}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="e.g., Sunset Properties Ltd."
                     />
@@ -243,7 +271,7 @@ export default function PropertyOwnerOnboarding() {
                     <select
                       id="businessType"
                       name="businessType"
-                      required
+                      required={step === 1}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     >
                       <option value="">Select Type</option>
@@ -288,7 +316,7 @@ export default function PropertyOwnerOnboarding() {
                       type="tel"
                       id="businessPhone"
                       name="businessPhone"
-                      required
+                      required={step === 1}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="+92 XXX XXXXXXX"
                     />
@@ -302,7 +330,7 @@ export default function PropertyOwnerOnboarding() {
                       type="email"
                       id="businessEmail"
                       name="businessEmail"
-                      required
+                      required={step === 1}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="business@example.com"
                     />
@@ -321,11 +349,11 @@ export default function PropertyOwnerOnboarding() {
                   </div>
                 </div>
               </div>
-            )}
+            
+            {/* End Step 1 */}
 
-            {/* Step 2: Business Address */}
-            {step === 2 && (
-              <div className="space-y-6">
+            {/* Step 2: Business Address (always mounted to preserve values) */}
+            <div className={`space-y-6 ${step === 2 ? '' : 'hidden'}`}>
                 <div className="border-b border-gray-200 pb-4">
                   <h3 className="text-xl font-semibold text-gray-900 flex items-center">
                     <MapPin className="h-6 w-6 mr-2 text-green-500" />
@@ -343,7 +371,7 @@ export default function PropertyOwnerOnboarding() {
                       type="text"
                       id="businessAddress"
                       name="businessAddress"
-                      required
+                      required={step === 2}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="123 Business Street"
                     />
@@ -358,7 +386,7 @@ export default function PropertyOwnerOnboarding() {
                         type="text"
                         id="businessCity"
                         name="businessCity"
-                        required
+                        required={step === 2}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         placeholder="Karachi"
                       />
@@ -385,7 +413,7 @@ export default function PropertyOwnerOnboarding() {
                         type="text"
                         id="businessCountry"
                         name="businessCountry"
-                        required
+                        required={step === 2}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         placeholder="Pakistan"
                       />
@@ -406,11 +434,10 @@ export default function PropertyOwnerOnboarding() {
                   </div>
                 </div>
               </div>
-            )}
+            {/* End Step 2 */}
 
-            {/* Step 3: Banking Information & Documents */}
-            {step === 3 && (
-              <div className="space-y-6">
+            {/* Step 3: Banking Information & Documents (always mounted) */}
+            <div className={`space-y-6 ${step === 3 ? '' : 'hidden'}`}>
                 <div className="border-b border-gray-200 pb-4">
                   <h3 className="text-xl font-semibold text-gray-900 flex items-center">
                     <CreditCard className="h-6 w-6 mr-2 text-green-500" />
@@ -519,7 +546,7 @@ export default function PropertyOwnerOnboarding() {
                   </div>
                 </div>
               </div>
-            )}
+            {/* End Step 3 */}
 
             {/* Error Message */}
             {actionData?.error && (

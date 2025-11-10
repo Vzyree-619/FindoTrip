@@ -36,7 +36,7 @@ export default function PropertyCard({
   amenities = [],
   roomTypeCount,
 }: PropertyCardProps) {
-  const mainImage = images[0] || "/placeholder-hotel.jpg";
+  const mainImage = images[0] || "/landingPageImg.jpg";
   
   // Format price
   const formattedPrice = `PKR ${pricePerNight.toLocaleString()}`;

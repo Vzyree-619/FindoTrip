@@ -249,9 +249,9 @@ export default function ProviderDashboard() {
     );
   }
 
-  // Check if owner is verified (all properties approved)
+  // Check if owner is verified strictly by admin flag
   const safeProperties = properties || [];
-  const isVerified = owner?.verified || safeProperties.every((p: any) => p.approvalStatus === "APPROVED");
+  const isVerified = owner?.verified === true;
   const hasPendingApprovals = safeProperties.some((p: any) => p.approvalStatus === "PENDING");
   const hasRejectedItems = safeProperties.some((p: any) => p.approvalStatus === "REJECTED");
 
@@ -353,7 +353,7 @@ export default function ProviderDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {properties.map((p: any) => (
                 <div key={p.id} className="border rounded-lg overflow-hidden">
-                  <img src={p.images?.[0] || "/placeholder-hotel.jpg"} className="w-full h-40 object-cover" />
+                  <img src={p.images?.[0] || "/landingPageImg.jpg"} className="w-full h-40 object-cover" />
                   <div className="p-4">
                     <div className="flex items-start justify-between">
                       <div>

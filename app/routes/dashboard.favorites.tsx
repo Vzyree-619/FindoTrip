@@ -198,7 +198,7 @@ export default function Favorites() {
                   {/* Image */}
                   <div className="relative h-48 overflow-hidden">
                     <img
-                      src={accommodation.images[0] || "/placeholder-hotel.jpg"}
+                      src={accommodation.images[0] || "/landingPageImg.jpg"}
                       alt={accommodation.name}
                       className="w-full h-full object-cover"
                     />

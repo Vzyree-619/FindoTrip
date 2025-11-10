@@ -212,7 +212,7 @@ export default function TourGuideDashboard() {
   // Check if guide is verified (all tours approved)
   const safeTours = tours || [];
   const safeBookings = bookings || [];
-  const isVerified = guide?.verified || safeTours.every((t: any) => t.approvalStatus === "APPROVED");
+  const isVerified = guide?.verified === true;
   const hasPendingApprovals = safeTours.some((t: any) => t.approvalStatus === "PENDING");
   const hasRejectedItems = safeTours.some((t: any) => t.approvalStatus === "REJECTED");
 

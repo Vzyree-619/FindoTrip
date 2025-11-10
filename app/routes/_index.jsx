@@ -121,7 +121,7 @@ export async function loader({ request }) {
       price: `Starting from PKR ${s.basePrice.toLocaleString()}`,
       rating: s.rating || 0,
       reviews: s.reviewCount ? `${s.reviewCount} reviews` : "",
-      image: (s.images?.[0]) || "/placeholder-hotel.jpg",
+      image: (s.images?.[0]) || "/landingPageImg.jpg",
     }));
 
     // Fallback if any list is empty

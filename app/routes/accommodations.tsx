@@ -183,7 +183,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           basePrice,
           rating: 4.2 + (i % 3) * 0.2,
           reviewCount: 10 + i,
-          images: ['/placeholder-hotel.jpg'],
+          images: ['/landingPageImg.jpg'],
           owner: {
             id: `owner-demo-${i+1}`,
             businessName: 'Demo Hospitality Co.',

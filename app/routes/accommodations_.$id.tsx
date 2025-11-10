@@ -124,7 +124,7 @@ export default function AccommodationDetail() {
 
   const images = accommodation.images.length > 0 
     ? accommodation.images 
-    : ["/placeholder-hotel.jpg"];
+    : ["/landingPageImg.jpg"];
 
   const nextImage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
@@ -291,7 +291,7 @@ export default function AccommodationDetail() {
               {accommodation.roomTypes.map((rt: any) => (
                 <div key={rt.id} className={`border rounded-lg overflow-hidden ${roomTypeId === rt.id ? 'ring-2 ring-[#01502E]' : ''}`}>
                   <div className="h-40 bg-gray-100">
-                    <img src={rt.images?.[0] || accommodation.images?.[0] || '/placeholder-hotel.jpg'} className="w-full h-full object-cover" />
+                    <img src={rt.images?.[0] || accommodation.images?.[0] || '/landingPageImg.jpg'} className="w-full h-full object-cover" />
                   </div>
                   <div className="p-4">
                     <div className="flex items-start justify-between">
@@ -640,7 +640,7 @@ export default function AccommodationDetail() {
                   {/* Image */}
                   <div className="relative h-48 overflow-hidden">
                     <img
-                      src={property.images[0] || "/placeholder-hotel.jpg"}
+                      src={property.images[0] || "/landingPageImg.jpg"}
                       alt={property.name}
                       className="w-full h-full object-cover"
                     />

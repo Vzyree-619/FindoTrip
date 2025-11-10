@@ -8,7 +8,7 @@ const STATIC_ASSETS = [
   '/FindoTripLogo.png',
   '/icon-192.png',
   '/icon-512.png',
-  '/apple-touch-icon.png',
+  // '/apple-touch-icon.png', // not present
   '/manifest.json',
   // Add critical CSS and JS files here
 ];

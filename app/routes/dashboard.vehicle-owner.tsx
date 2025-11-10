@@ -235,7 +235,7 @@ export default function VehicleOwnerDashboard() {
 
   // Check if owner is verified (all vehicles approved)
   const safeVehicles = vehicles || [];
-  const isVerified = owner?.verified || safeVehicles.every((v: any) => v.approvalStatus === "APPROVED");
+  const isVerified = owner?.verified === true;
   const hasPendingApprovals = safeVehicles.some((v: any) => v.approvalStatus === "PENDING");
   const hasRejectedItems = safeVehicles.some((v: any) => v.approvalStatus === "REJECTED");
 
