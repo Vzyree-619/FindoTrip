@@ -376,6 +376,7 @@ export default function ProviderDashboard() {
                     </div>
                     <div className="mt-4 flex gap-2">
                       <Link to={`/accommodations/${p.id}`} className="flex-1 text-center border rounded px-3 py-2">View</Link>
+                      <Link to={`/dashboard/provider/properties/${p.id}/edit`} className="flex-1 text-center border rounded px-3 py-2">Edit</Link>
                       <Link to={`/book/property/${p.id}`} className="flex-1 text-center bg-[#01502E] text-white rounded px-3 py-2">Book</Link>
                     </div>
                   </div>
