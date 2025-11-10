@@ -32,6 +32,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const checkIn = url.searchParams.get("checkIn");
   const checkOut = url.searchParams.get("checkOut");
   const guests = url.searchParams.get("guests");
+  const roomTypeId = url.searchParams.get("roomTypeId") || undefined;
 
   const property = await prisma.property.findUnique({
     where: { id: propertyId },
@@ -127,12 +128,32 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     const checkOutDate = new Date(checkOut);
     nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
     
-    pricingBreakdown.basePrice = property.basePrice * nights;
+    const basePerNight = roomTypeId ? (property.roomTypes || []).find(rt => rt.id === roomTypeId)?.basePrice ?? property.basePrice : property.basePrice;
+    pricingBreakdown.basePrice = basePerNight * nights;
     pricingBreakdown.taxes = (pricingBreakdown.basePrice + pricingBreakdown.cleaningFee + pricingBreakdown.serviceFee) * (property.taxRate / 100);
     pricingBreakdown.total = pricingBreakdown.basePrice + pricingBreakdown.cleaningFee + pricingBreakdown.serviceFee + pricingBreakdown.taxes;
     totalPrice = pricingBreakdown.total;
   }
 
+  const availabilityPreview = {};
+  if (roomTypeId) {
+    const start = new Date(); start.setHours(0,0,0,0);
+    const end = new Date(start); end.setDate(end.getDate() + 60);
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      const dayStart = new Date(cursor);
+      const dayEnd = new Date(cursor); dayEnd.setHours(23,59,59,999);
+      const inv = await prisma.roomInventoryDaily.findFirst({ where: { roomTypeId, date: dayStart } });
+      let capacity = 0;
+      if (inv && typeof inv.available === 'number') capacity = inv.available; else {
+        const rt = await prisma.roomType.findUnique({ where: { id: roomTypeId } });
+        capacity = rt?.inventory || 1;
+      }
+      const booked = await prisma.propertyBooking.count({ where: { propertyId, roomTypeId, status: { in: ['CONFIRMED','PENDING'] }, checkIn: { lte: dayEnd }, checkOut: { gte: dayStart } } });
+      availabilityPreview[dayStart.toISOString().split('T')[0]] = Math.max(0, capacity - booked);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
   return json({
     property,
     isAvailable,
@@ -140,115 +161,17 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     pricingBreakdown,
     totalPrice,
     nights,
+    availabilityPreview,
+    pricePreview,
+    suggestedRange,
     searchParams: {
       checkIn,
       checkOut,
       guests: guests ? parseInt(guests) : 1,
+      roomTypeId,
     },
   });
-}
 
-export async function action({ request, params }: ActionFunctionArgs) {
-  const userId = await requireUserId(request);
-  const propertyId = params.id;
-  
-  if (!propertyId) {
-    throw new Response("Property ID is required", { status: 400 });
-  }
-
-  const formData = await request.formData();
-  const intent = formData.get("intent");
-
-  if (intent === "checkAvailability") {
-    const checkIn = formData.get("checkIn") as string;
-    const checkOut = formData.get("checkOut") as string;
-    const guests = parseInt(formData.get("guests") as string);
-
-    if (!checkIn || !checkOut) {
-      return json({ error: "Check-in and check-out dates are required" }, { status: 400 });
-    }
-
-    const checkInDate = new Date(checkIn);
-    const checkOutDate = new Date(checkOut);
-
-    if (checkInDate >= checkOutDate) {
-      return json({ error: "Check-out date must be after check-in date" }, { status: 400 });
-    }
-
-    // Check for conflicting bookings
-    const conflictingBookings: any[] = await prisma.propertyBooking.findMany({
-      where: {
-        propertyId,
-        status: { in: ["CONFIRMED", "PENDING"] },
-        OR: [
-          {
-            checkIn: { lte: checkOutDate },
-            checkOut: { gte: checkInDate },
-          },
-        ],
-      },
-    });
-
-    // Check unavailable dates
-    const unavailableDates = await prisma.unavailableDate.findMany({
-      where: {
-        serviceId: propertyId,
-        serviceType: "property",
-        OR: [
-          {
-            startDate: { lte: checkOutDate },
-            endDate: { gte: checkInDate },
-          },
-        ],
-      },
-    });
-
-    const isAvailable = conflictingBookings.length === 0 && unavailableDates.length === 0;
-
-    if (!isAvailable) {
-      return json({ 
-        error: "Property is not available for the selected dates",
-        conflictingBookings,
-        unavailableDates,
-      }, { status: 400 });
-    }
-
-    // Calculate pricing
-    const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-    const property = await prisma.property.findUnique({
-      where: { id: propertyId },
-      select: {
-        basePrice: true,
-        cleaningFee: true,
-        serviceFee: true,
-        taxRate: true,
-      },
-    });
-
-    if (!property) {
-      return json({ error: "Property not found" }, { status: 404 });
-    }
-
-    const basePrice = property.basePrice * nights;
-    const cleaningFee = property.cleaningFee;
-    const serviceFee = property.serviceFee;
-    const taxes = (basePrice + cleaningFee + serviceFee) * (property.taxRate / 100);
-    const totalPrice = basePrice + cleaningFee + serviceFee + taxes;
-
-    return json({
-      success: true,
-      isAvailable: true,
-      pricingBreakdown: {
-        basePrice,
-        cleaningFee,
-        serviceFee,
-        taxes,
-        total: totalPrice,
-      },
-      nights,
-      totalPrice,
-    });
-  }
 
   if (intent === "createBooking") {
     const checkIn = formData.get("checkIn") as string;
@@ -323,6 +246,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
           specialRequests,
           userId,
           propertyId,
+          roomTypeId: (roomTypeId as string) || null,
         },
         include: {
           property: {
@@ -339,6 +263,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
               },
             },
           },
+          roomType: true,
         },
       });
 
@@ -358,15 +283,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
 
       // 2) Block availability immediately so other customers can't double-book
+      // Only block entire property for base bookings (no specific room type)
       try {
-        await blockServiceDates(
-          propertyId,
-          "property",
-          checkInDate,
-          checkOutDate,
-          "booked",
-          booking.property.ownerId
-        );
+        if (!booking.roomTypeId) {
+          await blockServiceDates(
+            propertyId,
+            "property",
+            checkInDate,
+            checkOutDate,
+            "booked",
+            booking.property.ownerId
+          );
+        }
       } catch (e) {
         console.error("Failed to block dates for property booking", e);
       }
@@ -475,7 +403,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function PropertyBooking() {
-  const { property, isAvailable, pricingBreakdown, totalPrice, nights, searchParams } = useLoaderData<typeof loader>();
+  const { property, isAvailable, pricingBreakdown, totalPrice, nights, searchParams, availabilityPreview, pricePreview, suggestedRange } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const [searchParamsUrl, setSearchParamsUrl] = useSearchParams();
@@ -495,9 +423,31 @@ export default function PropertyBooking() {
   });
   const [specialRequests, setSpecialRequests] = useState("");
   const [insurance, setInsurance] = useState(false);
+  const [roomTypeId, setRoomTypeId] = useState<string | undefined>(searchParams.roomTypeId);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [rangeWarning, setRangeWarning] = useState<string | null>(null);
 
   const isSubmitting = navigation.state === "submitting";
 
+  useEffect(() => {
+    if (!selectedDates.checkIn && !selectedDates.checkOut && suggestedRange) {
+      setSelectedDates({ checkIn: suggestedRange.checkIn, checkOut: suggestedRange.checkOut });
+    }
+  }, [suggestedRange]);
+
+  useEffect(() => {
+    if (!roomTypeId || !selectedDates.checkIn || !selectedDates.checkOut) { setRangeWarning(null); return; }
+    const start = new Date(selectedDates.checkIn);
+    const end = new Date(selectedDates.checkOut);
+    const probe = new Date(start);
+    let ok = true;
+    while (probe < end) {
+      const key = probe.toISOString().split('T')[0];
+      if ((availabilityPreview?.[key] ?? 0) <= 0) { ok = false; break; }
+      probe.setDate(probe.getDate() + 1);
+    }
+    setRangeWarning(ok ? null : 'Selected dates include fully booked nights. Please adjust or use the suggested range.');
+  }, [roomTypeId, selectedDates, availabilityPreview]);
   const handleDateChange = (field: string, value: string) => {
     setSelectedDates(prev => ({ ...prev, [field]: value }));
   };
@@ -521,6 +471,7 @@ export default function PropertyBooking() {
     if (selectedDates.checkIn) newSearchParams.set("checkIn", selectedDates.checkIn);
     if (selectedDates.checkOut) newSearchParams.set("checkOut", selectedDates.checkOut);
     newSearchParams.set("guests", guests.toString());
+    if (roomTypeId) newSearchParams.set("roomTypeId", roomTypeId);
     setSearchParamsUrl(newSearchParams);
   };
 
@@ -635,6 +586,52 @@ export default function PropertyBooking() {
               </CardHeader>
               <CardContent>
                 <Form method="post" className="space-y-6">
+                  {Array.isArray(property.roomTypes) && property.roomTypes.length > 0 && (
+                    <div>
+                      <Label>Room Type</Label>
+                      <select name="roomTypeId" value={roomTypeId || ''} onChange={(e) => setRoomTypeId(e.target.value || undefined)} className="mt-2 w-full border rounded px-3 py-2">
+                        <option value="">Default (Base)</option>
+                        {property.roomTypes.map((rt: any) => (
+                          <option key={rt.id} value={rt.id}>{rt.name} — PKR {rt.basePrice.toLocaleString()}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {/* Availability Calendar Preview */}
+                  {roomTypeId && (
+                    <div>
+                      <Label>Availability Preview</Label>
+                      <Calendar
+                        mode="single"
+                        numberOfMonths={2}
+                        selected={selectedDate}
+                        onSelect={(d: Date | undefined) => setSelectedDate(d)}
+                        footer={<div className="text-sm text-gray-600">Choose dates with better availability.</div>}
+                        components={{
+                          DayButton: ({ className, day, modifiers, ...props }: any) => {
+                            const key = day.date.toISOString().split('T')[0];
+                            const avail = availabilityPreview?.[key] ?? undefined;
+                            const price = pricePreview?.[key];
+                            let color = '';
+                            if (typeof avail === 'number') {
+                              color = avail <= 0 ? 'bg-red-100 text-red-700' : avail <= 1 ? 'bg-orange-100 text-orange-700' : 'bg-green-50 text-green-700';
+                            }
+                            return (
+                              <button className={`aspect-square w-full rounded-md flex flex-col items-center justify-center ${color}`} {...props}>
+                                <span>{day.date.getDate()}</span>
+                                {typeof price === 'number' && (
+                                  <span className="text-[10px] text-gray-700">{property.currency} {price}</span>
+                                )}
+                              </button>
+                            );
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                  {rangeWarning && (
+                    <div className="p-3 border border-red-200 bg-red-50 text-red-700 rounded text-sm">{rangeWarning}</div>
+                  )}
                   {/* Date Selection */}
                   <div>
                     <Label htmlFor="checkIn">Check-in Date</Label>

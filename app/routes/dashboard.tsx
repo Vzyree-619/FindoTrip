@@ -21,7 +21,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, role: true, avatar: true }
+    select: { id: true, name: true, role: true, avatar: true, email: true }
   });
 
   // Redirect based on role only when visiting the root dashboard path
@@ -37,6 +37,28 @@ export async function loader({ request }: LoaderFunctionArgs) {
       throw redirect("/dashboard/guide");
     }
     // SUPER_ADMIN would stay here for admin dashboard
+  }
+
+  // Redirect tour guides from generic bookings to their specific bookings page
+  if (url.pathname === "/dashboard/bookings" && user?.role === "TOUR_GUIDE") {
+    throw redirect("/dashboard/guide/bookings");
+  }
+
+  // Allow tour guide specific routes to pass through without redirect
+  if (user?.role === "TOUR_GUIDE" && (
+    url.pathname.startsWith("/dashboard/guide/") || 
+    url.pathname === "/dashboard/guide"
+  )) {
+    // Let the specific route handle the request, but still pass user data with default stats
+    return json({ 
+      user, 
+      stats: {
+        bookingsCount: 0,
+        upcomingBookings: 0,
+        reviewsCount: 0,
+        favoritesCount: 0
+      }
+    });
   }
 
   // Get dashboard stats - only for customers
@@ -152,16 +174,16 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="px-6 py-3 space-y-2">
-                <Link to="/dashboard/bookings" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                <Link to="/dashboard/guide/bookings" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   📅 My Bookings
                 </Link>
                 <Link to="/dashboard/messages" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   💬 Messages
                 </Link>
-                <Link to="/dashboard/reviews" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                <Link to="/dashboard/guide/reviews" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   ⭐ Reviews
                 </Link>
-                <Link to="/dashboard/profile" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                <Link to="/dashboard/guide/profile" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
                   ⚙️ Profile
                 </Link>
               </div>

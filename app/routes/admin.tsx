@@ -140,8 +140,8 @@ export default function AdminLayout() {
       icon: Settings,
       current: false,
       children: [
-        { name: 'Platform Settings', href: '/admin/settings/platform', icon: Settings },
-        { name: 'Email Templates', href: '/admin/settings/email', icon: MessageSquare },
+        { name: 'General Settings', href: '/admin/settings/general', icon: Settings },
+        { name: 'Email Templates', href: '/admin/settings/emails', icon: MessageSquare },
         { name: 'Notification Settings', href: '/admin/settings/notifications', icon: Bell },
         { name: 'Security Settings', href: '/admin/settings/security', icon: Shield }
       ]
@@ -188,7 +188,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen overflow-hidden bg-gray-50 flex">
       {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
@@ -289,7 +289,7 @@ export default function AdminLayout() {
                 <Shield className="h-8 w-8 text-[#01502E]" />
                 <span className="ml-2 text-xl font-bold text-gray-900">Admin Panel</span>
               </div>
-              <nav className="mt-5 flex-1 px-2 space-y-1 overflow-y-auto min-h-0">
+              <nav className="mt-3 flex-1 px-2 space-y-0.5 overflow-hidden">
                 {navigation.map((item) => {
                   const Icon = item.icon;
                   const active = item.href ? isActive(item.href) : false;
@@ -297,10 +297,10 @@ export default function AdminLayout() {
                   
                   if (item.children) {
                     return (
-                      <div key={item.name} className="mb-2">
+                      <div key={item.name} className="mb-1.5">
                         <button
                           onClick={() => toggleSection(item.name)}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                             active
                               ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
                               : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
@@ -314,7 +314,7 @@ export default function AdminLayout() {
                         </button>
                         
                         {isExpanded && (
-                          <div className="ml-8 mt-2 space-y-1">
+                          <div className="ml-6 mt-1.5 space-y-1">
                             {item.children.map((child) => {
                               const ChildIcon = child.icon;
                               const isChildActive = isCurrentPath(child.href);
@@ -323,7 +323,7 @@ export default function AdminLayout() {
                                 <a
                                   key={child.name}
                                   href={child.href}
-                                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  className={`flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                                     isChildActive
                                       ? 'bg-[#01502E] text-white'
                                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -344,7 +344,7 @@ export default function AdminLayout() {
                     <a
                       key={item.name}
                       href={item.href}
-                      className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`flex items-center space-x-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                         active
                           ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
                           : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
@@ -357,7 +357,7 @@ export default function AdminLayout() {
                 })}
               </nav>
             </div>
-            <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
+            <div className="flex-shrink-0 flex border-t border-gray-200 p-3">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="h-8 w-8 rounded-full bg-[#01502E] flex items-center justify-center">

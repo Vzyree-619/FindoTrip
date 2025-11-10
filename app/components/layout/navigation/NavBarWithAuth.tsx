@@ -91,7 +91,7 @@ const NavBar = ({ user }: NavBarProps) => {
 
   return (
     <>
-    <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center relative z-50">
+    <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center relative z-50 h-16">
       {/* Logo */}
       <div className="text-xl font-bold text-green-600">
         <Link to="/">

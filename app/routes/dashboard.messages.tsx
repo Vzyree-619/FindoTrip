@@ -124,7 +124,7 @@ export default function MessagesDashboard() {
         </div>
 
         {/* Chat Interface */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 h-[500px]">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 h-[calc(100vh-220px)]">
           <ChatContainer 
             currentUserId={user.id}
             theme={chatSettings?.theme || 'light'}
@@ -132,8 +132,8 @@ export default function MessagesDashboard() {
           />
         </div>
 
-        {/* Quick Actions */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Quick Actions - responsive layout */}
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
             <div className="flex items-center gap-3 mb-3">
               <Users className="w-6 h-6 text-blue-600" />
@@ -168,11 +168,10 @@ export default function MessagesDashboard() {
             <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
               Manage your chat preferences and notifications
             </p>
-            <a 
-              href="/dashboard/settings/chat"
-              className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors inline-block text-center"
-            >
-              Settings
+            <a href="/dashboard/settings/chat" className="block w-full">
+              <button className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors">
+                Settings
+              </button>
             </a>
           </div>
         </div>

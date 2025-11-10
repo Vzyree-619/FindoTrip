@@ -109,18 +109,47 @@ export async function action({ request }: ActionFunctionArgs) {
     const name = (form.get("name") as string)?.trim();
     const description = ((form.get("description") as string) || "").trim();
     const type = (form.get("type") as string) || "HOTEL";
-    const address = (form.get("address") as string) || "TBD";
+    const address = (form.get("address") as string) || "";
     const city = (form.get("city") as string) || "";
+    const state = (form.get("state") as string) || undefined;
     const country = (form.get("country") as string) || "";
+    const postalCode = (form.get("postalCode") as string) || undefined;
+    const latitude = (form.get("latitude") as string) ? parseFloat(form.get("latitude") as string) : undefined;
+    const longitude = (form.get("longitude") as string) ? parseFloat(form.get("longitude") as string) : undefined;
+
     const basePrice = parseFloat((form.get("basePrice") as string) || "0");
+    const cleaningFee = (form.get("cleaningFee") as string) ? parseFloat(form.get("cleaningFee") as string) : 0;
+    const serviceFee = (form.get("service") as string) ? parseFloat(form.get("service") as string) : 0;
+    const taxRate = (form.get("taxRate") as string) ? parseFloat(form.get("taxRate") as string) : 0;
+    const currency = (form.get("currency") as string) || 'PKR';
+    const weekendPricing = (form.get("weekendPricing") as string) ? parseFloat(form.get("weekendPricing") as string) : undefined;
+    const monthlyDiscount = (form.get("monthlyDiscount") as string) ? parseFloat(form.get("monthlyDiscount") as string) : 0;
+    const weeklyDiscount = (form.get("weeklyDiscount") as string) ? parseFloat(form.get("weeklyDiscount") as string) : 0;
+
     const maxGuests = parseInt((form.get("maxGuests") as string) || "1", 10);
     const bedrooms = parseInt((form.get("bedrooms") as string) || "1", 10);
     const bathrooms = parseInt((form.get("bathrooms") as string) || "1", 10);
-    const imageUrl = (form.get("imageUrl") as string) || "/placeholder-hotel.jpg";
-    const amenitiesRaw = (form.get("amenities") as string) || "WiFi, Parking";
-    const amenities = amenitiesRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    const beds = (form.get("beds") as string) ? parseInt(form.get("beds") as string, 10) : undefined;
+    const minStay = (form.get("minStay") as string) ? parseInt(form.get("minStay") as string, 10) : 1;
+    const maxStay = (form.get("maxStay") as string) ? parseInt(form.get("maxStay") as string, 10) : 365;
+    const advanceNotice = (form.get("advanceNotice") as string) ? parseInt(form.get("advanceNotice") as string, 10) : 0;
+    const checkInTime = ((form.get("checkInTime") as string) || "15:00");
+    const checkOutTime = ((form.get("checkOutTime") as string) || "11:00");
+    const available = form.get("available") === 'on';
+    const instantBook = form.get("instantBook") === 'on';
+    const selfCheckIn = form.get("selfCheckIn") === 'on';
 
-    if (!name || !city || !country || !basePrice) {
+    const imageUrl = (form.get("imageUrl") as string) || "";
+    const amenitiesRaw = (form.get("amenities") as string) || "";
+    const safetyRaw = (form.get("safetyFeatures") as string) || "";
+    const accessibilityRaw = (form.get("accessibility") as string) || "";
+    const houseRulesRaw = (form.get("houseRules") as string) || "";
+    const amenities = amenitiesRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    const safetyFeatures = safetyRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    const accessibility = accessibilityRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    const houseRules = houseRulesRaw.split(",").map((s) => s.trim()).filter(Boolean);
+
+    if (!name || !city || !country || isNaN(basePrice)) {
       return json({ error: "Name, city, country and base price are required" }, { status: 400 });
     }
 
@@ -132,27 +161,39 @@ export async function action({ request }: ActionFunctionArgs) {
           type: type as any,
           address,
           city,
+          state,
           country,
+          postalCode,
+          latitude: isNaN(latitude as any) ? undefined : latitude,
+          longitude: isNaN(longitude as any) ? undefined : longitude,
           maxGuests,
           bedrooms,
           bathrooms,
+          beds,
           basePrice,
-          weeklyDiscount: 0,
-          images: [imageUrl],
+          cleaningFee,
+          serviceFee,
+          taxRate,
+          currency,
+          weekendPricing,
+          monthlyDiscount,
+          weeklyDiscount,
+          images: imageUrl ? [imageUrl] : [],
           videos: [],
           virtualTour: null,
           floorPlan: null,
           amenities,
-          safetyFeatures: [],
-          accessibility: [],
-          houseRules: [],
-          available: false,
-          instantBook: false,
-          minStay: 1,
-          maxStay: 365,
-          advanceNotice: 0,
-          checkInTime: "15:00",
-          checkOutTime: "11:00",
+          safetyFeatures,
+          accessibility,
+          houseRules,
+          available,
+          instantBook,
+          selfCheckIn,
+          minStay,
+          maxStay,
+          advanceNotice,
+          checkInTime,
+          checkOutTime,
           ownerId: owner.id,
           approvalStatus: "PENDING",
           rating: 0,
@@ -335,6 +376,7 @@ export default function ProviderDashboard() {
                     </div>
                     <div className="mt-4 flex gap-2">
                       <Link to={`/accommodations/${p.id}`} className="flex-1 text-center border rounded px-3 py-2">View</Link>
+                      <Link to={`/dashboard/provider/properties/${p.id}/edit`} className="flex-1 text-center border rounded px-3 py-2">Edit</Link>
                       <Link to={`/book/property/${p.id}`} className="flex-1 text-center bg-[#01502E] text-white rounded px-3 py-2">Book</Link>
                     </div>
                   </div>
@@ -349,6 +391,11 @@ export default function ProviderDashboard() {
           <div className="flex items-center gap-2 mb-4">
             <Plus className="w-5 h-5 text-[#01502E]" />
             <h2 className="text-lg font-semibold">Create New Property</h2>
+          </div>
+          <div className="mb-4">
+            <Link to="/dashboard/provider/rooms" className="inline-flex items-center gap-2 px-3 py-2 border rounded hover:bg-gray-50">
+              Manage Room Types
+            </Link>
           </div>
           <Form method="post" className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input type="hidden" name="intent" value="create" />
@@ -365,6 +412,8 @@ export default function ProviderDashboard() {
                 <option value="RESORT">Resort</option>
                 <option value="HOSTEL">Hostel</option>
                 <option value="LODGE">Lodge</option>
+                <option value="GUESTHOUSE">Guesthouse</option>
+                <option value="BOUTIQUE_HOTEL">Boutique Hotel</option>
               </select>
             </div>
             <div className="md:col-span-2">
@@ -376,6 +425,10 @@ export default function ProviderDashboard() {
               <input name="address" className="w-full border rounded px-3 py-2" placeholder="123 Main St" />
             </div>
             <div>
+              <label className="block text-sm font-medium mb-1">State/Province</label>
+              <input name="state" className="w-full border rounded px-3 py-2" placeholder="GB" />
+            </div>
+            <div>
               <label className="block text-sm font-medium mb-1">City</label>
               <input name="city" required className="w-full border rounded px-3 py-2" placeholder="Islamabad" />
             </div>
@@ -384,8 +437,28 @@ export default function ProviderDashboard() {
               <input name="country" required className="w-full border rounded px-3 py-2" placeholder="Pakistan" />
             </div>
             <div>
+              <label className="block text-sm font-medium mb-1">Postal Code</label>
+              <input name="postalCode" className="w-full border rounded px-3 py-2" placeholder="44000" />
+            </div>
+            <div>
               <label className="block text-sm font-medium mb-1">Base Price (PKR)</label>
               <input name="basePrice" type="number" step="1" min="0" required className="w-full border rounded px-3 py-2" placeholder="4000" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Cleaning Fee</label>
+              <input name="cleaningFee" type="number" step="1" min="0" className="w-full border rounded px-3 py-2" placeholder="0" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Service Fee</label>
+              <input name="service" type="number" step="1" min="0" className="w-full border rounded px-3 py-2" placeholder="0" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Tax Rate</label>
+              <input name="taxRate" type="number" step="0.01" min="0" className="w-full border rounded px-3 py-2" placeholder="0.02" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Currency</label>
+              <input name="currency" className="w-full border rounded px-3 py-2" placeholder="PKR" defaultValue="PKR" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Max Guests</label>
@@ -399,13 +472,70 @@ export default function ProviderDashboard() {
               <label className="block text-sm font-medium mb-1">Bathrooms</label>
               <input name="bathrooms" type="number" min="1" required className="w-full border rounded px-3 py-2" placeholder="1" />
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Beds (optional)</label>
+              <input name="beds" type="number" min="0" className="w-full border rounded px-3 py-2" placeholder="2" />
+            </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Amenities (comma separated)</label>
               <input name="amenities" className="w-full border rounded px-3 py-2" placeholder="WiFi, Parking, Breakfast" />
             </div>
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Safety Features (comma separated)</label>
+                <input name="safetyFeatures" className="w-full border rounded px-3 py-2" placeholder="Fire Extinguisher, Smoke Detector" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Accessibility (comma separated)</label>
+                <input name="accessibility" className="w-full border rounded px-3 py-2" placeholder="Elevator, Wheelchair Access" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">House Rules (comma separated)</label>
+                <input name="houseRules" className="w-full border rounded px-3 py-2" placeholder="No Smoking, No Pets" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Weekend Pricing Multiplier</label>
+              <input name="weekendPricing" type="number" step="0.01" min="0" className="w-full border rounded px-3 py-2" placeholder="1.15" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Weekly Discount (%)</label>
+              <input name="weeklyDiscount" type="number" step="0.1" min="0" className="w-full border rounded px-3 py-2" placeholder="3" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Monthly Discount (%)</label>
+              <input name="monthlyDiscount" type="number" step="0.1" min="0" className="w-full border rounded px-3 py-2" placeholder="5" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Check-in Time</label>
+              <input name="checkInTime" className="w-full border rounded px-3 py-2" placeholder="15:00" defaultValue="15:00" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Check-out Time</label>
+              <input name="checkOutTime" className="w-full border rounded px-3 py-2" placeholder="11:00" defaultValue="11:00" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Advance Notice (hours)</label>
+              <input name="advanceNotice" type="number" min="0" className="w-full border rounded px-3 py-2" placeholder="0" />
+            </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Cover Image URL</label>
               <input name="imageUrl" className="w-full border rounded px-3 py-2" placeholder="https://.../image.jpg" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1">Upload Images (optional)</label>
+              <input name="images" type="file" multiple accept="image/jpeg,image/png,image/webp" className="w-full border rounded px-3 py-2" />
+            </div>
+            <div className="md:col-span-2 grid grid-cols-2 gap-4">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" name="available" className="h-4 w-4" /> Available
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" name="instantBook" className="h-4 w-4" /> Instant Book
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" name="selfCheckIn" className="h-4 w-4" /> Self Check-in
+              </label>
             </div>
             <div className="md:col-span-2">
               <button type="submit" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">

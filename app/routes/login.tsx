@@ -5,8 +5,9 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { Form, Link, useActionData, useSearchParams, useNavigation, useLoaderData } from "@remix-run/react";
+import { useState } from "react";
 import { login, createUserSession, getUserId, getUser } from "~/lib/auth/auth.server";
-import { Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
+import { Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getUser(request);
@@ -82,9 +83,10 @@ export default function Login() {
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const { fromBooking } = useLoaderData<typeof loader>();
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#01502E]/5 to-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-[#01502E]/5 to-gray-50 flex items-center justify-center py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md lg:max-w-lg w-full">
         {/* Header */}
         <div className="text-center">
@@ -148,12 +150,24 @@ export default function Login() {
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
               </div>
             </div>
 

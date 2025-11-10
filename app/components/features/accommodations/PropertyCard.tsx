@@ -16,6 +16,7 @@ interface PropertyCardProps {
   rating: number;
   reviewCount: number;
   amenities?: string[];
+  roomTypeCount?: number;
 }
 
 export default function PropertyCard({
@@ -33,6 +34,7 @@ export default function PropertyCard({
   rating,
   reviewCount,
   amenities = [],
+  roomTypeCount,
 }: PropertyCardProps) {
   const mainImage = images[0] || "/placeholder-hotel.jpg";
   
@@ -93,6 +95,11 @@ export default function PropertyCard({
             <Bath size={14} className="mr-1" />
             <span>{bathrooms}</span>
           </div>
+          {typeof roomTypeCount === 'number' && (
+            <div className="flex items-center">
+              <span className="ml-2 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs">{roomTypeCount} room types</span>
+            </div>
+          )}
         </div>
 
         {/* Amenities Preview */}

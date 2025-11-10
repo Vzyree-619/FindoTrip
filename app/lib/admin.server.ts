@@ -4,20 +4,26 @@ import { getUserId } from "~/lib/auth/auth.server";
 
 export async function requireAdmin(request: Request) {
   const userId = await getUserId(request);
-  
+
   if (!userId) {
     throw redirect("/admin/login");
   }
-  
-  const user = await prisma.user.findUnique({
-    where: { id: userId }
-  });
-  
-  if (!user || user.role !== 'SUPER_ADMIN') {
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user || user.role !== 'SUPER_ADMIN') {
+      throw redirect("/admin/login");
+    }
+
+    return user;
+  } catch (err) {
+    // If the database is unreachable or errors, avoid crashing the admin layout.
+    // Redirect to admin login so the user can re-authenticate.
     throw redirect("/admin/login");
   }
-  
-  return user;
 }
 
 export async function logAdminAction(

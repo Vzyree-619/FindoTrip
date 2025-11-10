@@ -85,8 +85,18 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     orderBy: { rating: "desc" },
   });
 
+  // Fetch room types separately (avoid relation include issues if client isn't regenerated)
+  // Room types fetched separately; guard for environments where Prisma client isn't regenerated yet
+  let roomTypes: any[] = [];
+  try {
+    const anyPrisma: any = prisma as any;
+    if (anyPrisma.roomType?.findMany) {
+      roomTypes = await anyPrisma.roomType.findMany({ where: { propertyId: id } });
+    }
+  } catch {}
+
   // Map property -> accommodation shape used by UI
-  const accommodation = { ...property, pricePerNight: property.basePrice, currency: (property as any).currency || 'PKR' } as any;
+  const accommodation = { ...property, roomTypes, pricePerNight: property.basePrice, currency: (property as any).currency || 'PKR' } as any;
 
   return json({ 
     accommodation, 
@@ -110,6 +120,7 @@ export default function AccommodationDetail() {
   const [wishlisted, setWishlisted] = useState(isWishlisted);
   const [chatOpen, setChatOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [roomTypeId, setRoomTypeId] = useState<string | undefined>(undefined);
 
   const images = accommodation.images.length > 0 
     ? accommodation.images 
@@ -134,6 +145,7 @@ export default function AccommodationDetail() {
       checkOut,
       guests: guests.toString(),
     });
+    if (roomTypeId) params.set('roomTypeId', roomTypeId);
     navigate(`/book/property/${accommodation.id}?${params.toString()}`);
   };
 
@@ -146,7 +158,9 @@ export default function AccommodationDetail() {
   };
 
   const nights = calculateNights();
-  const totalPrice = nights * accommodation.pricePerNight;
+  const selectedRoomType = (accommodation.roomTypes || []).find((rt: any) => rt.id === roomTypeId);
+  const pricePerNight = selectedRoomType?.basePrice || accommodation.pricePerNight;
+  const totalPrice = nights * pricePerNight;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -268,6 +282,38 @@ export default function AccommodationDetail() {
             </button>
           </div>
         </div>
+
+        {/* Room Types */}
+        {Array.isArray(accommodation.roomTypes) && accommodation.roomTypes.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Available Room Types</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {accommodation.roomTypes.map((rt: any) => (
+                <div key={rt.id} className={`border rounded-lg overflow-hidden ${roomTypeId === rt.id ? 'ring-2 ring-[#01502E]' : ''}`}>
+                  <div className="h-40 bg-gray-100">
+                    <img src={rt.images?.[0] || accommodation.images?.[0] || '/placeholder-hotel.jpg'} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-lg font-semibold">{rt.name}</div>
+                        <div className="text-sm text-gray-600">Sleeps {rt.maxGuests}{rt.bedType ? ` • ${rt.bedType}` : ''}</div>
+                      </div>
+                      <div className="text-[#01502E] font-semibold">PKR {rt.basePrice.toLocaleString()}/night</div>
+                    </div>
+                    {rt.amenities?.length ? (
+                      <div className="mt-2 text-sm text-gray-700 line-clamp-2">{rt.amenities.slice(0,5).join(', ')}</div>
+                    ) : null}
+                    <div className="mt-3 flex gap-2">
+                      <button onClick={() => setRoomTypeId(rt.id)} className={`flex-1 text-center px-3 py-2 rounded border ${roomTypeId === rt.id ? 'bg-[#01502E] text-white border-[#01502E]' : 'bg-white'}`}>{roomTypeId === rt.id ? 'Selected' : 'Select'}</button>
+                      <button onClick={() => { setRoomTypeId(rt.id); handleBooking(); }} className="flex-1 text-center px-3 py-2 rounded bg-[#01502E] text-white">Book</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Image Gallery */}
         <div className="grid grid-cols-4 gap-2 mb-8 h-[400px]">
@@ -649,20 +695,38 @@ export default function AccommodationDetail() {
           currentUserId={user?.id}
           initialMessage={`Hi, I'm interested in ${accommodation.name}${checkIn && checkOut ? ` for ${checkIn} to ${checkOut}` : ''}.`}
           fetchConversation={async ({ targetUserId }) => {
-            const response = await fetch(`/chat-conversation?targetUserId=${targetUserId}`);
+            const response = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
             if (!response.ok) throw new Error("Failed to fetch conversation");
             return response.json();
           }}
-          onSendMessage={async ({ targetUserId, text }) => {
-            const formData = new FormData();
-            formData.append('text', text);
-            formData.append('targetUserId', targetUserId);
-            const response = await fetch('/chat-send', {
+          onSendMessage={async ({ conversationId, targetUserId, text }) => {
+            let cid = conversationId;
+            if (!cid && targetUserId) {
+              const convRes = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
+              const convJson = await convRes.json();
+              cid = convJson?.conversation?.id;
+            }
+            if (!cid) throw new Error('Missing conversation ID');
+            const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
               method: 'POST',
-              body: formData
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content: text })
             });
-            if (!response.ok) throw new Error("Failed to send message");
-            return response.json();
+            const json = await res.json();
+            if (!res.ok || !json?.success) throw new Error('Failed to send message');
+            const m = json.data;
+            return {
+              id: m.id,
+              conversationId: cid,
+              senderId: m.senderId,
+              senderName: m.senderName || m.sender?.name,
+              senderAvatar: m.senderAvatar || m.sender?.avatar,
+              content: m.content,
+              type: (m.type || 'text').toString().toLowerCase(),
+              attachments: Array.isArray(m.attachments) ? m.attachments : [],
+              createdAt: m.createdAt,
+              status: 'sent',
+            };
           }}
         />
       )}

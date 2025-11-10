@@ -7,6 +7,7 @@
 
 const encoder = new TextEncoder();
 import { setOnline, setOffline } from "~/lib/chat/presence.server";
+import { prisma } from "~/lib/db/db.server";
 
 type Client = {
   userId: string;
@@ -57,8 +58,11 @@ export function streamNotifications(userId: string): Response {
       // initial welcome
       send("connected", { ok: true });
 
-      // mark presence online
-      try { setOnline(userId); } catch {}
+      // mark presence online and touch lastActiveAt
+      try { 
+        setOnline(userId); 
+        prisma.user.update({ where: { id: userId }, data: { lastActiveAt: new Date() } }).catch(() => {});
+      } catch {}
 
       const interval = setInterval(() => {
         // keep-alive every 30s

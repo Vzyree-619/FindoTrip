@@ -382,7 +382,7 @@ export default function AdminDashboard() {
       </div>
       
       <div>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Sidebar Navigation */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow p-6">
@@ -392,9 +392,9 @@ export default function AdminDashboard() {
           </div>
           
           {/* Main Content */}
-          <div className="lg:col-span-3 space-y-8">
+          <div className="lg:col-span-3 space-y-6">
             {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
               <Card className="p-6">
                 <div className="flex items-center">
                   <div className="p-2 bg-blue-100 rounded-lg">

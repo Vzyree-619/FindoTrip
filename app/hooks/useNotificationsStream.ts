@@ -27,6 +27,9 @@ export function useNotificationsStream(onNotification: (n: NotificationEvent) =>
 
     es.addEventListener("notification", onNotif as any);
     es.addEventListener("message", onMsg as any);
+    es.addEventListener("connected", () => {
+      // Optionally request a backfill after reconnect via separate hooks
+    });
 
     return () => {
       try {

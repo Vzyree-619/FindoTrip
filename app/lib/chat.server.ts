@@ -282,12 +282,13 @@ export async function sendMessage(
     if (!convo) throw new Error("Conversation not found");
     if (!convo.participants.includes(senderId)) throw new Error("Sender not in conversation");
 
+    const sender = await prisma.user.findUnique({ where: { id: senderId }, select: { role: true } });
     const created = await prisma.message.create({
       data: {
         content,
         type,
         senderId,
-        senderRole: undefined as any,
+        senderRole: (sender?.role as any) || undefined,
         conversationId,
         replyToId: replyToId || undefined,
         attachments: (attachments || []) as any,

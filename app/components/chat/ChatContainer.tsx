@@ -21,7 +21,7 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
   async function loadConversations() {
     setLoading(true);
     try {
-        const res = await fetch(`/chat-conversations?limit=50`);
+        const res = await fetch(`/api/chat/conversations?limit=50`);
       const json = await res.json();
       
       if (!json.success) {
@@ -97,8 +97,8 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
   return (
     <ThemeProvider initialTheme={theme}>
       <div className={`${className} h-full flex flex-col`}>
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4 min-h-0">
-          <div className="md:col-span-2 border rounded-md overflow-hidden flex flex-col">
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-3 sm:gap-4 min-h-0">
+          <div className="lg:col-span-2 border rounded-md overflow-hidden flex flex-col max-h-full">
             <ConversationList
               conversations={conversations}
               loading={loading}
@@ -112,7 +112,7 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
               currentUserId={currentUserId}
             />
           </div>
-          <div className="md:col-span-3 flex flex-col min-h-0">
+          <div className="lg:col-span-3 flex flex-col min-h-0">
             <ChatInterface
               isOpen={open}
               onClose={() => setOpen(false)}
@@ -120,27 +120,18 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
               currentUserId={currentUserId}
               variant="inline"
               className="flex-1"
-              onSendMessage={async ({ targetUserId, text }) => {
-                const formData = new FormData();
-                formData.append('text', text);
-                if (targetUserId) formData.append('targetUserId', targetUserId);
-                
-                const res = await fetch('/chat-send', {
+              onSendMessage={async ({ text }) => {
+                const cid = selectedId;
+                if (!cid) return;
+                const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
                   method: 'POST',
-                  body: formData
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ content: text })
                 });
                 const json = await res.json();
                 const msg = json?.data as Message;
-                // update list preview
-                setConversations((prev) =>
-                  prev.map((c) => (c.id === msg.conversationId ? { ...c, lastMessage: msg, updatedAt: msg.createdAt } : c))
-                );
+                setConversations((prev) => prev.map((c) => (c.id === msg.conversationId ? { ...c, lastMessage: msg, updatedAt: msg.createdAt } : c)));
                 return msg;
-              }}
-              onLoadMore={async ({ conversationId, before }) => {
-                const res = await fetch(`/chat-conversation?conversationId=${conversationId}&limit=50&before=${before}`);
-                const json = await res.json();
-                return (json?.messages || []) as Message[];
               }}
             />
           </div>

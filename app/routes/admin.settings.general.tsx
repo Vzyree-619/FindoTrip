@@ -158,32 +158,55 @@ import { useState } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const admin = await requireAdmin(request);
-  
-  // Get platform settings
-  const settings = await prisma.platformSettings.findFirst({
-    orderBy: { updatedAt: 'desc' }
-  });
-  
-  // Get payment gateway configurations
-  const paymentGateways = await prisma.paymentGateway.findMany({
-    where: { isActive: true },
-    orderBy: { isPrimary: 'desc' }
-  });
-  
-  // Get feature toggles
-  const featureToggles = await prisma.featureToggle.findMany({
-    orderBy: { category: 'asc' }
-  });
-  
-  // Get platform limits
-  const platformLimits = await prisma.platformLimit.findMany({
-    orderBy: { category: 'asc' }
-  });
-  
-  // Get maintenance mode status
-  const maintenanceMode = await prisma.maintenanceMode.findFirst({
-    orderBy: { createdAt: 'desc' }
-  });
+
+  // Some models may not exist in the current Prisma schema.
+  // Guard all Prisma calls and fall back to defaults.
+  const db: any = prisma as any;
+  let settings: any = null;
+  let paymentGateways: any[] = [];
+  let featureToggles: any[] = [];
+  let platformLimits: any[] = [];
+  let maintenanceMode: any = null;
+
+  try {
+    if (db.platformSettings?.findFirst) {
+      settings = await db.platformSettings.findFirst({ orderBy: { updatedAt: 'desc' } });
+    }
+  } catch (e) {
+    console.warn('platformSettings not available or failed to load', e);
+  }
+
+  try {
+    if (db.paymentGateway?.findMany) {
+      paymentGateways = await db.paymentGateway.findMany({ where: { isActive: true }, orderBy: { isPrimary: 'desc' } });
+    }
+  } catch (e) {
+    console.warn('paymentGateway not available or failed to load', e);
+  }
+
+  try {
+    if (db.featureToggle?.findMany) {
+      featureToggles = await db.featureToggle.findMany({ orderBy: { category: 'asc' } });
+    }
+  } catch (e) {
+    console.warn('featureToggle not available or failed to load', e);
+  }
+
+  try {
+    if (db.platformLimit?.findMany) {
+      platformLimits = await db.platformLimit.findMany({ orderBy: { category: 'asc' } });
+    }
+  } catch (e) {
+    console.warn('platformLimit not available or failed to load', e);
+  }
+
+  try {
+    if (db.maintenanceMode?.findFirst) {
+      maintenanceMode = await db.maintenanceMode.findFirst({ orderBy: { createdAt: 'desc' } });
+    }
+  } catch (e) {
+    console.warn('maintenanceMode not available or failed to load', e);
+  }
   
   return json({
     admin,
@@ -220,6 +243,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const admin = await requireAdmin(request);
   const formData = await request.formData();
   const action = formData.get('action') as string;
+  const db: any = prisma as any;
   
   try {
     if (action === 'save_general_settings') {
@@ -236,39 +260,41 @@ export async function action({ request }: ActionFunctionArgs) {
       const supportPhone = formData.get('supportPhone') as string;
       const supportHours = formData.get('supportHours') as string;
       
-      await prisma.platformSettings.upsert({
-        where: { id: 'default' },
-        update: {
-          platformName,
-          platformDescription,
-          defaultCurrency,
-          defaultLanguage,
-          timezone,
-          dateFormat,
-          timeFormat,
-          commissionRate,
-          taxRate,
-          supportEmail,
-          supportPhone,
-          supportHours,
-          updatedAt: new Date()
-        },
-        create: {
-          id: 'default',
-          platformName,
-          platformDescription,
-          defaultCurrency,
-          defaultLanguage,
-          timezone,
-          dateFormat,
-          timeFormat,
-          commissionRate,
-          taxRate,
-          supportEmail,
-          supportPhone,
-          supportHours
-        }
-      });
+      if (db.platformSettings?.upsert) {
+        await db.platformSettings.upsert({
+          where: { id: 'default' },
+          update: {
+            platformName,
+            platformDescription,
+            defaultCurrency,
+            defaultLanguage,
+            timezone,
+            dateFormat,
+            timeFormat,
+            commissionRate,
+            taxRate,
+            supportEmail,
+            supportPhone,
+            supportHours,
+            updatedAt: new Date()
+          },
+          create: {
+            id: 'default',
+            platformName,
+            platformDescription,
+            defaultCurrency,
+            defaultLanguage,
+            timezone,
+            dateFormat,
+            timeFormat,
+            commissionRate,
+            taxRate,
+            supportEmail,
+            supportPhone,
+            supportHours
+          }
+        });
+      }
       
       await logAdminAction(admin.id, 'UPDATE_GENERAL_SETTINGS', 'Updated general platform settings', request);
       
@@ -278,36 +304,23 @@ export async function action({ request }: ActionFunctionArgs) {
       const testMode = formData.get('testMode') === 'true';
       const acceptedMethods = JSON.parse(formData.get('acceptedMethods') as string);
       
-      // Update primary gateway
-      await prisma.paymentGateway.updateMany({
-        where: { isPrimary: true },
-        data: { isPrimary: false }
-      });
-      
-      await prisma.paymentGateway.update({
-        where: { id: primaryGateway },
-        data: { isPrimary: true, testMode }
-      });
-      
-      // Update backup gateway
-      if (backupGateway) {
-        await prisma.paymentGateway.update({
-          where: { id: backupGateway },
-          data: { isBackup: true }
-        });
+      // Update primary/backup gateways if model exists
+      if (db.paymentGateway?.updateMany && db.paymentGateway?.update) {
+        await db.paymentGateway.updateMany({ where: { isPrimary: true }, data: { isPrimary: false } });
+        if (primaryGateway) {
+          await db.paymentGateway.update({ where: { id: primaryGateway }, data: { isPrimary: true, testMode } });
+        }
+        if (backupGateway) {
+          await db.paymentGateway.update({ where: { id: backupGateway }, data: { isBackup: true } });
+        }
       }
-      
-      // Update accepted payment methods
-      await prisma.paymentMethod.updateMany({
-        data: { isEnabled: false }
-      });
-      
-      for (const method of acceptedMethods) {
-        await prisma.paymentMethod.upsert({
-          where: { type: method },
-          update: { isEnabled: true },
-          create: { type: method, isEnabled: true }
-        });
+
+      // Update accepted payment methods if model exists (AcceptedPaymentMethod collection)
+      if (db.acceptedPaymentMethod?.updateMany && db.acceptedPaymentMethod?.upsert) {
+        await db.acceptedPaymentMethod.updateMany({ data: { isEnabled: false } });
+        for (const method of acceptedMethods) {
+          await db.acceptedPaymentMethod.upsert({ where: { type: method }, update: { isEnabled: true }, create: { type: method, isEnabled: true } });
+        }
       }
       
       await logAdminAction(admin.id, 'UPDATE_PAYMENT_GATEWAYS', 'Updated payment gateway settings', request);
@@ -315,18 +328,20 @@ export async function action({ request }: ActionFunctionArgs) {
     } else if (action === 'save_feature_toggles') {
       const features = JSON.parse(formData.get('features') as string);
       
-      for (const feature of features) {
-        await prisma.featureToggle.upsert({
-          where: { id: feature.id },
-          update: { isEnabled: feature.isEnabled },
-          create: {
-            id: feature.id,
-            name: feature.name,
-            description: feature.description,
-            category: feature.category,
-            isEnabled: feature.isEnabled
-          }
-        });
+      if (db.featureToggle?.upsert) {
+        for (const feature of features) {
+          await db.featureToggle.upsert({
+            where: { id: feature.id },
+            update: { isEnabled: feature.isEnabled },
+            create: {
+              id: feature.id,
+              name: feature.name,
+              description: feature.description,
+              category: feature.category,
+              isEnabled: feature.isEnabled
+            }
+          });
+        }
       }
       
       await logAdminAction(admin.id, 'UPDATE_FEATURE_TOGGLES', 'Updated feature toggles', request);
@@ -334,19 +349,21 @@ export async function action({ request }: ActionFunctionArgs) {
     } else if (action === 'save_platform_limits') {
       const limits = JSON.parse(formData.get('limits') as string);
       
-      for (const limit of limits) {
-        await prisma.platformLimit.upsert({
-          where: { id: limit.id },
-          update: { value: limit.value },
-          create: {
-            id: limit.id,
-            name: limit.name,
-            description: limit.description,
-            category: limit.category,
-            value: limit.value,
-            unit: limit.unit
-          }
-        });
+      if (db.platformLimit?.upsert) {
+        for (const limit of limits) {
+          await db.platformLimit.upsert({
+            where: { id: limit.id },
+            update: { value: limit.value },
+            create: {
+              id: limit.id,
+              name: limit.name,
+              description: limit.description,
+              category: limit.category,
+              value: limit.value,
+              unit: limit.unit
+            }
+          });
+        }
       }
       
       await logAdminAction(admin.id, 'UPDATE_PLATFORM_LIMITS', 'Updated platform limits', request);
@@ -356,24 +373,26 @@ export async function action({ request }: ActionFunctionArgs) {
       const message = formData.get('message') as string;
       const estimatedEndTime = formData.get('estimatedEndTime') as string;
       
-      if (isEnabled) {
-        await prisma.maintenanceMode.create({
-          data: {
-            isEnabled: true,
-            message,
-            estimatedEndTime: estimatedEndTime ? new Date(estimatedEndTime) : null,
-            startedBy: admin.id
-          }
-        });
-      } else {
-        await prisma.maintenanceMode.updateMany({
-          where: { isEnabled: true },
-          data: { 
-            isEnabled: false,
-            endedAt: new Date(),
-            endedBy: admin.id
-          }
-        });
+      if (db.maintenanceMode?.create && db.maintenanceMode?.updateMany) {
+        if (isEnabled) {
+          await db.maintenanceMode.create({
+            data: {
+              isEnabled: true,
+              message,
+              estimatedEndTime: estimatedEndTime ? new Date(estimatedEndTime) : null,
+              startedBy: admin.id
+            }
+          });
+        } else {
+          await db.maintenanceMode.updateMany({
+            where: { isEnabled: true },
+            data: { 
+              isEnabled: false,
+              endedAt: new Date(),
+              endedBy: admin.id
+            }
+          });
+        }
       }
       
       await logAdminAction(admin.id, 'TOGGLE_MAINTENANCE_MODE', `Maintenance mode ${isEnabled ? 'enabled' : 'disabled'}`, request);

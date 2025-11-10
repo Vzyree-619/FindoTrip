@@ -337,6 +337,98 @@ model User {
 }
 
 // ========================================
+// ADMIN PLATFORM CONFIGURATION MODELS
+// ========================================
+
+model PlatformSettings {
+  id                 String   @id @default("default") @map("_id") @db.ObjectId
+  platformName       String
+  platformDescription String?
+  platformLogo       String?
+  platformFavicon    String?
+  defaultCurrency    String   @default("USD")
+  defaultLanguage    String   @default("en")
+  timezone           String   @default("UTC")
+  dateFormat         String   @default("MM/DD/YYYY")
+  timeFormat         String   @default("12h")
+  commissionRate     Float    @default(10.0)
+  taxRate            Float    @default(0.0)
+  supportEmail       String?
+  supportPhone       String?
+  supportHours       String?
+  termsOfService     String?
+  privacyPolicy      String?
+  refundPolicy       String?
+  cancellationPolicy String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model PaymentGateway {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  type        String   // e.g., "stripe", "paypal", "razorpay"
+  isActive    Boolean  @default(true)
+  isPrimary   Boolean  @default(false)
+  isBackup    Boolean  @default(false)
+  testMode    Boolean  @default(false)
+  apiKey      String?
+  secretKey   String?
+  webhookSecret String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([type])
+  @@index([isActive])
+  @@index([isPrimary])
+}
+
+model AcceptedPaymentMethod {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  type      String   @unique // "credit_card", "paypal", "apple_pay", etc.
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([isEnabled])
+}
+
+model FeatureToggle {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  category    String   // "booking", "social", "communication", "marketing", "payment"
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([category])
+  @@index([isEnabled])
+}
+
+model PlatformLimit {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  category    String   // "user", "service", "content"
+  value       Int
+  unit        String   // "properties", "vehicles", "tours", "images", "characters"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([category])
+}
+
+model MaintenanceMode {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  isEnabled        Boolean  @default(false)
+  message          String?
+  estimatedEndTime DateTime?
+  startedBy        String?  @db.ObjectId
+  endedBy          String?  @db.ObjectId
+  endedAt          DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  @@index([isEnabled])
+}
+
+// ========================================
 // ROLE-BASED PROFILES WITH REAL RELATIONSHIPS
 // ========================================
 
@@ -752,6 +844,9 @@ model Property {
   reviews       Review[]
   unavailableDates UnavailableDate[]
   
+  // Room types for multi-room properties (e.g., hotels)
+  roomTypes     RoomType[]
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -762,6 +857,71 @@ model Property {
   @@index([approvalStatus])
   @@index([available])
   @@index([rating])
+}
+
+// ========================================
+// ROOMS FOR PROPERTIES (MULTI-ROOM SUPPORT)
+// ========================================
+
+model RoomType {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  propertyId     String    @db.ObjectId
+  property       Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  // Descriptors
+  name           String    // e.g., Deluxe King, Standard Twin
+  description    String?
+
+  // Capacity & Bed config
+  maxGuests      Int
+  beds           Int?
+  bedType        String?   // e.g., King, Twin, Queen
+
+  // Inventory & Pricing
+  basePrice      Float     // price per night for this room type
+  inventory      Int       @default(1) // total rooms of this type
+  available      Boolean   @default(true)
+  amenities      String[]
+
+  // Media
+  images         String[]
+
+  // Stats
+  bookedCount    Int       @default(0)
+  rating         Float     @default(0)
+  reviewCount    Int       @default(0)
+
+  // Bookings referencing this room type
+  bookings       PropertyBooking[]
+  inventories    RoomInventoryDaily[]
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([propertyId])
+  @@index([available])
+  @@index([basePrice])
+}
+
+// ========================================
+// ROOM-TYPE NIGHTLY INVENTORY
+// ========================================
+
+model RoomInventoryDaily {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  roomTypeId  String    @db.ObjectId
+  roomType    RoomType  @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  
+  // Date should be normalized to 00:00:00 UTC for the day
+  date        DateTime
+  available   Int       // available rooms for this date
+  blocked     Int       @default(0)
+  note        String?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([roomTypeId])
 }
 
 model Vehicle {
@@ -1022,6 +1182,10 @@ model PropertyBooking {
   propertyId      String @db.ObjectId
   property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   
+  // Optional: specific room type booked (for multi-room properties)
+  roomTypeId      String? @db.ObjectId
+  roomType        RoomType? @relation(fields: [roomTypeId], references: [id])
+  
   // Chat integration
   conversationId String? @db.ObjectId
   conversation Conversation? @relation("PropertyBookingConversation", fields: [conversationId], references: [id])
@@ -1037,6 +1201,7 @@ model PropertyBooking {
 
   @@index([userId])
   @@index([propertyId])
+  @@index([roomTypeId])
   @@index([status])
   @@index([checkIn, checkOut])
 }
@@ -2677,4 +2842,3 @@ model SecuritySetting {
   @@index([category])
   @@index([isEnabled])
 }
-

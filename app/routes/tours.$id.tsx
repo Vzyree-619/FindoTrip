@@ -5,7 +5,7 @@ import { getUserId } from "~/lib/auth/auth.server";
 import { ChatInterface } from "~/components/chat";
 import ShareModal from "~/components/common/ShareModal";
 import FloatingShareButton from "~/components/common/FloatingShareButton";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   Star, 
   MapPin, 
@@ -118,6 +118,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
               verified: true,
               user: {
                 select: {
+                  id: true,
                   name: true,
                   avatar: true
                 }
@@ -201,7 +202,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     } catch {}
 
     // Return simplified tour data that matches the actual schema
-    return json({
+  return json({
       user,
       tour: {
         ...tour,
@@ -209,6 +210,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           ...tour.guide,
           name: tour.guide.user.name,
           avatar: tour.guide.user.avatar,
+          userId: tour.guide.user?.id || tour.guide.id,
           rating: tour.guide.averageRating || 0,
           reviewCount: tour.guide.totalBookings || 0,
           isVerified: tour.guide.verified || false,
@@ -268,6 +270,7 @@ export default function TourDetailPage() {
   const [selectedTime, setSelectedTime] = useState((tour as any).timeSlots?.[0] || '');
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatConversationId, setChatConversationId] = useState<string | undefined>(undefined);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [extras, setExtras] = useState<{ key: string; label: string; price: number; selected: boolean }[]>([
     { key: 'lunch', label: 'Lunch', price: 1500, selected: false },
@@ -335,6 +338,20 @@ export default function TourDetailPage() {
   };
 
   const handleMessageGuide = () => setChatOpen(true);
+
+  // Pre-resolve a real conversationId when chat opens to keep it stable
+  useEffect(() => {
+    const resolveConversation = async () => {
+      try {
+        if (!chatOpen || !user?.id || !(tour as any)?.guide?.userId) return;
+        const res = await fetch(`/api/chat.conversation?targetUserId=${(tour as any).guide.userId}`);
+        const json = await res.json();
+        const cid = json?.conversation?.id;
+        if (cid) setChatConversationId(cid);
+      } catch {}
+    };
+    resolveConversation();
+  }, [chatOpen, user?.id, (tour as any)?.guide?.userId]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -808,7 +825,8 @@ export default function TourDetailPage() {
       <ChatInterface
         isOpen={chatOpen}
         onClose={() => setChatOpen(false)}
-        targetUserId={(tour as any).guide?.id}
+        targetUserId={(tour as any).guide?.userId}
+        conversationId={chatConversationId}
         currentUserId={user?.id}
         initialMessage={`Hi ${tour.guide.name}, I'm interested in the ${tour.title}${selectedDate ? ` on ${selectedDate}` : ''}.`}
         fetchConversation={async ({ targetUserId }) => {
@@ -816,14 +834,35 @@ export default function TourDetailPage() {
           if (!response.ok) throw new Error("Failed to fetch conversation");
           return response.json();
         }}
-        onSendMessage={async ({ targetUserId, text }) => {
-          const response = await fetch('/api/chat.send', {
+        onSendMessage={async ({ conversationId, targetUserId, text }) => {
+          // Prefer using provided conversationId; otherwise, create/fetch by targetUserId
+          let cid = conversationId;
+          if (!cid && targetUserId) {
+            const convRes = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
+            const convJson = await convRes.json();
+            cid = convJson?.conversation?.id;
+          }
+          if (!cid) throw new Error('Missing conversation ID');
+          const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ targetUserId, text })
+            body: JSON.stringify({ content: text })
           });
-          if (!response.ok) throw new Error("Failed to send message");
-          return response.json();
+          const json = await res.json();
+          if (!res.ok || !json?.success) throw new Error('Failed to send message');
+          const m = json.data;
+          return {
+            id: m.id,
+            conversationId: cid,
+            senderId: m.senderId,
+            senderName: m.senderName || m.sender?.name,
+            senderAvatar: m.senderAvatar || m.sender?.avatar,
+            content: m.content,
+            type: (m.type || 'text').toString().toLowerCase(),
+            attachments: Array.isArray(m.attachments) ? m.attachments : [],
+            createdAt: m.createdAt,
+            status: 'sent',
+          };
         }}
       />
 

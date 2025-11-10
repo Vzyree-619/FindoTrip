@@ -36,6 +36,7 @@ export const links: LinksFunction = () => [
   {
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+    media: "all",
   },
   
   // Favicon and app icons
@@ -105,7 +106,7 @@ export default function App() {
         {/* Mobile navigation is now handled in NavBar */}
         
         {/* Main content */}
-        <main id="main-content" className="pb-16 lg:pb-0">
+        <main id="main-content" className="pb-0">
           <Outlet />
         </main>
         
@@ -150,5 +151,6 @@ export default function App() {
   );
 }
 
-// Export error boundary for the app
+// Root-level ErrorBoundary must render a full HTML document
+// Export error boundary component (renders inside document)
 export { ErrorBoundary };

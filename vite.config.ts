@@ -28,4 +28,18 @@ export default defineConfig({
     },
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
   },
+  server: {
+    port: 5173,
+    host: true,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+  },
+  optimizeDeps: {
+    include: ['@remix-run/react', '@remix-run/node'],
+  },
 });
