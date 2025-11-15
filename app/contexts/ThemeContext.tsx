@@ -11,12 +11,29 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children, initialTheme = 'light' }: { children: React.ReactNode; initialTheme?: Theme }) {
-  const [theme, setTheme] = useState<Theme>(initialTheme);
+  // Check localStorage first, then use initialTheme as fallback
+  const getInitialTheme = (): Theme => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('chat-theme');
+      if (stored === 'light' || stored === 'dark' || stored === 'auto') {
+        return stored;
+      }
+    }
+    return initialTheme;
+  };
+
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
-  // Update theme when initialTheme changes
+  // Update theme when initialTheme changes (but respect localStorage if it was already set)
   useEffect(() => {
-    setTheme(initialTheme);
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('chat-theme');
+      if (!stored) {
+        // Only set from initialTheme if nothing is in localStorage
+        setTheme(initialTheme);
+      }
+    }
   }, [initialTheme]);
 
   // Register global theme update function

@@ -19,11 +19,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { 
-      id: true, 
-      name: true, 
-      role: true, 
-      avatar: true, 
+    select: {
+      id: true,
+      name: true,
+      role: true,
+      avatar: true,
       email: true,
       appearanceSettings: true,
     },
@@ -202,13 +202,17 @@ export default function Dashboard() {
     user.role === "TOUR_GUIDE";
   if (isProviderRole) {
     return (
-      <ThemeProvider initialTheme={appearanceSettings.theme as 'light' | 'dark' | 'auto'}>
+      <ThemeProvider
+        initialTheme={appearanceSettings.theme as "light" | "dark" | "auto"}
+      >
         <div className="bg-gray-50 dark:bg-gray-900">
           <div className="flex">
             {/* Provider Sidebar */}
             <div className="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col">
               <div className="p-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Dashboard
+                </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Welcome back, {user.name}
                 </p>
@@ -225,19 +229,25 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="bg-green-50 dark:bg-green-900 p-3 rounded-lg">
-                      <div className="text-green-600 dark:text-green-300 font-medium">Upcoming</div>
+                      <div className="text-green-600 dark:text-green-300 font-medium">
+                        Upcoming
+                      </div>
                       <div className="text-2xl font-bold text-green-900 dark:text-green-100">
                         {stats.upcomingBookings}
                       </div>
                     </div>
                     <div className="bg-purple-50 dark:bg-purple-900 p-3 rounded-lg">
-                      <div className="text-purple-600 dark:text-purple-300 font-medium">Reviews</div>
+                      <div className="text-purple-600 dark:text-purple-300 font-medium">
+                        Reviews
+                      </div>
                       <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
                         {stats.reviewsCount}
                       </div>
                     </div>
                     <div className="bg-orange-50 dark:bg-orange-900 p-3 rounded-lg">
-                      <div className="text-orange-600 dark:text-orange-300 font-medium">Favorites</div>
+                      <div className="text-orange-600 dark:text-orange-300 font-medium">
+                        Favorites
+                      </div>
                       <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
                         {stats.favoritesCount}
                       </div>
@@ -305,89 +315,91 @@ export default function Dashboard() {
   ];
 
   return (
-    <ThemeProvider initialTheme={appearanceSettings.theme as 'light' | 'dark' | 'auto'}>
+    <ThemeProvider
+      initialTheme={appearanceSettings.theme as "light" | "dark" | "auto"}
+    >
       <div className="bg-gray-50 dark:bg-gray-900">
         <div className="flex">
           {/* Sidebar */}
           <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:left-0 md:top-20 md:z-10">
-          <div className="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen">
-            {/* User Profile Summary */}
-            <div className="flex items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center">
-                {safeUser.avatar ? (
-                  <img
-                    className="inline-block h-12 w-12 rounded-full object-cover"
-                    src={safeUser.avatar}
-                    alt={safeUser.name}
-                  />
-                ) : (
-                  <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-[#01502E]">
-                    <span className="text-lg font-medium leading-none text-white">
-                      {safeUser.name[0].toUpperCase()}
-                    </span>
+            <div className="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen">
+              {/* User Profile Summary */}
+              <div className="flex items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center">
+                  {safeUser.avatar ? (
+                    <img
+                      className="inline-block h-12 w-12 rounded-full object-cover"
+                      src={safeUser.avatar}
+                      alt={safeUser.name}
+                    />
+                  ) : (
+                    <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-[#01502E]">
+                      <span className="text-lg font-medium leading-none text-white">
+                        {safeUser.name[0].toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="ml-3">
+                    <p className="text-base font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {safeUser.name}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                      {safeUser.email}
+                    </p>
                   </div>
-                )}
-                <div className="ml-3">
-                  <p className="text-base font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {safeUser.name}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                    {safeUser.email}
-                  </p>
                 </div>
+              </div>
+
+              {/* Navigation */}
+              <nav className="px-4 py-4 space-y-1">
+                {navigation.map((item) => (
+                  <NavLink
+                    key={item.name}
+                    to={item.href}
+                    end={item.exact}
+                    className={({ isActive }) =>
+                      `group flex items-center px-4 py-3 text-base font-medium rounded-lg transition ${
+                        isActive
+                          ? "bg-[#01502E] text-white"
+                          : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100"
+                      }`
+                    }
+                  >
+                    <item.icon
+                      className="mr-4 flex-shrink-0 h-5 w-5"
+                      aria-hidden="true"
+                    />
+                    {item.name}
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex flex-col flex-1 md:ml-64">
+            {/* Mobile Header */}
+            <div className="md:hidden bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Dashboard
+                </h1>
+                <Link
+                  to="/"
+                  className="text-sm text-[#01502E] hover:text-[#013d23] font-medium"
+                >
+                  Back to Site
+                </Link>
               </div>
             </div>
 
-            {/* Navigation */}
-            <nav className="px-4 py-4 space-y-1">
-              {navigation.map((item) => (
-                <NavLink
-                  key={item.name}
-                  to={item.href}
-                  end={item.exact}
-                  className={({ isActive }) =>
-                    `group flex items-center px-4 py-3 text-base font-medium rounded-lg transition ${
-                      isActive
-                        ? "bg-[#01502E] text-white"
-                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100"
-                    }`
-                  }
-                >
-                  <item.icon
-                    className="mr-4 flex-shrink-0 h-5 w-5"
-                    aria-hidden="true"
-                  />
-                  {item.name}
-                </NavLink>
-              ))}
-            </nav>
+            {/* Page Content */}
+            <main className="flex-1 pt-6">
+              <Outlet />
+            </main>
           </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex flex-col flex-1 md:ml-64">
-          {/* Mobile Header */}
-          <div className="md:hidden bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Dashboard
-              </h1>
-              <Link
-                to="/"
-                className="text-sm text-[#01502E] hover:text-[#013d23] font-medium"
-              >
-                Back to Site
-              </Link>
-            </div>
-          </div>
-
-          {/* Page Content */}
-          <main className="flex-1 pt-6">
-            <Outlet />
-          </main>
         </div>
       </div>
-    </div>
     </ThemeProvider>
   );
 }
