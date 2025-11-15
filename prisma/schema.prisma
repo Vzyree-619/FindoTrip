@@ -304,6 +304,7 @@ model User {
   // Chat settings (JSON strings for flexibility)
   chatSettings    String?
   privacySettings String?
+  appearanceSettings String?
 
   // ========================================
   // SECURITY & PRIVACY RELATIONSHIPS
