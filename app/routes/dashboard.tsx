@@ -12,13 +12,21 @@ import {
   MessageCircle,
   Palette,
 } from "lucide-react";
+import { ThemeProvider } from "~/contexts/ThemeContext";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
   const url = new URL(request.url);
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, role: true, avatar: true, email: true },
+    select: { 
+      id: true, 
+      name: true, 
+      role: true, 
+      avatar: true, 
+      email: true,
+      appearanceSettings: true,
+    },
   });
 
   // Redirect based on role only when visiting the root dashboard path
@@ -47,6 +55,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
     (url.pathname.startsWith("/dashboard/guide/") ||
       url.pathname === "/dashboard/guide")
   ) {
+    // Parse appearance settings
+    let appearanceSettings = {
+      theme: "light",
+      fontSize: "medium",
+      compactMode: false,
+      sidebarCollapsed: false,
+      animationsEnabled: true,
+    };
+
+    if (user?.appearanceSettings) {
+      try {
+        appearanceSettings = JSON.parse(user.appearanceSettings);
+      } catch (e) {
+        console.error("Failed to parse appearance settings:", e);
+      }
+    }
+
     // Let the specific route handle the request, but still pass user data with default stats
     return json({
       user,
@@ -56,6 +81,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         reviewsCount: 0,
         favoritesCount: 0,
       },
+      appearanceSettings,
     });
   }
 
@@ -115,6 +141,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
   }, 0);
 
+  // Parse appearance settings
+  let appearanceSettings = {
+    theme: "light",
+    fontSize: "medium",
+    compactMode: false,
+    sidebarCollapsed: false,
+    animationsEnabled: true,
+  };
+
+  if (user?.appearanceSettings) {
+    try {
+      appearanceSettings = JSON.parse(user.appearanceSettings);
+    } catch (e) {
+      console.error("Failed to parse appearance settings:", e);
+    }
+  }
+
   return json({
     user: await prisma.user.findUnique({
       where: { id: userId },
@@ -134,11 +177,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
       reviewsCount,
       favoritesCount,
     },
+    appearanceSettings,
   });
 }
 
 export default function Dashboard() {
-  const { user, stats } = useLoaderData<typeof loader>();
+  const { user, stats, appearanceSettings } = useLoaderData<typeof loader>();
 
   // Add null check for user
   if (!user) {
@@ -158,86 +202,88 @@ export default function Dashboard() {
     user.role === "TOUR_GUIDE";
   if (isProviderRole) {
     return (
-      <div className="bg-gray-50">
-        <div className="flex">
-          {/* Provider Sidebar */}
-          <div className="w-64 bg-white shadow-lg flex flex-col">
-            <div className="p-6">
-              <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Welcome back, {user.name}
-              </p>
-            </div>
-            <nav className="mt-6">
-              <div className="px-6 py-3">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="text-blue-600 font-medium">
-                      Total Bookings
+      <ThemeProvider initialTheme={appearanceSettings.theme as 'light' | 'dark' | 'auto'}>
+        <div className="bg-gray-50 dark:bg-gray-900">
+          <div className="flex">
+            {/* Provider Sidebar */}
+            <div className="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col">
+              <div className="p-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Welcome back, {user.name}
+                </p>
+              </div>
+              <nav className="mt-6">
+                <div className="px-6 py-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg">
+                      <div className="text-blue-600 dark:text-blue-300 font-medium">
+                        Total Bookings
+                      </div>
+                      <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                        {stats.bookingsCount}
+                      </div>
                     </div>
-                    <div className="text-2xl font-bold text-blue-900">
-                      {stats.bookingsCount}
+                    <div className="bg-green-50 dark:bg-green-900 p-3 rounded-lg">
+                      <div className="text-green-600 dark:text-green-300 font-medium">Upcoming</div>
+                      <div className="text-2xl font-bold text-green-900 dark:text-green-100">
+                        {stats.upcomingBookings}
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <div className="text-green-600 font-medium">Upcoming</div>
-                    <div className="text-2xl font-bold text-green-900">
-                      {stats.upcomingBookings}
+                    <div className="bg-purple-50 dark:bg-purple-900 p-3 rounded-lg">
+                      <div className="text-purple-600 dark:text-purple-300 font-medium">Reviews</div>
+                      <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                        {stats.reviewsCount}
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <div className="text-purple-600 font-medium">Reviews</div>
-                    <div className="text-2xl font-bold text-purple-900">
-                      {stats.reviewsCount}
-                    </div>
-                  </div>
-                  <div className="bg-orange-50 p-3 rounded-lg">
-                    <div className="text-orange-600 font-medium">Favorites</div>
-                    <div className="text-2xl font-bold text-orange-900">
-                      {stats.favoritesCount}
+                    <div className="bg-orange-50 dark:bg-orange-900 p-3 rounded-lg">
+                      <div className="text-orange-600 dark:text-orange-300 font-medium">Favorites</div>
+                      <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
+                        {stats.favoritesCount}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div className="px-6 py-3 space-y-2">
-                <Link
-                  to="/dashboard/guide/bookings"
-                  className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                >
-                  📅 My Bookings
-                </Link>
-                <Link
-                  to="/dashboard/messages"
-                  className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                >
-                  💬 Messages
-                </Link>
-                <Link
-                  to="/dashboard/guide/reviews"
-                  className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                >
-                  ⭐ Reviews
-                </Link>
-                <Link
-                  to="/dashboard/guide/profile"
-                  className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                >
-                  ⚙️ Profile
-                </Link>
-                <Link
-                  to="/dashboard/settings/appearance"
-                  className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                >
-                  🎨 Appearance
-                </Link>
-              </div>
-            </nav>
+                <div className="px-6 py-3 space-y-2">
+                  <Link
+                    to="/dashboard/guide/bookings"
+                    className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                  >
+                    📅 My Bookings
+                  </Link>
+                  <Link
+                    to="/dashboard/messages"
+                    className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                  >
+                    💬 Messages
+                  </Link>
+                  <Link
+                    to="/dashboard/guide/reviews"
+                    className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                  >
+                    ⭐ Reviews
+                  </Link>
+                  <Link
+                    to="/dashboard/guide/profile"
+                    className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                  >
+                    ⚙️ Profile
+                  </Link>
+                  <Link
+                    to="/dashboard/settings/appearance"
+                    className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                  >
+                    🎨 Appearance
+                  </Link>
+                </div>
+              </nav>
+            </div>
+            <main className="flex-1">
+              <Outlet />
+            </main>
           </div>
-          <main className="flex-1">
-            <Outlet />
-          </main>
         </div>
-      </div>
+      </ThemeProvider>
     );
   }
 
@@ -259,10 +305,11 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900">
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:left-0 md:top-20 md:z-10">
+    <ThemeProvider initialTheme={appearanceSettings.theme as 'light' | 'dark' | 'auto'}>
+      <div className="bg-gray-50 dark:bg-gray-900">
+        <div className="flex">
+          {/* Sidebar */}
+          <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:left-0 md:top-20 md:z-10">
           <div className="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen">
             {/* User Profile Summary */}
             <div className="flex items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -341,5 +388,6 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+    </ThemeProvider>
   );
 }

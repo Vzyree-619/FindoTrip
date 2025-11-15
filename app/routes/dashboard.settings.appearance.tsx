@@ -8,39 +8,50 @@ import React from "react";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import { Settings, Palette, Sun, Moon, Monitor } from "lucide-react";
-import { ThemeProvider, updateGlobalTheme } from "~/contexts/ThemeContext";
+import { updateGlobalTheme } from "~/contexts/ThemeContext";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const userId = await requireUserId(request);
+  try {
+    const userId = await requireUserId(request);
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-  });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
 
-  if (!user) {
-    throw new Response("User not found", { status: 404 });
+    if (!user) {
+      throw new Response("User not found", { status: 404 });
+    }
+
+    // Parse existing appearance settings with defaults
+    let appearanceSettings = {
+      theme: "light",
+      fontSize: "medium",
+      compactMode: false,
+      sidebarCollapsed: false,
+      animationsEnabled: true,
+    };
+
+    if (user.appearanceSettings) {
+      try {
+        appearanceSettings = JSON.parse(user.appearanceSettings);
+      } catch (e) {
+        console.error("Failed to parse appearance settings:", e);
+      }
+    }
+
+    return json({
+      user: {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        avatar: user.avatar,
+      },
+      appearanceSettings,
+    });
+  } catch (error) {
+    console.error("Error in appearance loader:", error);
+    throw error;
   }
-
-  // Parse existing appearance settings with defaults
-  const appearanceSettings = user.appearanceSettings
-    ? JSON.parse(user.appearanceSettings)
-    : {
-        theme: "light",
-        fontSize: "medium",
-        compactMode: false,
-        sidebarCollapsed: false,
-        animationsEnabled: true,
-      };
-
-  return json({
-    user: {
-      id: user.id,
-      name: user.name,
-      role: user.role,
-      avatar: user.avatar,
-    },
-    appearanceSettings,
-  });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -119,8 +130,7 @@ export default function AppearanceSettings() {
   ];
 
   return (
-    <ThemeProvider initialTheme={appearanceSettings.theme as any}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-8">
@@ -337,6 +347,5 @@ export default function AppearanceSettings() {
           </div>
         </div>
       </div>
-    </ThemeProvider>
   );
 }
