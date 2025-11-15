@@ -11,30 +11,20 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children, initialTheme = 'light' }: { children: React.ReactNode; initialTheme?: Theme }) {
-  // Check localStorage first, then use initialTheme as fallback
-  const getInitialTheme = (): Theme => {
+  const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [isClient, setIsClient] = useState(false);
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+
+  // Only check localStorage on the client side to avoid hydration mismatch
+  useEffect(() => {
+    setIsClient(true);
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('chat-theme');
       if (stored === 'light' || stored === 'dark' || stored === 'auto') {
-        return stored;
+        setTheme(stored);
       }
     }
-    return initialTheme;
-  };
-
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
-
-  // Update theme when initialTheme changes (but respect localStorage if it was already set)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('chat-theme');
-      if (!stored) {
-        // Only set from initialTheme if nothing is in localStorage
-        setTheme(initialTheme);
-      }
-    }
-  }, [initialTheme]);
+  }, []);
 
   // Register global theme update function
   useEffect(() => {
