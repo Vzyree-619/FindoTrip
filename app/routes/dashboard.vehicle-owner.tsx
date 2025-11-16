@@ -221,11 +221,11 @@ export default function VehicleOwnerDashboard() {
   // Show error if user doesn't have access
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Restricted</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <Link to="/dashboard" className="inline-flex items-center px-4 py-2 bg-[#01502E] text-white rounded-md">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-4">Access Restricted</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm md:text-base">{error}</p>
+          <Link to="/dashboard" className="inline-flex items-center px-4 py-2 bg-[#01502E] hover:bg-[#003d21] text-white rounded-md text-sm md:text-base">
             Go to Dashboard
           </Link>
         </div>
