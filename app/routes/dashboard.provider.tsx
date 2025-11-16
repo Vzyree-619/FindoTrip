@@ -237,10 +237,10 @@ export default function ProviderDashboard() {
   // Show error if user doesn't have access
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Restricted</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Access Restricted</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
           <Link to="/dashboard" className="inline-flex items-center px-4 py-2 bg-[#01502E] text-white rounded-md">
             Go to Dashboard
           </Link>
@@ -256,13 +256,13 @@ export default function ProviderDashboard() {
   const hasRejectedItems = safeProperties.some((p: any) => p.approvalStatus === "REJECTED");
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Property Owner Dashboard</h1>
-            <p className="text-gray-600">Welcome, {user.name}</p>
-            <div className="mt-3 flex items-center gap-3">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Property Owner Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">Welcome, {user.name}</p>
+          <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3">
               {user.avatar ? (
                 <img src={user.avatar} alt={user.name} className="h-12 w-12 rounded-full object-cover border" />
               ) : (
@@ -270,50 +270,50 @@ export default function ProviderDashboard() {
                   {user.name[0].toUpperCase()}
                 </div>
               )}
-              <Form method="post" encType="multipart/form-data" className="flex items-center gap-2">
+              <Form method="post" encType="multipart/form-data" className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                 <input type="hidden" name="intent" value="update-avatar" />
                 <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp" className="text-xs" />
-                <button type="submit" className="inline-flex items-center px-3 py-1.5 border rounded text-sm">
+                <button type="submit" className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                   <Camera className="w-4 h-4 mr-1" /> Change Photo
                 </button>
                 {(actionData as any)?.target && (
-                  <span className="ml-2 text-xs text-gray-500">Uploaded to: {(actionData as any).target}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Uploaded to: {(actionData as any).target}</span>
                 )}
               </Form>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Link to="/dashboard/messages" className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-              <MessageCircle className="w-4 h-4" /> Messages
-            </Link>
-            <a href="#create" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
-              <Plus className="w-4 h-4" /> New Property
-            </a>
-          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-4 md:mt-0">
+          <Link to="/dashboard/messages" className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-800 text-sm">
+            <MessageCircle className="w-4 h-4" /> <span>Messages</span>
+          </Link>
+          <a href="#create" className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md hover:bg-[#003d21] text-sm">
+            <Plus className="w-4 h-4" /> <span>New Property</span>
+          </a>
         </div>
 
         {/* Approval Status Banner */}
         {!isVerified && (
-          <div className="mb-6 rounded-lg border p-4">
+          <div className="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
             {hasPendingApprovals ? (
-              <div className="flex items-center gap-3 text-yellow-800 bg-yellow-50 p-3 rounded">
-                <Clock className="h-5 w-5 text-yellow-600" />
+              <div className="flex items-start sm:items-center gap-3 text-yellow-800 dark:text-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded">
+                <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5 sm:mt-0" />
                 <div>
                   <h3 className="font-medium">Awaiting Verification</h3>
                   <p className="text-sm">Your properties are being reviewed by our team. This usually takes 1-3 business days.</p>
                 </div>
               </div>
             ) : hasRejectedItems ? (
-              <div className="flex items-center gap-3 text-red-800 bg-red-50 p-3 rounded">
-                <AlertCircle className="h-5 w-5 text-red-600" />
+              <div className="flex items-start sm:items-center gap-3 text-red-800 dark:text-red-200 bg-red-50 dark:bg-red-900/20 p-3 rounded">
+                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5 sm:mt-0" />
                 <div>
                   <h3 className="font-medium">Verification Required</h3>
                   <p className="text-sm">Some of your properties were rejected. Please check the details and resubmit.</p>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-3 text-blue-800 bg-blue-50 p-3 rounded">
-                <Info className="h-5 w-5 text-blue-600" />
+              <div className="flex items-start sm:items-center gap-3 text-blue-800 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
+                <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5 sm:mt-0" />
                 <div>
                   <h3 className="font-medium">Complete Your Profile</h3>
                   <p className="text-sm">Add your first property to get started with verification.</p>
@@ -324,9 +324,9 @@ export default function ProviderDashboard() {
         )}
 
         {isVerified && (
-          <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4">
-            <div className="flex items-center gap-3 text-green-800">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
+          <div className="mb-6 rounded-lg border border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20 p-4">
+            <div className="flex items-start sm:items-center gap-3 text-green-800 dark:text-green-200">
+              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5 sm:mt-0" />
               <div>
                 <h3 className="font-medium">Verified Provider</h3>
                 <p className="text-sm">Your account is fully verified. You can now manage all your properties.</p>
@@ -336,48 +336,48 @@ export default function ProviderDashboard() {
         )}
 
         {(actionData && (actionData as any).success) || submitted ? (
-          <div className="mb-6 rounded-md bg-green-50 p-4 flex items-center gap-2 text-green-800">
-            <CheckCircle2 className="w-5 h-5" /> Property created successfully and awaiting approval
+          <div className="mb-6 rounded-md bg-green-50 dark:bg-green-900/20 p-4 flex items-center gap-2 text-green-800 dark:text-green-200">
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> <span>Property created successfully and awaiting approval</span>
           </div>
         ) : null}
 
         {/* Properties Grid */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6 mb-8">
           <div className="flex items-center gap-2 mb-4">
             <Home className="w-5 h-5 text-[#01502E]" />
-            <h2 className="text-lg font-semibold">My Properties</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">My Properties</h2>
           </div>
           {properties.length === 0 ? (
-            <div className="text-gray-600">No properties yet. Create your first property below.</div>
+            <div className="text-gray-600 dark:text-gray-400">No properties yet. Create your first property below.</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {properties.map((p: any) => (
-                <div key={p.id} className="border rounded-lg overflow-hidden">
+                <div key={p.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-lg dark:hover:shadow-gray-900 transition">
                   <img src={p.images?.[0] || "/landingPageImg.jpg"} className="w-full h-40 object-cover" />
-                  <div className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 line-clamp-1">{p.name}</h3>
-                        <div className="text-sm text-gray-600 flex items-center gap-1">
-                          <MapPin className="w-3 h-3" /> {p.city}, {p.country}
+                  <div className="p-3 md:p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 text-sm md:text-base">{p.name}</h3>
+                        <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-1">
+                          <MapPin className="w-3 h-3 flex-shrink-0" /> <span className="line-clamp-1">{p.city}, {p.country}</span>
                         </div>
                       </div>
-                      <span className="text-sm px-2 py-1 rounded bg-gray-100">{p.type}</span>
+                      <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 flex-shrink-0">{p.type}</span>
                     </div>
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="text-[#01502E] font-semibold">PKR {p.basePrice.toLocaleString()}/night</div>
-                      <div className="flex items-center gap-1 text-sm text-gray-700">
-                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" /> {p.rating.toFixed(1)} ({p.reviewCount})
+                    <div className="flex items-center justify-between mt-3 text-sm">
+                      <div className="text-[#01502E] dark:text-[#4ade80] font-semibold">PKR {p.basePrice.toLocaleString()}/night</div>
+                      <div className="flex items-center gap-1 text-gray-700 dark:text-gray-300 text-xs">
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" /> <span>{p.rating.toFixed(1)} ({p.reviewCount})</span>
                       </div>
                     </div>
-                    <div className="mt-3 flex items-center gap-2 text-xs">
-                      <span className={`px-2 py-0.5 rounded ${p.approvalStatus === "APPROVED" ? "bg-green-50 text-green-700" : p.approvalStatus === "PENDING" ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-700"}`}>{p.approvalStatus}</span>
-                      <span className={`px-2 py-0.5 rounded ${p.available ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-700"}`}>{p.available ? "Available" : "Unavailable"}</span>
+                    <div className="mt-3 flex items-center gap-2 text-xs flex-wrap">
+                      <span className={`px-2 py-0.5 rounded whitespace-nowrap ${p.approvalStatus === "APPROVED" ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300" : p.approvalStatus === "PENDING" ? "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300" : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"}`}>{p.approvalStatus}</span>
+                      <span className={`px-2 py-0.5 rounded whitespace-nowrap ${p.available ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"}`}>{p.available ? "Available" : "Unavailable"}</span>
                     </div>
-                    <div className="mt-4 flex gap-2">
-                      <Link to={`/accommodations/${p.id}`} className="flex-1 text-center border rounded px-3 py-2">View</Link>
-                      <Link to={`/dashboard/provider/properties/${p.id}/edit`} className="flex-1 text-center border rounded px-3 py-2">Edit</Link>
-                      <Link to={`/book/property/${p.id}`} className="flex-1 text-center bg-[#01502E] text-white rounded px-3 py-2">Book</Link>
+                    <div className="mt-4 flex gap-2 text-xs md:text-sm">
+                      <Link to={`/accommodations/${p.id}`} className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-3 py-2">View</Link>
+                      <Link to={`/dashboard/provider/properties/${p.id}/edit`} className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-3 py-2">Edit</Link>
+                      <Link to={`/book/property/${p.id}`} className="flex-1 text-center bg-[#01502E] hover:bg-[#003d21] text-white rounded px-3 py-2">Book</Link>
                     </div>
                   </div>
                 </div>
@@ -387,25 +387,25 @@ export default function ProviderDashboard() {
         </div>
 
         {/* Create Property */}
-        <div id="create" className="bg-white rounded-lg shadow p-6">
+        <div id="create" className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Plus className="w-5 h-5 text-[#01502E]" />
-            <h2 className="text-lg font-semibold">Create New Property</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Create New Property</h2>
           </div>
           <div className="mb-4">
-            <Link to="/dashboard/provider/rooms" className="inline-flex items-center gap-2 px-3 py-2 border rounded hover:bg-gray-50">
+            <Link to="/dashboard/provider/rooms" className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-sm">
               Manage Room Types
             </Link>
           </div>
-          <Form method="post" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Form method="post" className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <input type="hidden" name="intent" value="create" />
             <div>
-              <label className="block text-sm font-medium mb-1">Name</label>
-              <input name="name" required className="w-full border rounded px-3 py-2" placeholder="Sunrise Hotel" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Name</label>
+              <input name="name" required className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="Sunrise Hotel" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Type</label>
-              <select name="type" className="w-full border rounded px-3 py-2">
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Type</label>
+              <select name="type" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]">
                 <option value="HOTEL">Hotel</option>
                 <option value="APARTMENT">Apartment</option>
                 <option value="VILLA">Villa</option>
@@ -417,128 +417,128 @@ export default function ProviderDashboard() {
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea name="description" rows={3} className="w-full border rounded px-3 py-2" placeholder="Describe your property" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Description</label>
+              <textarea name="description" rows={3} className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="Describe your property" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Address</label>
-              <input name="address" className="w-full border rounded px-3 py-2" placeholder="123 Main St" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Address</label>
+              <input name="address" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="123 Main St" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">State/Province</label>
-              <input name="state" className="w-full border rounded px-3 py-2" placeholder="GB" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">State/Province</label>
+              <input name="state" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="GB" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">City</label>
-              <input name="city" required className="w-full border rounded px-3 py-2" placeholder="Islamabad" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">City</label>
+              <input name="city" required className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="Islamabad" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Country</label>
-              <input name="country" required className="w-full border rounded px-3 py-2" placeholder="Pakistan" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Country</label>
+              <input name="country" required className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="Pakistan" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Postal Code</label>
-              <input name="postalCode" className="w-full border rounded px-3 py-2" placeholder="44000" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Postal Code</label>
+              <input name="postalCode" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="44000" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Base Price (PKR)</label>
-              <input name="basePrice" type="number" step="1" min="0" required className="w-full border rounded px-3 py-2" placeholder="4000" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Base Price (PKR)</label>
+              <input name="basePrice" type="number" step="1" min="0" required className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="4000" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Cleaning Fee</label>
-              <input name="cleaningFee" type="number" step="1" min="0" className="w-full border rounded px-3 py-2" placeholder="0" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Cleaning Fee</label>
+              <input name="cleaningFee" type="number" step="1" min="0" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="0" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Service Fee</label>
-              <input name="service" type="number" step="1" min="0" className="w-full border rounded px-3 py-2" placeholder="0" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Service Fee</label>
+              <input name="service" type="number" step="1" min="0" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="0" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Tax Rate</label>
-              <input name="taxRate" type="number" step="0.01" min="0" className="w-full border rounded px-3 py-2" placeholder="0.02" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Tax Rate</label>
+              <input name="taxRate" type="number" step="0.01" min="0" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="0.02" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Currency</label>
-              <input name="currency" className="w-full border rounded px-3 py-2" placeholder="PKR" defaultValue="PKR" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Currency</label>
+              <input name="currency" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="PKR" defaultValue="PKR" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Max Guests</label>
-              <input name="maxGuests" type="number" min="1" required className="w-full border rounded px-3 py-2" placeholder="4" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Max Guests</label>
+              <input name="maxGuests" type="number" min="1" required className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="4" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Bedrooms</label>
-              <input name="bedrooms" type="number" min="1" required className="w-full border rounded px-3 py-2" placeholder="2" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Bedrooms</label>
+              <input name="bedrooms" type="number" min="1" required className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="2" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Bathrooms</label>
-              <input name="bathrooms" type="number" min="1" required className="w-full border rounded px-3 py-2" placeholder="1" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Bathrooms</label>
+              <input name="bathrooms" type="number" min="1" required className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Beds (optional)</label>
-              <input name="beds" type="number" min="0" className="w-full border rounded px-3 py-2" placeholder="2" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Beds (optional)</label>
+              <input name="beds" type="number" min="0" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="2" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Amenities (comma separated)</label>
-              <input name="amenities" className="w-full border rounded px-3 py-2" placeholder="WiFi, Parking, Breakfast" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Amenities (comma separated)</label>
+              <input name="amenities" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="WiFi, Parking, Breakfast" />
             </div>
-            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Safety Features (comma separated)</label>
-                <input name="safetyFeatures" className="w-full border rounded px-3 py-2" placeholder="Fire Extinguisher, Smoke Detector" />
+                <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Safety Features</label>
+                <input name="safetyFeatures" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="Fire Extinguisher, Smoke Detector" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Accessibility (comma separated)</label>
-                <input name="accessibility" className="w-full border rounded px-3 py-2" placeholder="Elevator, Wheelchair Access" />
+                <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Accessibility</label>
+                <input name="accessibility" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="Elevator, Wheelchair Access" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">House Rules (comma separated)</label>
-                <input name="houseRules" className="w-full border rounded px-3 py-2" placeholder="No Smoking, No Pets" />
+                <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">House Rules</label>
+                <input name="houseRules" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="No Smoking, No Pets" />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Weekend Pricing Multiplier</label>
-              <input name="weekendPricing" type="number" step="0.01" min="0" className="w-full border rounded px-3 py-2" placeholder="1.15" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Weekend Pricing Multiplier</label>
+              <input name="weekendPricing" type="number" step="0.01" min="0" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="1.15" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Weekly Discount (%)</label>
-              <input name="weeklyDiscount" type="number" step="0.1" min="0" className="w-full border rounded px-3 py-2" placeholder="3" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Weekly Discount (%)</label>
+              <input name="weeklyDiscount" type="number" step="0.1" min="0" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="3" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Monthly Discount (%)</label>
-              <input name="monthlyDiscount" type="number" step="0.1" min="0" className="w-full border rounded px-3 py-2" placeholder="5" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Monthly Discount (%)</label>
+              <input name="monthlyDiscount" type="number" step="0.1" min="0" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="5" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Check-in Time</label>
-              <input name="checkInTime" className="w-full border rounded px-3 py-2" placeholder="15:00" defaultValue="15:00" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Check-in Time</label>
+              <input name="checkInTime" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="15:00" defaultValue="15:00" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Check-out Time</label>
-              <input name="checkOutTime" className="w-full border rounded px-3 py-2" placeholder="11:00" defaultValue="11:00" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Check-out Time</label>
+              <input name="checkOutTime" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="11:00" defaultValue="11:00" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Advance Notice (hours)</label>
-              <input name="advanceNotice" type="number" min="0" className="w-full border rounded px-3 py-2" placeholder="0" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Advance Notice (hours)</label>
+              <input name="advanceNotice" type="number" min="0" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="0" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Cover Image URL</label>
-              <input name="imageUrl" className="w-full border rounded px-3 py-2" placeholder="https://.../image.jpg" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Cover Image URL</label>
+              <input name="imageUrl" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" placeholder="https://.../image.jpg" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Upload Images (optional)</label>
-              <input name="images" type="file" multiple accept="image/jpeg,image/png,image/webp" className="w-full border rounded px-3 py-2" />
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">Upload Images (optional)</label>
+              <input name="images" type="file" multiple accept="image/jpeg,image/png,image/webp" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]" />
             </div>
-            <div className="md:col-span-2 grid grid-cols-2 gap-4">
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" name="available" className="h-4 w-4" /> Available
+            <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
+              <label className="inline-flex items-center gap-2 text-xs md:text-sm text-gray-900 dark:text-gray-300">
+                <input type="checkbox" name="available" className="h-4 w-4 rounded border-gray-300 dark:border-gray-600" /> Available
               </label>
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" name="instantBook" className="h-4 w-4" /> Instant Book
+              <label className="inline-flex items-center gap-2 text-xs md:text-sm text-gray-900 dark:text-gray-300">
+                <input type="checkbox" name="instantBook" className="h-4 w-4 rounded border-gray-300 dark:border-gray-600" /> Instant Book
               </label>
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" name="selfCheckIn" className="h-4 w-4" /> Self Check-in
+              <label className="inline-flex items-center gap-2 text-xs md:text-sm text-gray-900 dark:text-gray-300">
+                <input type="checkbox" name="selfCheckIn" className="h-4 w-4 rounded border-gray-300 dark:border-gray-600" /> Self Check-in
               </label>
             </div>
             <div className="md:col-span-2">
-              <button type="submit" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
+              <button type="submit" className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#01502E] hover:bg-[#003d21] text-white rounded-md text-sm md:text-base font-medium">
                 <Plus className="w-4 h-4" /> Create Property
               </button>
             </div>
