@@ -11,8 +11,11 @@ import {
   Bell,
   MessageCircle,
   Palette,
+  Menu,
+  X,
 } from "lucide-react";
 import { ThemeProvider } from "~/contexts/ThemeContext";
+import { useState } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -30,7 +33,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 
   // Redirect based on role only when visiting the root dashboard path
-  // Avoid self-redirect loops on role-specific child routes (e.g., /dashboard/provider)
   if (url.pathname === "/dashboard") {
     if (user?.role === "PROPERTY_OWNER") {
       throw redirect("/dashboard/provider");
@@ -41,7 +43,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (user?.role === "TOUR_GUIDE") {
       throw redirect("/dashboard/guide");
     }
-    // SUPER_ADMIN would stay here for admin dashboard
   }
 
   // Redirect tour guides from generic bookings to their specific bookings page
@@ -49,13 +50,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw redirect("/dashboard/guide/bookings");
   }
 
-  // Allow tour guide specific routes to pass through without redirect
+  // Allow tour guide specific routes to pass through
   if (
     user?.role === "TOUR_GUIDE" &&
     (url.pathname.startsWith("/dashboard/guide/") ||
       url.pathname === "/dashboard/guide")
   ) {
-    // Parse appearance settings
     let appearanceSettings = {
       theme: "light",
       fontSize: "medium",
@@ -72,7 +72,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
     }
 
-    // Let the specific route handle the request, but still pass user data with default stats
     return json({
       user,
       stats: {
@@ -113,11 +112,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }),
   ]);
 
-  // Calculate total bookings
   const bookingsCount =
     propertyBookings.length + vehicleBookings.length + tourBookings.length;
 
-  // Calculate upcoming bookings
   const now = new Date();
   const upcomingPropertyBookings = propertyBookings.filter(
     (b) => b.status === "CONFIRMED" && b.checkIn >= now
@@ -131,7 +128,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const upcomingBookings =
     upcomingPropertyBookings + upcomingVehicleBookings + upcomingTourBookings;
 
-  // Calculate favorites count
   const favoritesCount = wishlists.reduce((total, wishlist) => {
     return (
       total +
@@ -141,7 +137,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
   }, 0);
 
-  // Parse appearance settings
   let appearanceSettings = {
     theme: "light",
     fontSize: "medium",
@@ -183,121 +178,123 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function Dashboard() {
   const { user, stats, appearanceSettings } = useLoaderData<typeof loader>();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Add null check for user
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">Loading dashboard...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
-  // Render provider-specific layout with overview
   const isProviderRole =
     user.role === "PROPERTY_OWNER" ||
     user.role === "VEHICLE_OWNER" ||
     user.role === "TOUR_GUIDE";
+
   if (isProviderRole) {
     return (
       <ThemeProvider
         initialTheme={appearanceSettings.theme as "light" | "dark" | "auto"}
       >
-        <div className="bg-gray-50 dark:bg-gray-900">
-          <div className="flex">
-            {/* Provider Sidebar */}
-            <div className="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col">
-              <div className="p-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+        <div className="bg-gray-50 dark:bg-gray-900 min-h-screen flex flex-col">
+          {/* Desktop Sidebar */}
+          <div className="hidden md:flex md:fixed md:top-0 md:left-0 md:h-screen md:w-64 md:flex-col md:z-40">
+            <ProviderSidebar user={user} stats={stats} />
+          </div>
+
+          {/* Mobile Header */}
+          <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+            <div className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                   Dashboard
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Welcome back, {user.name}
-                </p>
               </div>
-              <nav className="mt-6">
-                <div className="px-6 py-3">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg">
-                      <div className="text-blue-600 dark:text-blue-300 font-medium">
-                        Total Bookings
-                      </div>
-                      <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                        {stats.bookingsCount}
-                      </div>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              >
+                {mobileMenuOpen ? (
+                  <X className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                ) : (
+                  <Menu className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                )}
+              </button>
+            </div>
+
+            {/* Mobile Menu Dropdown */}
+            {mobileMenuOpen && (
+              <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-2">
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div className="bg-blue-50 dark:bg-blue-900 p-2 rounded-lg">
+                    <div className="text-blue-600 dark:text-blue-300 text-xs font-medium">
+                      Bookings
                     </div>
-                    <div className="bg-green-50 dark:bg-green-900 p-3 rounded-lg">
-                      <div className="text-green-600 dark:text-green-300 font-medium">
-                        Upcoming
-                      </div>
-                      <div className="text-2xl font-bold text-green-900 dark:text-green-100">
-                        {stats.upcomingBookings}
-                      </div>
+                    <div className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                      {stats.bookingsCount}
                     </div>
-                    <div className="bg-purple-50 dark:bg-purple-900 p-3 rounded-lg">
-                      <div className="text-purple-600 dark:text-purple-300 font-medium">
-                        Reviews
-                      </div>
-                      <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-                        {stats.reviewsCount}
-                      </div>
+                  </div>
+                  <div className="bg-green-50 dark:bg-green-900 p-2 rounded-lg">
+                    <div className="text-green-600 dark:text-green-300 text-xs font-medium">
+                      Upcoming
                     </div>
-                    <div className="bg-orange-50 dark:bg-orange-900 p-3 rounded-lg">
-                      <div className="text-orange-600 dark:text-orange-300 font-medium">
-                        Favorites
-                      </div>
-                      <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
-                        {stats.favoritesCount}
-                      </div>
+                    <div className="text-lg font-bold text-green-900 dark:text-green-100">
+                      {stats.upcomingBookings}
                     </div>
                   </div>
                 </div>
-                <div className="px-6 py-3 space-y-2">
-                  <Link
-                    to="/dashboard/guide/bookings"
-                    className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
-                  >
-                    📅 My Bookings
-                  </Link>
-                  <Link
-                    to="/dashboard/messages"
-                    className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
-                  >
-                    💬 Messages
-                  </Link>
-                  <Link
-                    to="/dashboard/guide/reviews"
-                    className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
-                  >
-                    ⭐ Reviews
-                  </Link>
-                  <Link
-                    to="/dashboard/guide/profile"
-                    className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
-                  >
-                    ⚙️ Profile
-                  </Link>
-                  <Link
-                    to="/dashboard/settings/appearance"
-                    className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
-                  >
-                    🎨 Appearance
-                  </Link>
-                </div>
-              </nav>
-            </div>
-            <main className="flex-1">
-              <Outlet />
-            </main>
+                <Link
+                  to="/dashboard/guide/bookings"
+                  className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  📅 My Bookings
+                </Link>
+                <Link
+                  to="/dashboard/messages"
+                  className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  💬 Messages
+                </Link>
+                <Link
+                  to="/dashboard/guide/reviews"
+                  className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  ⭐ Reviews
+                </Link>
+                <Link
+                  to="/dashboard/guide/profile"
+                  className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  ⚙️ Profile
+                </Link>
+                <Link
+                  to="/dashboard/settings/appearance"
+                  className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  🎨 Appearance
+                </Link>
+              </div>
+            )}
           </div>
+
+          {/* Main Content */}
+          <main className="flex-1 md:ml-64 overflow-auto">
+            <Outlet />
+          </main>
         </div>
       </ThemeProvider>
     );
   }
 
-  // Type assertion that user is not null
   const safeUser = user as NonNullable<typeof user>;
 
   const navigation = [
@@ -318,88 +315,197 @@ export default function Dashboard() {
     <ThemeProvider
       initialTheme={appearanceSettings.theme as "light" | "dark" | "auto"}
     >
-      <div className="bg-gray-50 dark:bg-gray-900">
-        <div className="flex">
-          {/* Sidebar */}
-          <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:left-0 md:top-20 md:z-10">
-            <div className="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen">
-              {/* User Profile Summary */}
-              <div className="flex items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center">
-                  {safeUser.avatar ? (
-                    <img
-                      className="inline-block h-12 w-12 rounded-full object-cover"
-                      src={safeUser.avatar}
-                      alt={safeUser.name}
-                    />
-                  ) : (
-                    <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-[#01502E]">
-                      <span className="text-lg font-medium leading-none text-white">
-                        {safeUser.name[0].toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <div className="ml-3">
-                    <p className="text-base font-medium text-gray-900 dark:text-gray-100 truncate">
-                      {safeUser.name}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                      {safeUser.email}
-                    </p>
-                  </div>
-                </div>
-              </div>
+      <div className="bg-gray-50 dark:bg-gray-900 min-h-screen flex flex-col">
+        {/* Desktop Sidebar */}
+        <div className="hidden md:flex md:fixed md:top-0 md:left-0 md:h-screen md:w-64 md:flex-col md:z-40 md:bg-white dark:md:bg-gray-800">
+          <CustomerSidebar user={safeUser} navigation={navigation} />
+        </div>
 
-              {/* Navigation */}
-              <nav className="px-4 py-4 space-y-1">
-                {navigation.map((item) => (
-                  <NavLink
-                    key={item.name}
-                    to={item.href}
-                    end={item.exact}
-                    className={({ isActive }) =>
-                      `group flex items-center px-4 py-3 text-base font-medium rounded-lg transition ${
-                        isActive
-                          ? "bg-[#01502E] text-white"
-                          : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100"
-                      }`
-                    }
-                  >
-                    <item.icon
-                      className="mr-4 flex-shrink-0 h-5 w-5"
-                      aria-hidden="true"
-                    />
-                    {item.name}
-                  </NavLink>
-                ))}
-              </nav>
+        {/* Mobile Header */}
+        <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+          <div className="flex items-center justify-between p-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                Dashboard
+              </h2>
             </div>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+            >
+              {mobileMenuOpen ? (
+                <X className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+              ) : (
+                <Menu className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+              )}
+            </button>
           </div>
 
-          {/* Main Content */}
-          <div className="flex flex-col flex-1 md:ml-64">
-            {/* Mobile Header */}
-            <div className="md:hidden bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
-              <div className="flex items-center justify-between">
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Dashboard
-                </h1>
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <nav className="border-t border-gray-200 dark:border-gray-700 p-2 space-y-1">
+              {navigation.map((item) => (
                 <Link
-                  to="/"
-                  className="text-sm text-[#01502E] hover:text-[#013d23] font-medium"
+                  key={item.name}
+                  to={item.href}
+                  className="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  onClick={() => setMobileMenuOpen(false)}
                 >
-                  Back to Site
+                  <item.icon className="w-4 h-4 mr-2" />
+                  {item.name}
                 </Link>
+              ))}
+            </nav>
+          )}
+        </div>
+
+        {/* Main Content */}
+        <main className="flex-1 md:ml-64 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
+    </ThemeProvider>
+  );
+}
+
+function ProviderSidebar({ user, stats }: any) {
+  return (
+    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto flex flex-col">
+      <div className="p-6">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+          Dashboard
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          Welcome back, {user.name}
+        </p>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto">
+        <div className="px-6 py-3">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg">
+              <div className="text-blue-600 dark:text-blue-300 font-medium">
+                Total Bookings
+              </div>
+              <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                {stats.bookingsCount}
               </div>
             </div>
+            <div className="bg-green-50 dark:bg-green-900 p-3 rounded-lg">
+              <div className="text-green-600 dark:text-green-300 font-medium">
+                Upcoming
+              </div>
+              <div className="text-2xl font-bold text-green-900 dark:text-green-100">
+                {stats.upcomingBookings}
+              </div>
+            </div>
+            <div className="bg-purple-50 dark:bg-purple-900 p-3 rounded-lg">
+              <div className="text-purple-600 dark:text-purple-300 font-medium">
+                Reviews
+              </div>
+              <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                {stats.reviewsCount}
+              </div>
+            </div>
+            <div className="bg-orange-50 dark:bg-orange-900 p-3 rounded-lg">
+              <div className="text-orange-600 dark:text-orange-300 font-medium">
+                Favorites
+              </div>
+              <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
+                {stats.favoritesCount}
+              </div>
+            </div>
+          </div>
+        </div>
 
-            {/* Page Content */}
-            <main className="flex-1 pt-6">
-              <Outlet />
-            </main>
+        <div className="px-6 py-3 space-y-2">
+          <Link
+            to="/dashboard/guide/bookings"
+            className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+          >
+            📅 My Bookings
+          </Link>
+          <Link
+            to="/dashboard/messages"
+            className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+          >
+            💬 Messages
+          </Link>
+          <Link
+            to="/dashboard/guide/reviews"
+            className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+          >
+            ⭐ Reviews
+          </Link>
+          <Link
+            to="/dashboard/guide/profile"
+            className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+          >
+            ⚙️ Profile
+          </Link>
+          <Link
+            to="/dashboard/settings/appearance"
+            className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+          >
+            🎨 Appearance
+          </Link>
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+function CustomerSidebar({ user, navigation }: any) {
+  return (
+    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto flex flex-col">
+      <div className="flex items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center">
+          {user.avatar ? (
+            <img
+              className="inline-block h-12 w-12 rounded-full object-cover"
+              src={user.avatar}
+              alt={user.name}
+            />
+          ) : (
+            <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-[#01502E]">
+              <span className="text-lg font-medium leading-none text-white">
+                {user.name[0].toUpperCase()}
+              </span>
+            </div>
+          )}
+          <div className="ml-3">
+            <p className="text-base font-medium text-gray-900 dark:text-gray-100 truncate">
+              {user.name}
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+              {user.email}
+            </p>
           </div>
         </div>
       </div>
-    </ThemeProvider>
+
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+        {navigation.map((item: any) => (
+          <NavLink
+            key={item.name}
+            to={item.href}
+            end={item.exact}
+            className={({ isActive }) =>
+              `group flex items-center px-4 py-3 text-base font-medium rounded-lg transition ${
+                isActive
+                  ? "bg-[#01502E] text-white"
+                  : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100"
+              }`
+            }
+          >
+            <item.icon
+              className="mr-4 flex-shrink-0 h-5 w-5"
+              aria-hidden="true"
+            />
+            {item.name}
+          </NavLink>
+        ))}
+      </nav>
+    </div>
   );
 }
