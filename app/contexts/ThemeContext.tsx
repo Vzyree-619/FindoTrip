@@ -62,9 +62,17 @@ export function ThemeProvider({ children, initialTheme = 'light' }: { children: 
   }, [theme]);
 
   useEffect(() => {
-    // Apply theme to document
-    document.documentElement.setAttribute('data-theme', resolvedTheme);
-    document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+    // Use suppressHydrationWarning for the html element to avoid hydration mismatch
+    // This is safe because theme changes happen in a separate effect after hydration
+    const htmlElement = document.documentElement;
+    htmlElement.setAttribute('data-theme', resolvedTheme);
+    
+    // Use a small delay to ensure hydration is complete before toggling the class
+    const timeoutId = requestAnimationFrame(() => {
+      htmlElement.classList.toggle('dark', resolvedTheme === 'dark');
+    });
+    
+    return () => cancelAnimationFrame(timeoutId);
   }, [resolvedTheme]);
 
   return (
