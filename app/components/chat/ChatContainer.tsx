@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { ConversationList } from "./ConversationList";
 import { ChatInterface } from "./ChatInterface";
 import { ThemeProvider } from "~/contexts/ThemeContext";
+import { useNotificationsStream } from "~/hooks/useNotificationsStream";
 import type { Conversation, Message } from "./types";
 
 type ChatContainerProps = {
@@ -78,6 +79,52 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
     loadConversations();
   }, []);
 
+  // Listen for real-time messages to update conversation list
+  useNotificationsStream(
+    () => {}, // onNotification - not used here
+    (msg) => {
+      try {
+        if (msg?.type === "chat_message" && msg?.conversationId && msg?.message) {
+          const message = msg.message;
+          // Update conversation list with new message
+          setConversations((prev) => {
+            const existing = prev.find(c => c.id === msg.conversationId);
+            if (existing) {
+              // Update existing conversation
+              return prev.map(c => 
+                c.id === msg.conversationId
+                  ? {
+                      ...c,
+                      lastMessage: {
+                        id: message.id,
+                        conversationId: msg.conversationId,
+                        senderId: message.senderId,
+                        senderName: message.senderName || 'Unknown',
+                        content: message.content,
+                        type: message.type || 'text',
+                        attachments: message.attachments || [],
+                        createdAt: message.createdAt,
+                      },
+                      updatedAt: message.createdAt,
+                      unreadCount: message.senderId !== currentUserId 
+                        ? (c.unreadCount || 0) + 1 
+                        : c.unreadCount,
+                    }
+                  : c
+              );
+            } else {
+              // New conversation - reload list to get full details
+              loadConversations();
+              return prev;
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error handling real-time message:', error);
+      }
+    }
+  );
+
   // Auto-open conversation if initialPeerId is provided
   useEffect(() => {
     if (initialPeerId && conversations.length > 0) {
@@ -120,18 +167,63 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
               currentUserId={currentUserId}
               variant="inline"
               className="flex-1"
-              onSendMessage={async ({ text }) => {
+              onSendMessage={async ({ text, files }) => {
                 const cid = selectedId;
                 if (!cid) return;
-                const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ content: text })
-                });
-                const json = await res.json();
-                const msg = json?.data as Message;
-                setConversations((prev) => prev.map((c) => (c.id === msg.conversationId ? { ...c, lastMessage: msg, updatedAt: msg.createdAt } : c)));
-                return msg;
+                try {
+                  const payload: any = { content: text };
+                  if (files?.length) {
+                    payload.attachments = files.map(f => ({ url: `/uploads/${(f as any).name}`, name: (f as any).name, type: (f as any).type || 'file', size: (f as any).size || 0 }));
+                  }
+                  const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                  });
+                  
+                  if (!res.ok) {
+                    const errorData = await res.json().catch(() => ({}));
+                    console.error('Failed to send message:', errorData);
+                    throw new Error(errorData.error || 'Failed to send message');
+                  }
+                  
+                  const json = await res.json();
+                  const m = json?.data as any;
+                  if (!m) {
+                    console.error('No message data in response:', json);
+                    return undefined;
+                  }
+                  
+                  // Normalize message for UI
+                  const msg: Message = {
+                    id: m.id,
+                    conversationId: cid,
+                    senderId: m.senderId,
+                    senderName: m.senderName || m.sender?.name || 'Unknown',
+                    senderAvatar: m.senderAvatar || m.sender?.avatar || null,
+                    content: m.content,
+                    type: (m.type || 'text').toString().toLowerCase(),
+                    attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                    createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : (m.createdAt || new Date().toISOString()),
+                    status: 'sent',
+                  };
+                  
+                  // Update conversation list with new last message
+                  setConversations((prev) => prev.map((c) => 
+                    c.id === msg.conversationId 
+                      ? { 
+                          ...c, 
+                          lastMessage: msg, 
+                          updatedAt: msg.createdAt 
+                        } 
+                      : c
+                  ));
+                  
+                  return msg;
+                } catch (error) {
+                  console.error('Error sending message:', error);
+                  throw error;
+                }
               }}
             />
           </div>

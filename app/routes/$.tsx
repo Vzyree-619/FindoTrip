@@ -23,6 +23,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ pathname: url.pathname }, { status: 404 });
 }
 
+// Action for handling POST/PUT/DELETE requests to non-existent routes
+export async function action({ request }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
+  
+  // For API routes, throw 404
+  if (url.pathname.startsWith('/api/')) {
+    throw new Response("API route not found", { status: 404 });
+  }
+  
+  // For other routes, return 405
+  return json({ error: "Method not allowed" }, { status: 405 });
+}
+
 export default function NotFound() {
   const location = useLocation();
   

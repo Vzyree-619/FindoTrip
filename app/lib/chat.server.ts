@@ -56,6 +56,7 @@ export interface ConversationSummary {
 
 export interface MessageWithSender {
   id: string;
+  conversationId: string;
   content: string;
   type: MessageType;
   senderId: string;
@@ -729,6 +730,7 @@ function formatConversationDetails(conversation: any): ConversationDetails {
 function formatMessageWithSender(message: any): MessageWithSender {
   return {
     id: message.id,
+    conversationId: message.conversationId,
     content: message.content,
     type: message.type,
     senderId: message.senderId,

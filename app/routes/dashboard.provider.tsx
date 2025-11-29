@@ -343,7 +343,9 @@ export default function ProviderDashboard() {
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-4">
             Access Restricted
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm md:text-base">{error}</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm md:text-base">
+            {error}
+          </p>
           <Link
             to="/dashboard"
             className="inline-flex items-center px-4 py-2 bg-[#01502E] hover:bg-[#003d21] text-white rounded-md text-sm md:text-base"

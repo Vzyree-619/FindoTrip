@@ -183,7 +183,14 @@ export function MessageBubble({
     <div className={clsx("w-full flex items-end gap-2", isSender ? "justify-end" : "justify-start")}
          role="listitem" aria-label={isSender ? "Sent message" : "Received message"}>
       {!isSender && showAvatar && (
-        <img src={avatarUrl || "/avatar.png"} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
+        <img 
+          src={avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(senderName || 'User')}&background=01502E&color=fff&size=128`} 
+          alt="avatar" 
+          className="w-6 h-6 rounded-full object-cover"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(senderName || 'User')}&background=01502E&color=fff&size=128`;
+          }}
+        />
       )}
       {content}
       {(isSender || isAdmin) && !message.isDeleted && (
