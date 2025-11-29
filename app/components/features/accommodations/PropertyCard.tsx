@@ -8,6 +8,7 @@ interface PropertyCardProps {
   country: string;
   type: string;
   pricePerNight: number;
+  currency?: string;
   nights?: number;
   maxGuests: number;
   bedrooms: number;
@@ -17,6 +18,7 @@ interface PropertyCardProps {
   reviewCount: number;
   amenities?: string[];
   roomTypeCount?: number;
+  isRoomBased?: boolean; // True if property has multiple room types
 }
 
 export default function PropertyCard({
@@ -26,6 +28,7 @@ export default function PropertyCard({
   country,
   type,
   pricePerNight,
+  currency = "PKR",
   nights,
   maxGuests,
   bedrooms,
@@ -35,13 +38,14 @@ export default function PropertyCard({
   reviewCount,
   amenities = [],
   roomTypeCount,
+  isRoomBased = false,
 }: PropertyCardProps) {
   const mainImage = images[0] || "/landingPageImg.jpg";
   
   // Format price
-  const formattedPrice = `PKR ${pricePerNight.toLocaleString()}`;
+  const formattedPrice = `${currency} ${pricePerNight.toLocaleString()}`;
   const perNightPrice = nights && nights > 0 ? Math.round(pricePerNight / nights) : pricePerNight;
-  const formattedPerNight = `PKR ${perNightPrice.toLocaleString()}`;
+  const formattedPerNight = `${currency} ${perNightPrice.toLocaleString()}`;
 
   // Get rating color
   const getRatingColor = (rating: number) => {
@@ -124,6 +128,9 @@ export default function PropertyCard({
         {/* Price and Rating */}
         <div className="flex justify-between items-center">
           <div>
+            {isRoomBased && (
+              <div className="text-xs text-gray-600 mb-1">Starting from</div>
+            )}
             <span className="text-xl font-bold text-[#01502E]">
               {formattedPrice}
             </span>
