@@ -44,21 +44,6 @@ export default function PropertyDetailTabs({
   onGuestsChange
 }: PropertyDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'rooms' | 'location' | 'amenities' | 'reviews'>('rooms');
-  const [adults, setAdults] = useState(2);
-  const [children, setChildren] = useState(0);
-
-  const handleCheckInChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const date = e.target.value ? new Date(e.target.value) : null;
-    onDateChange(date, checkOut);
-  };
-
-  const handleCheckOutChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const date = e.target.value ? new Date(e.target.value) : null;
-    onDateChange(checkIn, date);
-  };
-
-  const today = new Date().toISOString().split('T')[0];
-  const minCheckOut = checkIn ? new Date(checkIn.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] : today;
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
