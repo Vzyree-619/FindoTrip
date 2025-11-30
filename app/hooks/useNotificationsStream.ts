@@ -34,7 +34,11 @@ export function useNotificationsStream(onNotification: (n: NotificationEvent) =>
       });
       
       es.onerror = (error) => {
-        console.warn('⚠️ SSE connection error (will retry automatically):', error);
+        // Only log if connection is actually closed (not just interrupted during page load)
+        if (es.readyState === EventSource.CLOSED) {
+          console.warn('⚠️ SSE connection closed (will retry automatically)');
+        }
+        // Connection interruptions during page load are normal, don't log them
       };
 
       return () => {
