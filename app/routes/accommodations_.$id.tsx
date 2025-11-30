@@ -237,6 +237,7 @@ export default function AccommodationDetail() {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [roomTypeId, setRoomTypeId] = useState<string | undefined>(undefined);
   const [numberOfRooms, setNumberOfRooms] = useState(1);
+  const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
 
   const images = accommodation.images.length > 0 
     ? accommodation.images 
