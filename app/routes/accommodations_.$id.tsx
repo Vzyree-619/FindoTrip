@@ -81,8 +81,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     1: reviews.filter((r) => r.rating === 1).length,
   };
 
-  // Fetch similar properties
-  const similarProperties = await prisma.property.findMany({
+  // Fetch similar properties with room types for starting price
+  const similarPropertiesRaw = await prisma.property.findMany({
     where: {
       id: { not: id },
       city: property.city,
@@ -90,8 +90,29 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       available: true,
       approvalStatus: "APPROVED",
     },
+    include: {
+      roomTypes: {
+        where: { available: true },
+        select: { basePrice: true },
+        orderBy: { basePrice: 'asc' },
+        take: 1
+      }
+    },
     take: 4,
     orderBy: { rating: "desc" },
+  });
+
+  // Calculate starting price for similar properties
+  const similarProperties = similarPropertiesRaw.map(p => {
+    const lowestRoom = p.roomTypes[0];
+    const startingPrice = lowestRoom ? lowestRoom.basePrice : p.basePrice;
+    return {
+      ...p,
+      startingPrice,
+      images: p.images || [],
+      basePrice: p.basePrice || 0,
+      currency: (p as any).currency || 'PKR'
+    };
   });
 
   // Fetch room types with full details
@@ -539,9 +560,12 @@ export default function AccommodationDetail() {
                   {/* Image */}
                   <div className="relative h-48 overflow-hidden">
                     <img
-                      src={property.images[0] || "/landingPageImg.jpg"}
-                      alt={property.name}
+                      src={(property.images && property.images.length > 0) ? property.images[0] : "/landingPageImg.jpg"}
+                      alt={property.name || "Property"}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/landingPageImg.jpg";
+                      }}
                     />
                     <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs font-semibold text-gray-700">
                       {property.type}
@@ -564,7 +588,7 @@ export default function AccommodationDetail() {
           <div className="flex justify-between items-center mt-3">
             <div>
               <span className="text-xl font-bold text-[#01502E]">
-                {accommodation.currency} {property.basePrice.toLocaleString()}
+                {property.currency || accommodation.currency} {(property.startingPrice || property.basePrice || 0).toLocaleString()}
               </span>
               <span className="text-sm text-gray-600"> /night</span>
             </div>

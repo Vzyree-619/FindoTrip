@@ -324,6 +324,9 @@ export async function getPropertiesWithStartingPrices(filters?: {
     filtered = filtered.filter(p => availablePropertyIds.includes(p.id));
   }
 
+  // Sort by starting price (ascending)
+  filtered.sort((a, b) => a.startingPrice - b.startingPrice);
+
   // Apply limit after filtering
   if (filters?.limit) {
     filtered = filtered.slice(0, filters.limit);

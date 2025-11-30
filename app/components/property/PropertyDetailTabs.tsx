@@ -121,11 +121,7 @@ export default function PropertyDetailTabs({
                 Available Rooms {roomTypes.length > 0 && `(showing ${roomTypes.length} room type${roomTypes.length !== 1 ? 's' : ''})`}
               </h2>
 
-              {!checkIn || !checkOut ? (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                  <p className="text-yellow-800">Please select check-in and check-out dates to see available rooms and prices.</p>
-                </div>
-              ) : roomTypes.length === 0 ? (
+              {roomTypes.length === 0 ? (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
                   <p className="text-gray-600">No room types available for this property.</p>
                 </div>
@@ -135,9 +131,9 @@ export default function PropertyDetailTabs({
                     <RoomCard
                       key={room.id}
                       room={room}
-                      checkIn={checkIn!}
-                      checkOut={checkOut!}
-                      numberOfNights={numberOfNights}
+                      checkIn={checkIn || new Date()}
+                      checkOut={checkOut || new Date(Date.now() + 24 * 60 * 60 * 1000)}
+                      numberOfNights={numberOfNights || 1}
                       numberOfRooms={numberOfRooms}
                       propertyCleaningFee={property.cleaningFee}
                       propertyServiceFee={property.serviceFee}
@@ -146,6 +142,14 @@ export default function PropertyDetailTabs({
                       isSelected={selectedRoomId === room.id}
                     />
                   ))}
+                </div>
+              )}
+              
+              {(!checkIn || !checkOut) && roomTypes.length > 0 && (
+                <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-blue-800 text-sm">
+                    💡 <strong>Tip:</strong> Select check-in and check-out dates above to see exact pricing and availability for your stay.
+                  </p>
                 </div>
               )}
             </div>
