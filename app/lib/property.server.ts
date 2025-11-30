@@ -245,41 +245,47 @@ export async function getPropertiesWithStartingPrices(filters?: {
     if (filters.maxPrice) roomWhere.basePrice.lte = filters.maxPrice;
   }
 
-  const properties = await prisma.property.findMany({
-    where,
-    include: {
-      owner: {
-        select: {
-          businessName: true,
-          verified: true
+  let properties;
+  try {
+    properties = await prisma.property.findMany({
+      where,
+      include: {
+        owner: {
+          select: {
+            businessName: true,
+            verified: true
+          }
+        },
+        roomTypes: {
+          where: roomWhere,
+          select: {
+            id: true,
+            basePrice: true,
+            currency: true,
+            maxOccupancy: true
+          },
+          orderBy: {
+            basePrice: 'asc'
+          },
+          take: 1
         }
       },
-      roomTypes: {
-        where: roomWhere,
-        select: {
-          id: true,
-          basePrice: true,
-          currency: true,
-          maxOccupancy: true
-        },
-        orderBy: {
-          basePrice: 'asc'
-        },
-        take: 1
-      }
-    },
-    orderBy: {
-      rating: 'desc'
-    },
-    take: filters?.limit ? filters.limit * 2 : 40, // Get more to filter by availability
-    skip: filters?.offset || 0
-  });
+      orderBy: {
+        rating: 'desc'
+      },
+      take: filters?.limit ? filters.limit * 2 : 40, // Get more to filter by availability
+      skip: filters?.offset || 0
+    });
+  } catch (error) {
+    console.error('Error in getPropertiesWithStartingPrices:', error);
+    throw error;
+  }
 
   // Calculate starting price for each property
   const propertiesWithPrices = properties.map(property => {
-    const lowestRoom = property.roomTypes[0];
-    const startingPrice = lowestRoom ? lowestRoom.basePrice : property.basePrice;
-    const currency = lowestRoom ? lowestRoom.currency : property.currency;
+    const lowestRoom = property.roomTypes && property.roomTypes.length > 0 ? property.roomTypes[0] : null;
+    const startingPrice = lowestRoom ? lowestRoom.basePrice : (property.basePrice || 0);
+    const currency = lowestRoom ? lowestRoom.currency : (property.currency || 'PKR');
     const isRoomBased = !!lowestRoom;
 
     return {

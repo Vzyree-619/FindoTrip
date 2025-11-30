@@ -98,17 +98,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
 
     // Get accommodations with starting prices (handles multi-room properties)
-    const accommodations = await getPropertiesWithStartingPrices({
-      city,
-      type,
-      guests,
-      minPrice,
-      maxPrice,
-      checkIn,
-      checkOut,
-      limit,
-      offset: (page - 1) * limit
-    });
+    let accommodations;
+    try {
+      accommodations = await getPropertiesWithStartingPrices({
+        city,
+        type,
+        guests,
+        minPrice,
+        maxPrice,
+        checkIn,
+        checkOut,
+        limit,
+        offset: (page - 1) * limit
+      });
+    } catch (error) {
+      console.error('Error fetching accommodations:', error);
+      throw error;
+    }
 
     const [total, types, cities] = await Promise.all([
       prisma.property.count({ where }),
