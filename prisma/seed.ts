@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedProperties } from "./seed.properties";
 
 const prisma = new PrismaClient();
 
@@ -119,31 +120,14 @@ async function main() {
     }
   });
 
-  // Properties
-  console.log("🏨 Creating properties...");
-  const properties = await prisma.property.createMany({
+  // Properties with Room Types
+  await seedProperties(propOwner.id);
+
+  // Additional single-unit properties (non-hotel properties)
+  const singleUnitProperties = await prisma.property.createMany({
     data: [
       {
-        name: "Al Noor Starlet Hotel",
-        description: "Luxurious hotel in the heart of Skardu with stunning mountain views.",
-        type: "HOTEL",
-        address: "Main Bazaar Road",
-        city: "Skardu",
-        country: "Pakistan",
-        maxGuests: 4,
-        bedrooms: 2,
-        bathrooms: 2,
-        basePrice: 12000,
-        images: ["/alnoor.png"],
-        amenities: ["WiFi", "Parking", "Restaurant", "AC", "Room Service"],
-        ownerId: propOwner.id,
-        approvalStatus: "APPROVED",
-        available: true,
-        rating: 4.8,
-        reviewCount: 50,
-      },
-      {
-        name: "Legend Hotel",
+        name: "Sehrish Guest House",
         description: "Modern hotel with panoramic views of Skardu Valley.",
         type: "HOTEL",
         address: "Airport Road",
