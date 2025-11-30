@@ -104,6 +104,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       guests,
       minPrice,
       maxPrice,
+      checkIn,
+      checkOut,
       limit,
       offset: (page - 1) * limit
     });

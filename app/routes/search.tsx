@@ -205,28 +205,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
     let total = 0;
 
     if (serviceType === 'accommodations') {
-      const properties = await prisma.property.findMany({
-        where,
-        include: {
-          owner: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-              averageRating: true,
-              totalReviews: true,
-              isVerified: true
-            }
-          },
-          images: true,
-          reviews: {
-            where: { isActive: true },
-            select: { rating: true }
-          }
-        },
-        orderBy,
-        skip: (page - 1) * limit,
-        take: limit
+      // Use the utility function to get properties with starting prices
+      const { getPropertiesWithStartingPrices } = await import("~/lib/property.server");
+      
+      const properties = await getPropertiesWithStartingPrices({
+        city: location,
+        type: propertyType[0],
+        guests: guests,
+        minPrice: priceMin > 0 ? priceMin : undefined,
+        maxPrice: priceMax < 1000 ? priceMax : undefined,
+        limit,
+        offset: (page - 1) * limit
       });
 
       total = await prisma.property.count({ where });

@@ -78,6 +78,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
               }
             }
           }
+        },
+        roomTypes: {
+          where: {
+            available: true
+          },
+          orderBy: {
+            basePrice: 'asc'
+          }
         }
       },
       orderBy: sort === 'newest' ? { createdAt: 'desc' } : { createdAt: 'asc' }
@@ -187,12 +195,24 @@ export async function action({ request }: ActionFunctionArgs) {
     if (action === 'approve') {
       // Update service approval status
       if (serviceType === 'property') {
+        // Approve property and all its room types
         await prisma.property.update({
           where: { id: serviceId },
           data: { 
             approvalStatus: 'APPROVED',
             approvedBy: admin.id,
             approvedAt: new Date()
+          }
+        });
+        
+        // Also approve all room types for this property
+        await prisma.roomType.updateMany({
+          where: {
+            propertyId: serviceId,
+            available: true
+          },
+          data: {
+            available: true // Ensure rooms are active
           }
         });
       } else if (serviceType === 'vehicle') {
@@ -574,11 +594,55 @@ export default function PendingServiceApprovals() {
                       
                       {/* Service-specific details */}
                       {service.type === 'property' && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600 mb-4">
-                          <div>• Type: {service.type}</div>
-                          <div>• Bedrooms: {service.bedrooms}</div>
-                          <div>• Bathrooms: {service.bathrooms}</div>
-                          <div>• Max Guests: {service.maxGuests}</div>
+                        <div className="space-y-4 mb-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600">
+                            <div>• Type: {service.type}</div>
+                            <div>• Bedrooms: {service.bedrooms}</div>
+                            <div>• Bathrooms: {service.bathrooms}</div>
+                            <div>• Max Guests: {service.maxGuests}</div>
+                          </div>
+                          
+                          {/* Room Types */}
+                          {service.roomTypes && service.roomTypes.length > 0 && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                              <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                                Room Types ({service.roomTypes.length})
+                              </h4>
+                              <div className="space-y-2">
+                                {service.roomTypes.map((room: any) => (
+                                  <div key={room.id} className="bg-white rounded p-3 border border-blue-100">
+                                    <div className="flex justify-between items-start mb-2">
+                                      <div>
+                                        <div className="font-medium text-gray-900">{room.name}</div>
+                                        <div className="text-xs text-gray-600 mt-1">{room.description?.substring(0, 100)}...</div>
+                                      </div>
+                                      <div className="text-sm font-semibold text-[#01502E]">
+                                        {room.currency} {room.basePrice.toLocaleString()}/night
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                                      <span>🛏️ {room.bedConfiguration}</span>
+                                      <span>👤 Sleeps {room.maxOccupancy}</span>
+                                      {room.roomSize && <span>📐 {room.roomSize} {room.roomSizeUnit}</span>}
+                                      <span>🏨 {room.totalUnits} units</span>
+                                    </div>
+                                    {room.images && room.images.length > 0 && (
+                                      <div className="mt-2 flex gap-2">
+                                        {room.images.slice(0, 3).map((img: string, idx: number) => (
+                                          <img
+                                            key={idx}
+                                            src={img}
+                                            alt={`${room.name} ${idx + 1}`}
+                                            className="w-16 h-16 object-cover rounded border"
+                                          />
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                       
@@ -618,16 +682,63 @@ export default function PendingServiceApprovals() {
                               <div className="space-y-1">
                                 <div className="flex items-center space-x-2">
                                   <input type="checkbox" className="rounded" />
-                                  <span className="text-sm text-gray-600">Images are high quality and accurate</span>
+                                  <span className="text-sm text-gray-600">Property details complete</span>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                   <input type="checkbox" className="rounded" />
-                                  <span className="text-sm text-gray-600">Description is clear and detailed</span>
+                                  <span className="text-sm text-gray-600">Property images high quality</span>
                                 </div>
-                                <div className="flex items-center space-x-2">
-                                  <input type="checkbox" className="rounded" />
-                                  <span className="text-sm text-gray-600">Pricing is reasonable</span>
-                                </div>
+                                {service.type === 'property' && service.roomTypes && (
+                                  <>
+                                    <div className="flex items-center space-x-2">
+                                      <input 
+                                        type="checkbox" 
+                                        className="rounded" 
+                                        checked={service.roomTypes.length > 0}
+                                        readOnly
+                                      />
+                                      <span className="text-sm text-gray-600">
+                                        At least ONE room type added ({service.roomTypes.length})
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <input 
+                                        type="checkbox" 
+                                        className="rounded"
+                                        checked={service.roomTypes.every((r: any) => r.images && r.images.length > 0)}
+                                        readOnly
+                                      />
+                                      <span className="text-sm text-gray-600">All room types have images</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <input 
+                                        type="checkbox" 
+                                        className="rounded"
+                                        checked={service.roomTypes.every((r: any) => r.basePrice > 0 && r.basePrice < 100000)}
+                                        readOnly
+                                      />
+                                      <span className="text-sm text-gray-600">Room prices are reasonable</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <input 
+                                        type="checkbox" 
+                                        className="rounded"
+                                        checked={service.roomTypes.every((r: any) => r.description && r.description.length >= 50)}
+                                        readOnly
+                                      />
+                                      <span className="text-sm text-gray-600">Room descriptions are clear</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <input 
+                                        type="checkbox" 
+                                        className="rounded"
+                                        checked={service.roomTypes.every((r: any) => r.amenities && r.amenities.length > 0)}
+                                        readOnly
+                                      />
+                                      <span className="text-sm text-gray-600">Amenities are accurate</span>
+                                    </div>
+                                  </>
+                                )}
                                 <div className="flex items-center space-x-2">
                                   <input type="checkbox" className="rounded" />
                                   <span className="text-sm text-gray-600">Location is accurate</span>

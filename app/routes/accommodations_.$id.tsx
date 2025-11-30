@@ -3,6 +3,8 @@ import { useLoaderData, Link, useRevalidator, useNavigate } from "@remix-run/rea
 import { ChatInterface } from "~/components/chat";
 import ShareModal from "~/components/common/ShareModal";
 import FloatingShareButton from "~/components/common/FloatingShareButton";
+import PropertyDetailTabs from "~/components/property/PropertyDetailTabs";
+import PropertySearchWidget from "~/components/property/PropertySearchWidget";
 import { useState } from "react";
 import { prisma } from "~/lib/db/db.server";
 import { getUser, getUserId } from "~/lib/auth/auth.server";
@@ -30,6 +32,13 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
 
   const user = await getUser(request);
+  const url = new URL(request.url);
+
+  // Get search parameters
+  const checkIn = url.searchParams.get('checkIn');
+  const checkOut = url.searchParams.get('checkOut');
+  const adults = parseInt(url.searchParams.get('adults') || '2');
+  const children = parseInt(url.searchParams.get('children') || '0');
 
   const property = await prisma.property.findUnique({
     where: { id },
@@ -85,18 +94,96 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     orderBy: { rating: "desc" },
   });
 
-  // Fetch room types separately (avoid relation include issues if client isn't regenerated)
-  // Room types fetched separately; guard for environments where Prisma client isn't regenerated yet
+  // Fetch room types with full details
   let roomTypes: any[] = [];
   try {
-    const anyPrisma: any = prisma as any;
-    if (anyPrisma.roomType?.findMany) {
-      roomTypes = await anyPrisma.roomType.findMany({ where: { propertyId: id } });
+    roomTypes = await prisma.roomType.findMany({ 
+      where: { 
+        propertyId: id,
+        available: true
+      },
+      orderBy: {
+        basePrice: 'asc'
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching room types:", error);
+  }
+
+  // If dates provided, check availability for each room
+  let roomsWithAvailability = roomTypes;
+  let numberOfNights = 0;
+  
+  if (checkIn && checkOut) {
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    
+    // Validate dates
+    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime()) || checkOutDate <= checkInDate) {
+      // Invalid dates, return rooms without availability
+    } else {
+      numberOfNights = Math.ceil(
+        (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // For each room, check how many units are available
+      roomsWithAvailability = await Promise.all(
+        roomTypes.map(async (room) => {
+          try {
+            const bookedUnits = await prisma.propertyBooking.count({
+              where: {
+                roomTypeId: room.id,
+                status: { not: 'CANCELLED' },
+                OR: [
+                  {
+                    checkInDate: {
+                      gte: checkInDate,
+                      lt: checkOutDate
+                    }
+                  },
+                  {
+                    checkOutDate: {
+                      gt: checkInDate,
+                      lte: checkOutDate
+                    }
+                  },
+                  {
+                    AND: [
+                      { checkInDate: { lte: checkInDate } },
+                      { checkOutDate: { gte: checkOutDate } }
+                    ]
+                  }
+                ]
+              }
+            });
+
+            const availableUnits = (room.totalUnits || 1) - bookedUnits;
+
+            return {
+              ...room,
+              availableUnits,
+              isAvailable: availableUnits > 0
+            };
+          } catch (error) {
+            console.error(`Error checking availability for room ${room.id}:`, error);
+            return {
+              ...room,
+              availableUnits: room.totalUnits || 1,
+              isAvailable: true
+            };
+          }
+        })
+      );
     }
-  } catch {}
+  }
 
   // Map property -> accommodation shape used by UI
-  const accommodation = { ...property, roomTypes, pricePerNight: property.basePrice, currency: (property as any).currency || 'PKR' } as any;
+  const accommodation = { 
+    ...property, 
+    roomTypes: roomsWithAvailability, 
+    pricePerNight: property.basePrice, 
+    currency: (property as any).currency || 'PKR' 
+  } as any;
 
   return json({ 
     accommodation, 
@@ -104,7 +191,14 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     isWishlisted, 
     reviews,
     ratingBreakdown,
-    similarProperties 
+    similarProperties,
+    searchParams: checkIn && checkOut ? {
+      checkIn,
+      checkOut,
+      adults,
+      children,
+      numberOfNights
+    } : null
   });
 }
 
@@ -121,6 +215,7 @@ export default function AccommodationDetail() {
   const [chatOpen, setChatOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [roomTypeId, setRoomTypeId] = useState<string | undefined>(undefined);
+  const [numberOfRooms, setNumberOfRooms] = useState(1);
 
   const images = accommodation.images.length > 0 
     ? accommodation.images 
@@ -283,37 +378,107 @@ export default function AccommodationDetail() {
           </div>
         </div>
 
-        {/* Room Types */}
-        {Array.isArray(accommodation.roomTypes) && accommodation.roomTypes.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Available Room Types</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {accommodation.roomTypes.map((rt: any) => (
-                <div key={rt.id} className={`border rounded-lg overflow-hidden ${roomTypeId === rt.id ? 'ring-2 ring-[#01502E]' : ''}`}>
-                  <div className="h-40 bg-gray-100">
-                    <img src={rt.images?.[0] || accommodation.images?.[0] || '/landingPageImg.jpg'} className="w-full h-full object-cover" />
+        {/* Property Search Widget - Sticky */}
+        {accommodation.roomTypes && accommodation.roomTypes.length > 0 && (
+          <PropertySearchWidget propertyId={accommodation.id} />
+        )}
+
+        {/* Main Content with Tabs */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          {/* Tabs Content */}
+          <div className="lg:col-span-2" data-rooms-tab>
+            <PropertyDetailTabs
+              property={{
+                id: accommodation.id,
+                name: accommodation.name,
+                description: accommodation.description,
+                address: accommodation.address,
+                city: accommodation.city,
+                country: accommodation.country,
+                amenities: accommodation.amenities || [],
+                latitude: accommodation.latitude,
+                longitude: accommodation.longitude,
+                cleaningFee: accommodation.cleaningFee || 0,
+                serviceFee: accommodation.serviceFee || 0,
+                taxRate: accommodation.taxRate || 0,
+                currency: accommodation.currency || 'PKR'
+              }}
+              roomTypes={accommodation.roomTypes || []}
+              reviews={reviews}
+              checkIn={checkIn ? new Date(checkIn) : null}
+              checkOut={checkOut ? new Date(checkOut) : null}
+              numberOfNights={nights}
+              numberOfRooms={numberOfRooms}
+              selectedRoomId={roomTypeId || null}
+              onRoomSelect={(roomId) => setRoomTypeId(roomId)}
+              onDateChange={(newCheckIn, newCheckOut) => {
+                setCheckIn(newCheckIn ? newCheckIn.toISOString().split('T')[0] : '');
+                setCheckOut(newCheckOut ? newCheckOut.toISOString().split('T')[0] : '');
+              }}
+              onGuestsChange={(adults, children) => {
+                setGuests(adults + children);
+              }}
+            />
+          </div>
+
+          {/* Quick Booking Card (Sidebar) */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
+              <div className="mb-4">
+                {roomTypeId && accommodation.roomTypes?.find((rt: any) => rt.id === roomTypeId) ? (
+                  <>
+                    <div className="text-xs text-gray-600 mb-1">Selected Room</div>
+                    <div className="text-sm font-semibold text-gray-900 mb-2">
+                      {accommodation.roomTypes.find((rt: any) => rt.id === roomTypeId)?.name}
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold text-[#01502E]">
+                        {accommodation.currency} {accommodation.roomTypes.find((rt: any) => rt.id === roomTypeId)?.basePrice.toLocaleString()}
+                      </span>
+                      <span className="text-gray-600">/ night</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-xs text-gray-600 mb-1">Starting from</div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold text-[#01502E]">
+                        {accommodation.currency} {accommodation.basePrice.toLocaleString()}
+                      </span>
+                      <span className="text-gray-600">/ night</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {nights > 0 && roomTypeId && (
+                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-600 mb-2">
+                    {nights} night{nights !== 1 ? 's' : ''}
                   </div>
-                  <div className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-lg font-semibold">{rt.name}</div>
-                        <div className="text-sm text-gray-600">Sleeps {rt.maxGuests}{rt.bedType ? ` • ${rt.bedType}` : ''}</div>
-                      </div>
-                      <div className="text-[#01502E] font-semibold">PKR {rt.basePrice.toLocaleString()}/night</div>
-                    </div>
-                    {rt.amenities?.length ? (
-                      <div className="mt-2 text-sm text-gray-700 line-clamp-2">{rt.amenities.slice(0,5).join(', ')}</div>
-                    ) : null}
-                    <div className="mt-3 flex gap-2">
-                      <button onClick={() => setRoomTypeId(rt.id)} className={`flex-1 text-center px-3 py-2 rounded border ${roomTypeId === rt.id ? 'bg-[#01502E] text-white border-[#01502E]' : 'bg-white'}`}>{roomTypeId === rt.id ? 'Selected' : 'Select'}</button>
-                      <button onClick={() => { setRoomTypeId(rt.id); handleBooking(); }} className="flex-1 text-center px-3 py-2 rounded bg-[#01502E] text-white">Book</button>
-                    </div>
+                  <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                    <span>Total</span>
+                    <span className="text-[#01502E]">
+                      {accommodation.currency} {totalPrice.toLocaleString()}
+                    </span>
                   </div>
                 </div>
-              ))}
+              )}
+
+              <button
+                onClick={handleBooking}
+                disabled={!checkIn || !checkOut || guests < 1 || !roomTypeId}
+                className="w-full py-3 bg-[#01502E] text-white rounded-lg font-semibold hover:bg-[#013d23] disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+              >
+                {!roomTypeId ? "Select a Room First" : user ? "Reserve Now" : "Sign in to book"}
+              </button>
+
+              <p className="text-center text-sm text-gray-600 mt-3">
+                You won't be charged yet
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Image Gallery */}
         <div className="grid grid-cols-4 gap-2 mb-8 h-[400px]">
@@ -358,83 +523,8 @@ export default function AccommodationDetail() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2">
-            {/* Property Info */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="px-3 py-1 bg-[#01502E] text-white rounded-full text-sm font-semibold">
-                  {accommodation.type}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-4 gap-4 mb-6 pb-6 border-b">
-                <div className="flex items-center gap-2">
-                  <Users size={20} className="text-gray-600" />
-                  <div>
-                    <div className="text-sm text-gray-600">Guests</div>
-                    <div className="font-semibold">{accommodation.maxGuests}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Bed size={20} className="text-gray-600" />
-                  <div>
-                    <div className="text-sm text-gray-600">Bedrooms</div>
-                    <div className="font-semibold">{accommodation.bedrooms}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Bath size={20} className="text-gray-600" />
-                  <div>
-                    <div className="text-sm text-gray-600">Bathrooms</div>
-                    <div className="font-semibold">{accommodation.bathrooms}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h2 className="text-xl font-semibold mb-3">About this property</h2>
-                <p className="text-gray-700 leading-relaxed">
-                  {accommodation.description}
-                </p>
-              </div>
-            </div>
-
-            {/* Amenities */}
-            {accommodation.amenities.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-xl font-semibold mb-4">Amenities</h2>
-                <div className="grid grid-cols-2 gap-3">
-                  {accommodation.amenities.map((amenity: string, idx: number) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Check size={18} className="text-[#01502E]" />
-                      <span className="text-gray-700">{amenity}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Location */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Location</h2>
-              <div className="text-gray-700">
-                <p className="mb-2">{accommodation.address}</p>
-                <p>
-                  {accommodation.city}, {accommodation.country}
-                </p>
-                {accommodation.latitude && accommodation.longitude && (
-                  <div className="mt-4 h-64 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-500">Map placeholder</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Booking Card */}
-          <div className="lg:col-span-1">
+        {/* Reviews Section - Keep separate for now, will be in tabs */}
+        <div className="mt-12">
             <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
               <div className="mb-4">
                 <div className="flex items-baseline gap-2">

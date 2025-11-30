@@ -140,6 +140,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
             bookings: true,
             reviews: true
           }
+        },
+        roomTypes: {
+          where: {
+            available: true
+          },
+          select: {
+            id: true,
+            name: true,
+            basePrice: true,
+            currency: true,
+            totalUnits: true,
+            available: true
+          }
         }
       },
       orderBy: sort === 'newest' ? { createdAt: 'desc' } : 
@@ -181,11 +194,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const daysSinceCreated = Math.floor((Date.now() - new Date(property.createdAt).getTime()) / (1000 * 60 * 60 * 24));
       const utilizationRate = daysSinceCreated > 0 ? (totalBookings / daysSinceCreated) * 100 : 0;
       
+      // Calculate room statistics
+      const totalRoomTypes = property.roomTypes?.length || 0;
+      const totalRoomUnits = property.roomTypes?.reduce((sum, r) => sum + (r.totalUnits || 0), 0) || 0;
+      
+      // Get room-specific bookings
+      const roomBookings = await prisma.propertyBooking.count({
+        where: {
+          propertyId: property.id,
+          roomTypeId: { not: null }
+        }
+      });
+      
       return {
         ...property,
         totalRevenue: totalRevenue._sum.totalPrice || 0,
         lastBookingDate: lastBooking?.createdAt,
-        utilizationRate: Math.min(utilizationRate, 100)
+        utilizationRate: Math.min(utilizationRate, 100),
+        totalRoomTypes,
+        totalRoomUnits,
+        roomBookings
       };
     })
   );

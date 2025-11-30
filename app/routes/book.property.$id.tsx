@@ -32,7 +32,9 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const checkIn = url.searchParams.get("checkIn");
   const checkOut = url.searchParams.get("checkOut");
   const guests = url.searchParams.get("guests");
-  const roomTypeId = url.searchParams.get("roomTypeId") || undefined;
+  const adults = parseInt(url.searchParams.get("adults") || "2");
+  const children = parseInt(url.searchParams.get("children") || "0");
+  const roomId = url.searchParams.get("roomId") || url.searchParams.get("roomTypeId") || undefined;
 
   const property = await prisma.property.findUnique({
     where: { id: propertyId },
@@ -78,27 +80,65 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     throw new Response("Property not found", { status: 404 });
   }
 
+  // Validate required parameters
+  if (!roomId || !checkIn || !checkOut) {
+    throw new Response("Missing booking parameters: roomId, checkIn, and checkOut are required", { status: 400 });
+  }
+
+  // Fetch specific room
+  const room = await prisma.roomType.findUnique({
+    where: { id: roomId }
+  });
+
+  if (!room || room.propertyId !== propertyId) {
+    throw new Response("Room not found or does not belong to this property", { status: 404 });
+  }
+
   // Check availability for the requested dates
   let isAvailable = true;
+  let availableUnits = room.totalUnits || 1;
   let conflictingBookings: any[] = [];
 
   if (checkIn && checkOut) {
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
     
-    // Check for conflicting bookings
+    // Validate dates
+    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime()) || checkOutDate <= checkInDate) {
+      throw new Response("Invalid date range", { status: 400 });
+    }
+    
+    // Check for conflicting bookings for this specific room
     conflictingBookings = await prisma.propertyBooking.findMany({
       where: {
-        propertyId: property.id,
-        status: { in: ["CONFIRMED", "PENDING"] },
+        roomTypeId: room.id,
+        status: { not: 'CANCELLED' },
         OR: [
           {
-            checkIn: { lte: checkOutDate },
-            checkOut: { gte: checkInDate },
+            checkInDate: {
+              gte: checkInDate,
+              lt: checkOutDate
+            }
           },
+          {
+            checkOutDate: {
+              gt: checkInDate,
+              lte: checkOutDate
+            }
+          },
+          {
+            AND: [
+              { checkInDate: { lte: checkInDate } },
+              { checkOutDate: { gte: checkOutDate } }
+            ]
+          }
         ],
       },
     });
+
+    const bookedUnits = conflictingBookings.length;
+    availableUnits = (room.totalUnits || 1) - bookedUnits;
+    isAvailable = availableUnits > 0;
 
     // Check unavailable dates
     const unavailablePeriods = property.unavailableDates.filter(period => {
@@ -109,136 +149,141 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       );
     });
 
-    isAvailable = conflictingBookings.length === 0 && unavailablePeriods.length === 0;
+    isAvailable = isAvailable && unavailablePeriods.length === 0;
+  }
+
+  if (!isAvailable || availableUnits < 1) {
+    throw new Response("Room not available for selected dates", { status: 400 });
   }
 
   // Calculate pricing
-  let totalPrice = 0;
-  let nights = 0;
-  let pricingBreakdown = {
-    basePrice: 0,
-    cleaningFee: property.cleaningFee,
-    serviceFee: property.serviceFee,
-    taxes: 0,
-    total: 0,
+  const checkInDate = new Date(checkIn);
+  const checkOutDate = new Date(checkOut);
+  const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  const roomRate = room.basePrice;
+  const totalRoomCost = roomRate * numberOfNights;
+  const cleaningFee = property.cleaningFee || 0;
+  const serviceFee = property.serviceFee || (totalRoomCost * 0.10); // 10% service fee if not set
+  const taxAmount = (totalRoomCost + cleaningFee + serviceFee) * ((property.taxRate || 8) / 100); // 8% tax default
+  const totalAmount = totalRoomCost + cleaningFee + serviceFee + taxAmount;
+
+  const pricingBreakdown = {
+    roomRate,
+    numberOfNights,
+    totalRoomCost,
+    cleaningFee,
+    serviceFee,
+    taxAmount,
+    totalAmount
   };
 
-  if (checkIn && checkOut) {
-    const checkInDate = new Date(checkIn);
-    const checkOutDate = new Date(checkOut);
-    nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    const basePerNight = roomTypeId ? (property.roomTypes || []).find(rt => rt.id === roomTypeId)?.basePrice ?? property.basePrice : property.basePrice;
-    pricingBreakdown.basePrice = basePerNight * nights;
-    pricingBreakdown.taxes = (pricingBreakdown.basePrice + pricingBreakdown.cleaningFee + pricingBreakdown.serviceFee) * (property.taxRate / 100);
-    pricingBreakdown.total = pricingBreakdown.basePrice + pricingBreakdown.cleaningFee + pricingBreakdown.serviceFee + pricingBreakdown.taxes;
-    totalPrice = pricingBreakdown.total;
-  }
-
-  const availabilityPreview = {};
-  if (roomTypeId) {
-    const start = new Date(); start.setHours(0,0,0,0);
-    const end = new Date(start); end.setDate(end.getDate() + 60);
-    const cursor = new Date(start);
-    while (cursor <= end) {
-      const dayStart = new Date(cursor);
-      const dayEnd = new Date(cursor); dayEnd.setHours(23,59,59,999);
-      const inv = await prisma.roomInventoryDaily.findFirst({ where: { roomTypeId, date: dayStart } });
-      let capacity = 0;
-      if (inv && typeof inv.available === 'number') capacity = inv.available; else {
-        const rt = await prisma.roomType.findUnique({ where: { id: roomTypeId } });
-        capacity = rt?.inventory || 1;
-      }
-      const booked = await prisma.propertyBooking.count({ where: { propertyId, roomTypeId, status: { in: ['CONFIRMED','PENDING'] }, checkIn: { lte: dayEnd }, checkOut: { gte: dayStart } } });
-      availabilityPreview[dayStart.toISOString().split('T')[0]] = Math.max(0, capacity - booked);
-      cursor.setDate(cursor.getDate() + 1);
-    }
-  }
   return json({
     property,
+    room,
     isAvailable,
+    availableUnits,
     conflictingBookings,
     pricingBreakdown,
-    totalPrice,
-    nights,
-    availabilityPreview,
-    pricePreview,
-    suggestedRange,
+    totalPrice: totalAmount,
+    nights: numberOfNights,
     searchParams: {
       checkIn,
       checkOut,
-      guests: guests ? parseInt(guests) : 1,
-      roomTypeId,
+      adults,
+      children,
+      guests: adults + children,
+      roomId: room.id,
     },
   });
+}
 
+export async function action({ request, params }: ActionFunctionArgs) {
+  const userId = await requireUserId(request);
+  const propertyId = params.id;
+  
+  if (!propertyId) {
+    return json({ error: "Property ID is required" }, { status: 400 });
+  }
+
+  const formData = await request.formData();
+  const intent = formData.get("intent") as string;
 
   if (intent === "createBooking") {
     const checkIn = formData.get("checkIn") as string;
     const checkOut = formData.get("checkOut") as string;
-    const guests = parseInt(formData.get("guests") as string);
+    const roomId = formData.get("roomId") as string;
     const adults = parseInt(formData.get("adults") as string);
     const children = parseInt(formData.get("children") as string) || 0;
-    const infants = parseInt(formData.get("infants") as string) || 0;
     const guestName = formData.get("guestName") as string;
     const guestEmail = formData.get("guestEmail") as string;
     const guestPhone = formData.get("guestPhone") as string;
     const specialRequests = formData.get("specialRequests") as string;
-    const insurance = formData.get("insurance") === "on";
+    const roomRate = parseFloat(formData.get("roomRate") as string);
+    const totalRoomCost = parseFloat(formData.get("totalRoomCost") as string);
+    const cleaningFee = parseFloat(formData.get("cleaningFee") as string);
+    const serviceFee = parseFloat(formData.get("serviceFee") as string);
+    const taxAmount = parseFloat(formData.get("taxAmount") as string);
+    const totalAmount = parseFloat(formData.get("totalAmount") as string);
 
-    if (!checkIn || !checkOut || !guestName || !guestEmail || !guestPhone) {
+    if (!checkIn || !checkOut || !roomId || !guestName || !guestEmail || !guestPhone) {
       return json({ error: "All required fields must be filled" }, { status: 400 });
     }
 
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
-    const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+    const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
 
-    // Get property details for pricing
-    const property = await prisma.property.findUnique({
-      where: { id: propertyId },
-      select: {
-        basePrice: true,
-        cleaningFee: true,
-        serviceFee: true,
-        taxRate: true,
-        currency: true,
-      },
+    // Verify room exists and belongs to property
+    const room = await prisma.roomType.findUnique({
+      where: { id: roomId }
     });
 
-    if (!property) {
-      return json({ error: "Property not found" }, { status: 404 });
+    if (!room || room.propertyId !== propertyId) {
+      return json({ error: "Room not found or invalid" }, { status: 404 });
     }
 
-    // Calculate pricing
-    const basePrice = property.basePrice * nights;
-    const cleaningFee = property.cleaningFee;
-    const serviceFee = property.serviceFee;
-    const insuranceFee = insurance ? 50 : 0; // Add insurance fee if selected
-    const taxes = (basePrice + cleaningFee + serviceFee + insuranceFee) * (property.taxRate / 100);
-    const totalPrice = basePrice + cleaningFee + serviceFee + insuranceFee + taxes;
+    // Re-check availability
+    const bookedUnits = await prisma.propertyBooking.count({
+      where: {
+        roomTypeId: room.id,
+        status: { not: 'CANCELLED' },
+        OR: [
+          { checkInDate: { gte: checkInDate, lt: checkOutDate } },
+          { checkOutDate: { gt: checkInDate, lte: checkOutDate } },
+          { AND: [{ checkInDate: { lte: checkInDate } }, { checkOutDate: { gte: checkOutDate } }] }
+        ]
+      }
+    });
+
+    const availableUnits = (room.totalUnits || 1) - bookedUnits;
+    if (availableUnits < 1) {
+      return json({ error: "Room no longer available for selected dates" }, { status: 400 });
+    }
 
     // Generate booking number
     const bookingNumber = `PB${Date.now()}${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+    
+    // Generate confirmation code
+    const confirmationCode = `CONF${Date.now()}${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
     try {
       const booking = await prisma.propertyBooking.create({
         data: {
           bookingNumber,
-          checkIn: checkInDate,
-          checkOut: checkOutDate,
-          guests,
+          checkInDate: checkInDate,
+          checkOutDate: checkOutDate,
+          numberOfNights,
           adults,
           children,
-          infants,
-          basePrice,
+          roomRate,
+          totalRoomCost,
           cleaningFee,
           serviceFee,
-          taxes,
-          discounts: 0,
-          totalPrice,
-          currency: property.currency,
-          status: "PENDING",
+          taxAmount,
+          totalAmount,
+          currency: room.currency || 'PKR',
+          status: "PENDING_PAYMENT",
           paymentStatus: "PENDING",
           guestName,
           guestEmail,
@@ -246,7 +291,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
           specialRequests,
           userId,
           propertyId,
-          roomTypeId: (roomTypeId as string) || null,
+          roomTypeId: roomId,
         },
         include: {
           property: {

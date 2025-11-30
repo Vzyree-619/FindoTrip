@@ -101,6 +101,109 @@ export async function getPropertyWithStartingPrice(propertyId: string) {
 }
 
 /**
+ * Filter properties by room availability for specific dates
+ */
+export async function filterPropertiesByRoomAvailability(
+  propertyIds: string[],
+  checkIn: Date,
+  checkOut: Date,
+  numberOfRooms: number = 1,
+  guests?: number
+): Promise<string[]> {
+  if (propertyIds.length === 0) return [];
+
+  // Get all room types for these properties
+  const roomTypes = await prisma.roomType.findMany({
+    where: {
+      propertyId: { in: propertyIds },
+      available: true,
+      ...(guests && { maxOccupancy: { gte: guests } })
+    },
+    select: {
+      id: true,
+      propertyId: true,
+      totalUnits: true
+    }
+  });
+
+  // Group rooms by property
+  const roomsByProperty = new Map<string, typeof roomTypes>();
+  roomTypes.forEach(room => {
+    if (!roomsByProperty.has(room.propertyId)) {
+      roomsByProperty.set(room.propertyId, []);
+    }
+    roomsByProperty.get(room.propertyId)!.push(room);
+  });
+
+  // Check availability for each property
+  const availablePropertyIds: string[] = [];
+
+  for (const propertyId of propertyIds) {
+    const propertyRooms = roomsByProperty.get(propertyId) || [];
+    
+    // If property has no rooms, skip it (or handle single-unit properties differently)
+    if (propertyRooms.length === 0) {
+      // For single-unit properties, check property-level bookings
+      const booked = await prisma.propertyBooking.count({
+        where: {
+          propertyId,
+          roomTypeId: null,
+          status: { not: 'CANCELLED' },
+          OR: [
+            { checkInDate: { gte: checkIn, lt: checkOut } },
+            { checkOutDate: { gt: checkIn, lte: checkOut } },
+            {
+              AND: [
+                { checkInDate: { lte: checkIn } },
+                { checkOutDate: { gte: checkOut } }
+              ]
+            }
+          ]
+        }
+      });
+      
+      if (booked === 0) {
+        availablePropertyIds.push(propertyId);
+      }
+      continue;
+    }
+
+    // Check if at least one room type has availability
+    let hasAvailableRoom = false;
+    for (const room of propertyRooms) {
+      const bookedUnits = await prisma.propertyBooking.count({
+        where: {
+          roomTypeId: room.id,
+          status: { not: 'CANCELLED' },
+          OR: [
+            { checkInDate: { gte: checkIn, lt: checkOut } },
+            { checkOutDate: { gt: checkIn, lte: checkOut } },
+            {
+              AND: [
+                { checkInDate: { lte: checkIn } },
+                { checkOutDate: { gte: checkOut } }
+              ]
+            }
+          ]
+        }
+      });
+
+      const availableUnits = (room.totalUnits || 1) - bookedUnits;
+      if (availableUnits >= numberOfRooms) {
+        hasAvailableRoom = true;
+        break;
+      }
+    }
+
+    if (hasAvailableRoom) {
+      availablePropertyIds.push(propertyId);
+    }
+  }
+
+  return availablePropertyIds;
+}
+
+/**
  * Get all properties with starting prices (for listing page)
  */
 export async function getPropertiesWithStartingPrices(filters?: {
@@ -109,6 +212,8 @@ export async function getPropertiesWithStartingPrices(filters?: {
   maxPrice?: number;
   minPrice?: number;
   guests?: number;
+  checkIn?: Date;
+  checkOut?: Date;
   limit?: number;
   offset?: number;
 }) {
@@ -129,6 +234,17 @@ export async function getPropertiesWithStartingPrices(filters?: {
     where.maxGuests = { gte: filters.guests };
   }
 
+  // Build room filter
+  const roomWhere: any = { available: true };
+  if (filters?.guests) {
+    roomWhere.maxOccupancy = { gte: filters.guests };
+  }
+  if (filters?.minPrice || filters?.maxPrice) {
+    roomWhere.basePrice = {};
+    if (filters.minPrice) roomWhere.basePrice.gte = filters.minPrice;
+    if (filters.maxPrice) roomWhere.basePrice.lte = filters.maxPrice;
+  }
+
   const properties = await prisma.property.findMany({
     where,
     include: {
@@ -139,11 +255,12 @@ export async function getPropertiesWithStartingPrices(filters?: {
         }
       },
       roomTypes: {
-        where: { available: true },
+        where: roomWhere,
         select: {
           id: true,
           basePrice: true,
-          currency: true
+          currency: true,
+          maxOccupancy: true
         },
         orderBy: {
           basePrice: 'asc'
@@ -154,7 +271,7 @@ export async function getPropertiesWithStartingPrices(filters?: {
     orderBy: {
       rating: 'desc'
     },
-    take: filters?.limit || 20,
+    take: filters?.limit ? filters.limit * 2 : 40, // Get more to filter by availability
     skip: filters?.offset || 0
   });
 
@@ -181,6 +298,25 @@ export async function getPropertiesWithStartingPrices(filters?: {
   }
   if (filters?.maxPrice) {
     filtered = filtered.filter(p => p.startingPrice <= filters.maxPrice!);
+  }
+
+  // Filter by room availability if dates provided
+  if (filters?.checkIn && filters?.checkOut) {
+    const propertyIds = filtered.map(p => p.id);
+    const availablePropertyIds = await filterPropertiesByRoomAvailability(
+      propertyIds,
+      filters.checkIn,
+      filters.checkOut,
+      1, // numberOfRooms
+      filters.guests
+    );
+    
+    filtered = filtered.filter(p => availablePropertyIds.includes(p.id));
+  }
+
+  // Apply limit after filtering
+  if (filters?.limit) {
+    filtered = filtered.slice(0, filters.limit);
   }
 
   return filtered;
