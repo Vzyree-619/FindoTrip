@@ -287,12 +287,16 @@ export async function getPropertiesWithStartingPrices(filters?: {
     const startingPrice = lowestRoom ? lowestRoom.basePrice : (property.basePrice || 0);
     const currency = lowestRoom ? lowestRoom.currency : (property.currency || 'PKR');
     const isRoomBased = !!lowestRoom;
+    
+    // Count total room types for this property
+    const totalRoomTypes = property.roomTypes ? property.roomTypes.length : 0;
 
     return {
       ...property,
       startingPrice,
       currency,
       isRoomBased,
+      totalRoomTypes,
       roomTypes: undefined // Remove detailed room data from list view
     };
   });

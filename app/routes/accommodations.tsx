@@ -160,16 +160,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
           bedrooms: 2,
           bathrooms: 1,
           basePrice,
+          startingPrice: basePrice,
+          currency: 'PKR',
           rating: 4.2 + (i % 3) * 0.2,
           reviewCount: 10 + i,
           images: ['/landingPageImg.jpg'],
+          amenities: ['WiFi', 'Parking', 'Pool', 'Gym'],
           owner: {
             id: `owner-demo-${i+1}`,
             businessName: 'Demo Hospitality Co.',
             verified: true,
             user: { name: 'Demo Owner', avatar: null }
           },
-          roomTypeCount: 3
+          isRoomBased: false,
+          totalRoomTypes: 0,
+          roomTypeCount: 0
         };
       });
       const filtersOut = {
@@ -543,7 +548,7 @@ export default function AccommodationsPage() {
                     reviewCount={property.reviewCount}
                     amenities={property.amenities}
                     isRoomBased={property.isRoomBased}
-                    roomTypeCount={property.totalRooms || 0}
+                    roomTypeCount={property.totalRoomTypes || 0}
                   />
                 ))}
               </div>
