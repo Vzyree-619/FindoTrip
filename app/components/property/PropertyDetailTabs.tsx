@@ -123,81 +123,12 @@ export default function PropertyDetailTabs({
         {/* ROOMS TAB - Most Important */}
         {activeTab === 'rooms' && (
           <div className="space-y-6">
-            {/* Date & Guest Selection (Sticky) */}
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 sticky top-4 z-10">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Check-in
-                  </label>
-                  <input
-                    type="date"
-                    value={checkIn ? checkIn.toISOString().split('T')[0] : ''}
-                    onChange={handleCheckInChange}
-                    min={today}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Check-out
-                  </label>
-                  <input
-                    type="date"
-                    value={checkOut ? checkOut.toISOString().split('T')[0] : ''}
-                    onChange={handleCheckOutChange}
-                    min={minCheckOut}
-                    disabled={!checkIn}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Adults
-                  </label>
-                  <select
-                    value={adults}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      setAdults(val);
-                      onGuestsChange(val, children);
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
-                  >
-                    {[1, 2, 3, 4, 5, 6].map(num => (
-                      <option key={num} value={num}>{num} {num === 1 ? 'Adult' : 'Adults'}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Children
-                  </label>
-                  <select
-                    value={children}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      setChildren(val);
-                      onGuestsChange(adults, val);
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
-                  >
-                    {[0, 1, 2, 3, 4].map(num => (
-                      <option key={num} value={num}>{num} {num === 1 ? 'Child' : 'Children'}</option>
-                    ))}
-                  </select>
-                </div>
+            {/* Note: Date & Guest selection is handled by PropertySearchWidget at the top of the page */}
+            {(!checkIn || !checkOut) && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-yellow-800">Please select check-in and check-out dates using the search widget above to see available rooms and prices.</p>
               </div>
-              <button
-                onClick={() => {
-                  // Trigger room availability refresh
-                  window.location.reload();
-                }}
-                className="mt-4 w-full bg-[#01502E] text-white py-2 px-4 rounded-lg font-semibold hover:bg-[#013d23] transition-colors"
-              >
-                Update Search
-              </button>
-            </div>
+            )}
 
             {/* Available Rooms */}
             <div>
