@@ -480,7 +480,7 @@ export default function AccommodationDetail() {
         </div>
 
         {/* Image Gallery */}
-        <div className="grid grid-cols-4 gap-2 mb-8 h-[400px]">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-8 h-[300px] md:h-[400px]">
           <div
             className="col-span-2 row-span-2 cursor-pointer overflow-hidden rounded-l-lg"
             onClick={() => {
