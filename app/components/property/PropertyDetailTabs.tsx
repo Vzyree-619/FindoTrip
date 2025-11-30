@@ -108,13 +108,6 @@ export default function PropertyDetailTabs({
         {/* ROOMS TAB - Most Important */}
         {activeTab === 'rooms' && (
           <div className="space-y-6">
-            {/* Note: Date & Guest selection is handled by PropertySearchWidget at the top of the page */}
-            {(!checkIn || !checkOut) && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-yellow-800">Please select check-in and check-out dates using the search widget above to see available rooms and prices.</p>
-              </div>
-            )}
-
             {/* Available Rooms */}
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">

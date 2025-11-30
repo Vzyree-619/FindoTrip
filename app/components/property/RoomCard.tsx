@@ -72,6 +72,11 @@ export default function RoomCard({
   // Check availability on mount and when dates change
   useEffect(() => {
     const checkAvail = async () => {
+      if (!checkIn || !checkOut || !(checkIn instanceof Date) || !(checkOut instanceof Date)) {
+        setIsAvailable(null);
+        return;
+      }
+      
       setIsCheckingAvailability(true);
       try {
         const response = await fetch(
@@ -93,15 +98,12 @@ export default function RoomCard({
         setIsCheckingAvailability(false);
       }
     };
-    if (checkIn && checkOut) {
-      checkAvail();
-    } else {
-      setIsAvailable(null);
-    }
+    checkAvail();
   }, [room.id, checkIn, checkOut, numberOfRooms]);
 
   const mainImage = room.mainImage || room.images[0] || "/landingPageImg.jpg";
-  const displayPrice = room.weekendPrice && 
+  const hasValidDates = checkIn && checkOut && checkIn instanceof Date && checkOut instanceof Date;
+  const displayPrice = room.weekendPrice && hasValidDates && 
     (checkIn.getDay() === 5 || checkIn.getDay() === 6 || checkOut.getDay() === 5 || checkOut.getDay() === 6)
     ? room.weekendPrice 
     : room.basePrice;
@@ -212,17 +214,25 @@ export default function RoomCard({
           {/* Pricing and Booking Section */}
           <div className="mt-auto border-t border-gray-200 pt-4">
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <div className="text-sm text-gray-600 mb-2">
-                {numberOfNights} night{numberOfNights !== 1 ? 's' : ''}: {checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {checkOut.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </div>
+              {hasValidDates ? (
+                <div className="text-sm text-gray-600 mb-2">
+                  {numberOfNights} night{numberOfNights !== 1 ? 's' : ''}: {checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {checkOut.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600 mb-2">
+                  Starting from {room.currency} {room.basePrice.toLocaleString()}/night
+                </div>
+              )}
               
               <div className="space-y-1 mb-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">
-                    {room.currency} {displayPrice.toLocaleString()}/night × {numberOfNights} night{numberOfNights !== 1 ? 's' : ''} × {numberOfRooms} room{numberOfRooms !== 1 ? 's' : ''}
-                  </span>
-                  <span className="font-medium">{room.currency} {pricing.basePrice.toLocaleString()}</span>
-                </div>
+                {hasValidDates ? (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">
+                        {room.currency} {displayPrice.toLocaleString()}/night × {numberOfNights} night{numberOfNights !== 1 ? 's' : ''} × {numberOfRooms} room{numberOfRooms !== 1 ? 's' : ''}
+                      </span>
+                      <span className="font-medium">{room.currency} {pricing.basePrice.toLocaleString()}</span>
+                    </div>
                 {propertyCleaningFee > 0 && (
                   <div className="flex justify-between text-sm text-gray-600">
                     <span>Cleaning fee</span>
@@ -241,14 +251,23 @@ export default function RoomCard({
                     <span>{room.currency} {pricing.taxes.toLocaleString()}</span>
                   </div>
                 )}
-                <div className="border-t border-gray-300 pt-2 mt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-gray-900">Total</span>
-                    <span className="text-2xl font-bold text-[#01502E]">
-                      {room.currency} {pricing.total.toLocaleString()}
-                    </span>
+                    <div className="border-t border-gray-300 pt-2 mt-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-gray-900">Total</span>
+                        <span className="text-2xl font-bold text-[#01502E]">
+                          {room.currency} {pricing.total.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-600 mb-2">Select dates to see total price</p>
+                    <p className="text-lg font-semibold text-[#01502E]">
+                      {room.currency} {room.basePrice.toLocaleString()}/night
+                    </p>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Availability Status */}
@@ -266,10 +285,12 @@ export default function RoomCard({
 
               {/* Policies */}
               <div className="space-y-1 text-xs text-gray-600 mb-3">
-                <div className="flex items-center gap-1">
-                  <Check className="w-3 h-3 text-green-600" />
-                  <span>Free cancellation until {new Date(checkIn.getTime() - 2 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                </div>
+                {hasValidDates ? (
+                  <div className="flex items-center gap-1">
+                    <Check className="w-3 h-3 text-green-600" />
+                    <span>Free cancellation until {new Date(checkIn.getTime() - 2 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  </div>
+                ) : null}
                 <div className="flex items-center gap-1">
                   <Check className="w-3 h-3 text-green-600" />
                   <span>No prepayment needed</span>
