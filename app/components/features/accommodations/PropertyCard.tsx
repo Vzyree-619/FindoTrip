@@ -61,7 +61,9 @@ export default function PropertyCard({
   mainImage,
 }: PropertyCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const mainImageUrl = mainImage || images[0] || "/landingPageImg.jpg";
+  const fallbackImage = "/landingPageImg.jpg";
   
   // Format price
   const formattedPrice = `${currency} ${pricePerNight.toLocaleString()}`;
@@ -113,8 +115,9 @@ export default function PropertyCard({
       {/* Image Section */}
       <div className="relative h-64 overflow-hidden bg-gray-200">
         <img
-          src={mainImageUrl}
+          src={imageError ? fallbackImage : mainImageUrl}
           alt={name}
+          onError={() => setImageError(true)}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
         />
         

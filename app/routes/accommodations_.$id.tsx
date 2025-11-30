@@ -277,8 +277,9 @@ export default function AccommodationDetail() {
           </button>
           
           <img
-            src={images[currentImageIndex]}
+            src={imageErrors[currentImageIndex] ? "/landingPageImg.jpg" : images[currentImageIndex]}
             alt={`${accommodation.name} - Image ${currentImageIndex + 1}`}
+            onError={() => setImageErrors(prev => ({ ...prev, [currentImageIndex]: true }))}
             className="max-h-[90vh] max-w-[90vw] object-contain"
           />
           
@@ -379,9 +380,7 @@ export default function AccommodationDetail() {
         </div>
 
         {/* Property Search Widget - Sticky */}
-        {accommodation.roomTypes && accommodation.roomTypes.length > 0 && (
-          <PropertySearchWidget propertyId={accommodation.id} />
-        )}
+        <PropertySearchWidget propertyId={accommodation.id} />
 
         {/* Main Content with Tabs */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
@@ -490,8 +489,9 @@ export default function AccommodationDetail() {
             }}
           >
             <img
-              src={images[0]}
+              src={imageErrors[0] ? "/landingPageImg.jpg" : images[0]}
               alt={accommodation.name}
+              onError={() => setImageErrors(prev => ({ ...prev, [0]: true }))}
               className="w-full h-full object-cover hover:scale-105 transition"
             />
           </div>
@@ -507,8 +507,9 @@ export default function AccommodationDetail() {
               }}
             >
               <img
-                src={image}
+                src={imageErrors[idx + 1] ? "/landingPageImg.jpg" : image}
                 alt={`${accommodation.name} - ${idx + 2}`}
+                onError={() => setImageErrors(prev => ({ ...prev, [idx + 1]: true }))}
                 className="w-full h-full object-cover hover:scale-105 transition"
               />
             </div>
