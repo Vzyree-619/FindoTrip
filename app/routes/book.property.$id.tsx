@@ -115,21 +115,21 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         status: { not: 'CANCELLED' },
         OR: [
           {
-            checkInDate: {
+            checkIn: {
               gte: checkInDate,
               lt: checkOutDate
             }
           },
           {
-            checkOutDate: {
+            checkOut: {
               gt: checkInDate,
               lte: checkOutDate
             }
           },
           {
             AND: [
-              { checkInDate: { lte: checkInDate } },
-              { checkOutDate: { gte: checkOutDate } }
+              { checkIn: { lte: checkInDate } },
+              { checkOut: { gte: checkOutDate } }
             ]
           }
         ],
@@ -249,9 +249,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
         roomTypeId: room.id,
         status: { not: 'CANCELLED' },
         OR: [
-          { checkInDate: { gte: checkInDate, lt: checkOutDate } },
-          { checkOutDate: { gt: checkInDate, lte: checkOutDate } },
-          { AND: [{ checkInDate: { lte: checkInDate } }, { checkOutDate: { gte: checkOutDate } }] }
+          { checkIn: { gte: checkInDate, lt: checkOutDate } },
+          { checkOut: { gt: checkInDate, lte: checkOutDate } },
+          { AND: [{ checkIn: { lte: checkInDate } }, { checkOut: { gte: checkOutDate } }] }
         ]
       }
     });
@@ -271,8 +271,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const booking = await prisma.propertyBooking.create({
         data: {
           bookingNumber,
-          checkInDate: checkInDate,
-          checkOutDate: checkOutDate,
+          checkIn: checkInDate,
+          checkOut: checkOutDate,
           numberOfNights,
           adults,
           children,

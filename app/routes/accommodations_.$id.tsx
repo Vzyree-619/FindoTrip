@@ -136,21 +136,21 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
                 status: { not: 'CANCELLED' },
                 OR: [
                   {
-                    checkInDate: {
+                    checkIn: {
                       gte: checkInDate,
                       lt: checkOutDate
                     }
                   },
                   {
-                    checkOutDate: {
+                    checkOut: {
                       gt: checkInDate,
                       lte: checkOutDate
                     }
                   },
                   {
                     AND: [
-                      { checkInDate: { lte: checkInDate } },
-                      { checkOutDate: { gte: checkOutDate } }
+                      { checkIn: { lte: checkInDate } },
+                      { checkOut: { gte: checkOutDate } }
                     ]
                   }
                 ]

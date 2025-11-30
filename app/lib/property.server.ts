@@ -150,12 +150,12 @@ export async function filterPropertiesByRoomAvailability(
           roomTypeId: null,
           status: { not: 'CANCELLED' },
           OR: [
-            { checkInDate: { gte: checkIn, lt: checkOut } },
-            { checkOutDate: { gt: checkIn, lte: checkOut } },
+            { checkIn: { gte: checkIn, lt: checkOut } },
+            { checkOut: { gt: checkIn, lte: checkOut } },
             {
               AND: [
-                { checkInDate: { lte: checkIn } },
-                { checkOutDate: { gte: checkOut } }
+                { checkIn: { lte: checkIn } },
+                { checkOut: { gte: checkOut } }
               ]
             }
           ]
@@ -176,12 +176,12 @@ export async function filterPropertiesByRoomAvailability(
           roomTypeId: room.id,
           status: { not: 'CANCELLED' },
           OR: [
-            { checkInDate: { gte: checkIn, lt: checkOut } },
-            { checkOutDate: { gt: checkIn, lte: checkOut } },
+            { checkIn: { gte: checkIn, lt: checkOut } },
+            { checkOut: { gt: checkIn, lte: checkOut } },
             {
               AND: [
-                { checkInDate: { lte: checkIn } },
-                { checkOutDate: { gte: checkOut } }
+                { checkIn: { lte: checkIn } },
+                { checkOut: { gte: checkOut } }
               ]
             }
           ]
