@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Bed, Users, Maximize2, Check, X } from "lucide-react";
-import { calculateBookingPrice } from "~/lib/property.server";
+import { calculateBookingPrice } from "~/lib/property.utils";
 
 interface RoomCardProps {
   room: {
