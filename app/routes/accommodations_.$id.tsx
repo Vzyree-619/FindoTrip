@@ -617,19 +617,32 @@ export default function AccommodationDetail() {
           onClose={() => setChatOpen(false)}
           targetUserId={accommodation.owner.user.id}
           currentUserId={user?.id}
-          initialMessage={`Hi, I'm interested in ${accommodation.name}${checkIn && checkOut ? ` for ${checkIn} to ${checkOut}` : ''}.`}
           fetchConversation={async ({ targetUserId, conversationId }) => {
             console.log('🔵 [Accommodation] Fetching conversation:', { targetUserId, conversationId });
+            
+            // Get owner name from accommodation data as fallback
+            const ownerName = accommodation?.owner?.user?.name;
+            const ownerAvatar = accommodation?.owner?.user?.avatar;
+            const ownerId = accommodation?.owner?.user?.id;
             
             // If we have conversationId, fetch it directly
             if (conversationId) {
               const response = await fetch(`/api/chat/conversations/${conversationId}`);
               if (!response.ok) throw new Error("Failed to fetch conversation");
               const json = await response.json();
+              
+              // Ensure owner name is correct in participants
+              const participants = (json.data?.participants || []).map((p: any) => {
+                if (p.id === ownerId && ownerName) {
+                  return { ...p, name: ownerName, avatar: ownerAvatar || p.avatar };
+                }
+                return p;
+              });
+              
               return {
                 conversation: {
                   id: json.data?.id,
-                  participants: json.data?.participants || [],
+                  participants: participants,
                   updatedAt: json.data?.lastMessageAt,
                   lastMessage: json.data?.messages?.[json.data.messages.length - 1],
                   unreadCount: 0
@@ -656,10 +669,18 @@ export default function AccommodationDetail() {
               if (!response.ok) throw new Error("Failed to fetch conversation");
               const json = await response.json();
               
+              // Ensure owner name is correct in participants
+              const participants = (json.data?.participants || []).map((p: any) => {
+                if (p.id === ownerId && ownerName) {
+                  return { ...p, name: ownerName, avatar: ownerAvatar || p.avatar };
+                }
+                return p;
+              });
+              
               return {
                 conversation: {
                   id: json.data?.id,
-                  participants: json.data?.participants || [],
+                  participants: participants,
                   updatedAt: json.data?.lastMessageAt,
                   lastMessage: json.data?.messages?.[json.data.messages.length - 1],
                   unreadCount: 0

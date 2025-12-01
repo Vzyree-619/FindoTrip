@@ -6,7 +6,7 @@ import {
   type MessageWithSender
 } from "~/lib/chat.server";
 import { prisma } from "~/lib/db/db.server";
-import { checkRateLimit } from "~/lib/middleware/rate-limit.server";
+import { checkRateLimit } from "~/lib/chat-security.server";
 import DOMPurify from "isomorphic-dompurify";
 
 // ========================================
@@ -134,10 +134,20 @@ export async function action({ request, params }: ActionFunctionArgs) {
         data: updatedMessage
       };
 
+      console.log('✅ Message edited successfully:', messageId);
       return json(response);
     } 
     else if (method === "DELETE") {
-      // Delete message
+      // Parse request body for deleteForEveryone flag
+      let deleteForEveryone = false;
+      try {
+        const body = await request.json();
+        deleteForEveryone = body.deleteForEveryone === true;
+      } catch {
+        // Body might be empty, that's fine
+      }
+
+      // Get message to check permissions
       const message = await prisma.message.findUnique({
         where: { id: messageId },
         select: { 
@@ -153,13 +163,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
-      if (message.senderId !== userId) {
-        return json(
-          { success: false, error: "You can only delete your own messages" },
-          { status: 403 }
-        );
-      }
-
       if (message.isDeleted) {
         return json(
           { success: false, error: "Message already deleted" },
@@ -167,14 +170,38 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
+      // Check permissions - sender can delete, or admin can delete for everyone
+      const user = await prisma.user.findUnique({ 
+        where: { id: userId }, 
+        select: { role: true } 
+      });
+      const isAdmin = user?.role === 'SUPER_ADMIN';
+      const isSender = message.senderId === userId;
+
+      if (!isSender && !isAdmin) {
+        return json(
+          { success: false, error: "You can only delete your own messages" },
+          { status: 403 }
+        );
+      }
+
+      // Only admins can delete for everyone
+      if (deleteForEveryone && !isAdmin) {
+        return json(
+          { success: false, error: "Only admins can delete messages for everyone" },
+          { status: 403 }
+        );
+      }
+
       // Delete message
-      const success = await deleteMessage(messageId, userId, false); // Soft delete
+      const success = await deleteMessage(messageId, userId, deleteForEveryone);
 
       const response: DeleteResponse = {
         success,
         data: { message: "Message deleted successfully" }
       };
 
+      console.log('✅ Message deleted successfully:', messageId, 'forEveryone:', deleteForEveryone);
       return json(response);
     }
     else {

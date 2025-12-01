@@ -14,6 +14,17 @@ import {
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { v2 as cloudinary } from "cloudinary";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Textarea } from "~/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import { Button } from "~/components/ui/button";
 import {
   Plus,
   CheckCircle2,
@@ -223,11 +234,20 @@ export async function action({ request }: ActionFunctionArgs) {
     const selfCheckIn = form.get("selfCheckIn") === "on";
 
     const imageUrl = (form.get("imageUrl") as string) || "";
+    const mainImage = (form.get("mainImage") as string) || imageUrl || undefined;
+    const starRating = (form.get("starRating") as string)
+      ? parseInt(form.get("starRating") as string, 10)
+      : undefined;
     const amenitiesRaw = (form.get("amenities") as string) || "";
+    const propertyFacilitiesRaw = (form.get("propertyFacilities") as string) || "";
     const safetyRaw = (form.get("safetyFeatures") as string) || "";
     const accessibilityRaw = (form.get("accessibility") as string) || "";
     const houseRulesRaw = (form.get("houseRules") as string) || "";
     const amenities = amenitiesRaw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const propertyFacilities = propertyFacilitiesRaw
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
@@ -277,13 +297,16 @@ export async function action({ request }: ActionFunctionArgs) {
           monthlyDiscount,
           weeklyDiscount,
           images: imageUrl ? [imageUrl] : [],
+          mainImage: mainImage || (imageUrl ? imageUrl : undefined),
           videos: [],
           virtualTour: null,
           floorPlan: null,
           amenities,
+          propertyFacilities,
           safetyFeatures,
           accessibility,
           houseRules,
+          starRating: starRating && starRating >= 1 && starRating <= 5 ? starRating : undefined,
           available,
           instantBook,
           selfCheckIn,
@@ -618,330 +641,406 @@ export default function ProviderDashboard() {
           >
             <input type="hidden" name="intent" value="create" />
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="name" className="text-xs md:text-sm">
                 Name
-              </label>
-              <input
+              </Label>
+              <Input
+                id="name"
                 name="name"
                 required
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="Sunrise Hotel"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="type" className="text-xs md:text-sm">
                 Type
-              </label>
-              <select
-                name="type"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
-              >
-                <option value="HOTEL">Hotel</option>
-                <option value="APARTMENT">Apartment</option>
-                <option value="VILLA">Villa</option>
-                <option value="RESORT">Resort</option>
-                <option value="HOSTEL">Hostel</option>
-                <option value="LODGE">Lodge</option>
-                <option value="GUESTHOUSE">Guesthouse</option>
-                <option value="BOUTIQUE_HOTEL">Boutique Hotel</option>
-              </select>
+              </Label>
+              <input type="hidden" name="type" id="type-value" defaultValue="HOTEL" />
+              <Select defaultValue="HOTEL" onValueChange={(value) => {
+                const hiddenInput = document.getElementById('type-value') as HTMLInputElement;
+                if (hiddenInput) hiddenInput.value = value;
+              }}>
+                <SelectTrigger id="type" className="mt-1">
+                  <SelectValue placeholder="Select property type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="HOTEL">Hotel</SelectItem>
+                  <SelectItem value="APARTMENT">Apartment</SelectItem>
+                  <SelectItem value="VILLA">Villa</SelectItem>
+                  <SelectItem value="RESORT">Resort</SelectItem>
+                  <SelectItem value="HOSTEL">Hostel</SelectItem>
+                  <SelectItem value="LODGE">Lodge</SelectItem>
+                  <SelectItem value="GUESTHOUSE">Guesthouse</SelectItem>
+                  <SelectItem value="BOUTIQUE_HOTEL">Boutique Hotel</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="description" className="text-xs md:text-sm">
                 Description
-              </label>
-              <textarea
+              </Label>
+              <Textarea
+                id="description"
                 name="description"
                 rows={3}
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="Describe your property"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="address" className="text-xs md:text-sm">
                 Address
-              </label>
-              <input
+              </Label>
+              <Input
+                id="address"
                 name="address"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="123 Main St"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="state" className="text-xs md:text-sm">
                 State/Province
-              </label>
-              <input
+              </Label>
+              <Input
+                id="state"
                 name="state"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="GB"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="city" className="text-xs md:text-sm">
                 City
-              </label>
-              <input
+              </Label>
+              <Input
+                id="city"
                 name="city"
                 required
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="Islamabad"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="country" className="text-xs md:text-sm">
                 Country
-              </label>
-              <input
+              </Label>
+              <Input
+                id="country"
                 name="country"
                 required
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="Pakistan"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="postalCode" className="text-xs md:text-sm">
                 Postal Code
-              </label>
-              <input
+              </Label>
+              <Input
+                id="postalCode"
                 name="postalCode"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="44000"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="basePrice" className="text-xs md:text-sm">
                 Base Price (PKR)
-              </label>
-              <input
+              </Label>
+              <Input
+                id="basePrice"
                 name="basePrice"
                 type="number"
                 step="1"
                 min="0"
                 required
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="4000"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="cleaningFee" className="text-xs md:text-sm">
                 Cleaning Fee
-              </label>
-              <input
+              </Label>
+              <Input
+                id="cleaningFee"
                 name="cleaningFee"
                 type="number"
                 step="1"
                 min="0"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="0"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="service" className="text-xs md:text-sm">
                 Service Fee
-              </label>
-              <input
+              </Label>
+              <Input
+                id="service"
                 name="service"
                 type="number"
                 step="1"
                 min="0"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="0"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="taxRate" className="text-xs md:text-sm">
                 Tax Rate
-              </label>
-              <input
+              </Label>
+              <Input
+                id="taxRate"
                 name="taxRate"
                 type="number"
                 step="0.01"
                 min="0"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="0.02"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="currency" className="text-xs md:text-sm">
                 Currency
-              </label>
-              <input
+              </Label>
+              <Input
+                id="currency"
                 name="currency"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="PKR"
                 defaultValue="PKR"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="maxGuests" className="text-xs md:text-sm">
                 Max Guests
-              </label>
-              <input
+              </Label>
+              <Input
+                id="maxGuests"
                 name="maxGuests"
                 type="number"
                 min="1"
                 required
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="4"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="bedrooms" className="text-xs md:text-sm">
                 Bedrooms
-              </label>
-              <input
+              </Label>
+              <Input
+                id="bedrooms"
                 name="bedrooms"
                 type="number"
                 min="1"
                 required
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="2"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="bathrooms" className="text-xs md:text-sm">
                 Bathrooms
-              </label>
-              <input
+              </Label>
+              <Input
+                id="bathrooms"
                 name="bathrooms"
                 type="number"
                 min="1"
                 required
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="1"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="beds" className="text-xs md:text-sm">
                 Beds (optional)
-              </label>
-              <input
+              </Label>
+              <Input
+                id="beds"
                 name="beds"
                 type="number"
                 min="0"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="2"
+                className="mt-1"
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="amenities" className="text-xs md:text-sm">
                 Amenities (comma separated)
-              </label>
-              <input
+              </Label>
+              <Input
+                id="amenities"
                 name="amenities"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="WiFi, Parking, Breakfast"
+                className="mt-1"
               />
             </div>
             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
               <div>
-                <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+                <Label htmlFor="safetyFeatures" className="text-xs md:text-sm">
                   Safety Features
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="safetyFeatures"
                   name="safetyFeatures"
-                  className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                   placeholder="Fire Extinguisher, Smoke Detector"
+                  className="mt-1"
                 />
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+                <Label htmlFor="accessibility" className="text-xs md:text-sm">
                   Accessibility
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="accessibility"
                   name="accessibility"
-                  className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                   placeholder="Elevator, Wheelchair Access"
+                  className="mt-1"
                 />
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+                <Label htmlFor="houseRules" className="text-xs md:text-sm">
                   House Rules
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="houseRules"
                   name="houseRules"
-                  className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                   placeholder="No Smoking, No Pets"
+                  className="mt-1"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="weekendPricing" className="text-xs md:text-sm">
                 Weekend Pricing Multiplier
-              </label>
-              <input
+              </Label>
+              <Input
+                id="weekendPricing"
                 name="weekendPricing"
                 type="number"
                 step="0.01"
                 min="0"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="1.15"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="weeklyDiscount" className="text-xs md:text-sm">
                 Weekly Discount (%)
-              </label>
-              <input
+              </Label>
+              <Input
+                id="weeklyDiscount"
                 name="weeklyDiscount"
                 type="number"
                 step="0.1"
                 min="0"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="3"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="monthlyDiscount" className="text-xs md:text-sm">
                 Monthly Discount (%)
-              </label>
-              <input
+              </Label>
+              <Input
+                id="monthlyDiscount"
                 name="monthlyDiscount"
                 type="number"
                 step="0.1"
                 min="0"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="5"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="checkInTime" className="text-xs md:text-sm">
                 Check-in Time
-              </label>
-              <input
+              </Label>
+              <Input
+                id="checkInTime"
                 name="checkInTime"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="15:00"
                 defaultValue="15:00"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="checkOutTime" className="text-xs md:text-sm">
                 Check-out Time
-              </label>
-              <input
+              </Label>
+              <Input
+                id="checkOutTime"
                 name="checkOutTime"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="11:00"
                 defaultValue="11:00"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <Label htmlFor="advanceNotice" className="text-xs md:text-sm">
                 Advance Notice (hours)
-              </label>
-              <input
+              </Label>
+              <Input
+                id="advanceNotice"
                 name="advanceNotice"
                 type="number"
                 min="0"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
                 placeholder="0"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="starRating" className="text-xs md:text-sm">
+                Star Rating (1-5)
+              </Label>
+              <input type="hidden" name="starRating" id="starRating-value" defaultValue="" />
+              <Select defaultValue="" onValueChange={(value) => {
+                const hiddenInput = document.getElementById('starRating-value') as HTMLInputElement;
+                if (hiddenInput) hiddenInput.value = value;
+              }}>
+                <SelectTrigger id="starRating" className="mt-1">
+                  <SelectValue placeholder="Not rated" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Not rated</SelectItem>
+                  <SelectItem value="1">1 Star</SelectItem>
+                  <SelectItem value="2">2 Stars</SelectItem>
+                  <SelectItem value="3">3 Stars</SelectItem>
+                  <SelectItem value="4">4 Stars</SelectItem>
+                  <SelectItem value="5">5 Stars</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="propertyFacilities" className="text-xs md:text-sm">
+                Property Facilities (comma separated)
+              </Label>
+              <Input
+                id="propertyFacilities"
+                name="propertyFacilities"
+                placeholder="Restaurant, Gym, Pool, Spa, Business Center"
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">General property facilities (separate from room amenities)</p>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+                Main Image URL (Primary display image)
+              </label>
+              <input
+                name="mainImage"
+                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
+                placeholder="https://.../main-image.jpg"
               />
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
-                Cover Image URL
+                Cover Image URL (Additional images)
               </label>
               <input
                 name="imageUrl"

@@ -3,6 +3,17 @@ import { Form, Link, useLoaderData, useActionData } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { v2 as cloudinary } from "cloudinary";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Textarea } from "~/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import { Button } from "~/components/ui/button";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -48,14 +59,17 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       instantBook: true,
       selfCheckIn: true,
       amenities: true,
+      propertyFacilities: true,
       safetyFeatures: true,
       accessibility: true,
       houseRules: true,
       images: true,
+      mainImage: true,
       videos: true,
       floorPlan: true,
       virtualTour: true,
       approvalStatus: true,
+      starRating: true,
     }
   });
   if (!property) throw redirect("/dashboard/provider");
@@ -129,13 +143,32 @@ export async function action({ request, params }: ActionFunctionArgs) {
   // Arrays
   const parseArray = (s: string | null) => (s ? s.split(",").map((x) => x.trim()).filter(Boolean) : undefined);
   const amenities = parseArray(form.get("amenities") as string | null);
+  const propertyFacilities = parseArray(form.get("propertyFacilities") as string | null);
   const safety = parseArray(form.get("safetyFeatures") as string | null);
   const access = parseArray(form.get("accessibility") as string | null);
   const rules = parseArray(form.get("houseRules") as string | null);
   if (amenities) data.amenities = amenities;
+  if (propertyFacilities) data.propertyFacilities = propertyFacilities;
   if (safety) data.safetyFeatures = safety;
   if (access) data.accessibility = access;
   if (rules) data.houseRules = rules;
+
+  // Star Rating
+  const starRating = form.get("starRating") as string | null;
+  if (starRating !== null && starRating !== "") {
+    const rating = parseInt(starRating, 10);
+    if (rating >= 1 && rating <= 5) {
+      data.starRating = rating;
+    }
+  } else {
+    data.starRating = null;
+  }
+
+  // Main Image
+  const mainImage = form.get("mainImage") as string | null;
+  if (mainImage !== null && mainImage.trim() !== "") {
+    data.mainImage = mainImage.trim();
+  }
 
   // Validations
   if (data.latitude !== undefined && (data.latitude < -90 || data.latitude > 90)) {
@@ -252,156 +285,194 @@ export default function EditProperty() {
           <Form method="post" encType="multipart/form-data" className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input type="hidden" name="intent" value="update" />
             <div>
-              <label className="block text-sm font-medium mb-1">Name</label>
-              <input name="name" defaultValue={property.name} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" name="name" defaultValue={property.name} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Type</label>
-              <select name="type" defaultValue={property.type} className="w-full border rounded px-3 py-2">
-                <option value="HOTEL">Hotel</option>
-                <option value="APARTMENT">Apartment</option>
-                <option value="VILLA">Villa</option>
-                <option value="RESORT">Resort</option>
-                <option value="HOSTEL">Hostel</option>
-                <option value="LODGE">Lodge</option>
-                <option value="GUESTHOUSE">Guesthouse</option>
-                <option value="BOUTIQUE_HOTEL">Boutique Hotel</option>
-              </select>
+              <Label htmlFor="type">Type</Label>
+              <input type="hidden" name="type" id="type-value" defaultValue={property.type} />
+              <Select defaultValue={property.type} onValueChange={(value) => {
+                const hiddenInput = document.getElementById('type-value') as HTMLInputElement;
+                if (hiddenInput) hiddenInput.value = value;
+              }}>
+                <SelectTrigger id="type" className="mt-1">
+                  <SelectValue placeholder="Select property type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="HOTEL">Hotel</SelectItem>
+                  <SelectItem value="APARTMENT">Apartment</SelectItem>
+                  <SelectItem value="VILLA">Villa</SelectItem>
+                  <SelectItem value="RESORT">Resort</SelectItem>
+                  <SelectItem value="HOSTEL">Hostel</SelectItem>
+                  <SelectItem value="LODGE">Lodge</SelectItem>
+                  <SelectItem value="GUESTHOUSE">Guesthouse</SelectItem>
+                  <SelectItem value="BOUTIQUE_HOTEL">Boutique Hotel</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea name="description" defaultValue={property.description || ''} rows={3} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" name="description" defaultValue={property.description || ''} rows={3} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Address</label>
-              <input name="address" defaultValue={property.address || ''} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="address">Address</Label>
+              <Input id="address" name="address" defaultValue={property.address || ''} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">State/Province</label>
-              <input name="state" defaultValue={property.state || ''} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="state">State/Province</Label>
+              <Input id="state" name="state" defaultValue={property.state || ''} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">City</label>
-              <input name="city" defaultValue={property.city || ''} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="city">City</Label>
+              <Input id="city" name="city" defaultValue={property.city || ''} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Country</label>
-              <input name="country" defaultValue={property.country || ''} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="country">Country</Label>
+              <Input id="country" name="country" defaultValue={property.country || ''} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Postal Code</label>
-              <input name="postalCode" defaultValue={property.postalCode || ''} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="postalCode">Postal Code</Label>
+              <Input id="postalCode" name="postalCode" defaultValue={property.postalCode || ''} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Latitude</label>
-              <input name="latitude" defaultValue={property.latitude ?? ''} className="w-full border rounded px-3 py-2" />
-              <p className="text-xs text-gray-500 mt-1">Range -90 to 90</p>
+              <Label htmlFor="latitude">Latitude</Label>
+              <Input id="latitude" name="latitude" type="number" step="0.000001" defaultValue={property.latitude ?? ''} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">Range -90 to 90</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Longitude</label>
-              <input name="longitude" defaultValue={property.longitude ?? ''} className="w-full border rounded px-3 py-2" />
-              <p className="text-xs text-gray-500 mt-1">Range -180 to 180</p>
+              <Label htmlFor="longitude">Longitude</Label>
+              <Input id="longitude" name="longitude" type="number" step="0.000001" defaultValue={property.longitude ?? ''} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">Range -180 to 180</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Base Price (PKR)</label>
-              <input name="basePrice" type="number" step="1" min="0" defaultValue={property.basePrice} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="basePrice">Base Price (PKR)</Label>
+              <Input id="basePrice" name="basePrice" type="number" step="1" min="0" defaultValue={property.basePrice} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Cleaning Fee</label>
-              <input name="cleaningFee" type="number" step="1" min="0" defaultValue={property.cleaningFee ?? 0} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="cleaningFee">Cleaning Fee</Label>
+              <Input id="cleaningFee" name="cleaningFee" type="number" step="1" min="0" defaultValue={property.cleaningFee ?? 0} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Service Fee</label>
-              <input name="service" type="number" step="1" min="0" defaultValue={property.serviceFee ?? 0} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="service">Service Fee</Label>
+              <Input id="service" name="service" type="number" step="1" min="0" defaultValue={property.serviceFee ?? 0} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Tax Rate</label>
-              <input name="taxRate" type="number" step="0.01" min="0" defaultValue={property.taxRate ?? 0} className="w-full border rounded px-3 py-2" />
-              <p className="text-xs text-gray-500 mt-1">Use fractional value (e.g., 0.02 for 2%)</p>
+              <Label htmlFor="taxRate">Tax Rate</Label>
+              <Input id="taxRate" name="taxRate" type="number" step="0.01" min="0" defaultValue={property.taxRate ?? 0} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">Use fractional value (e.g., 0.02 for 2%)</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Currency</label>
-              <input name="currency" defaultValue={property.currency || 'PKR'} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="currency">Currency</Label>
+              <Input id="currency" name="currency" defaultValue={property.currency || 'PKR'} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Weekend Pricing Multiplier</label>
-              <input name="weekendPricing" type="number" step="0.01" min="0" defaultValue={property.weekendPricing ?? ''} className="w-full border rounded px-3 py-2" />
-              <p className="text-xs text-gray-500 mt-1">Typical 1.1–1.5; 1.0 means no change</p>
+              <Label htmlFor="weekendPricing">Weekend Pricing Multiplier</Label>
+              <Input id="weekendPricing" name="weekendPricing" type="number" step="0.01" min="0" defaultValue={property.weekendPricing ?? ''} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">Typical 1.1–1.5; 1.0 means no change</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Weekly Discount (%)</label>
-              <input name="weeklyDiscount" type="number" step="0.1" min="0" defaultValue={property.weeklyDiscount ?? 0} className="w-full border rounded px-3 py-2" />
-              <p className="text-xs text-gray-500 mt-1">0–100</p>
+              <Label htmlFor="weeklyDiscount">Weekly Discount (%)</Label>
+              <Input id="weeklyDiscount" name="weeklyDiscount" type="number" step="0.1" min="0" defaultValue={property.weeklyDiscount ?? 0} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">0–100</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Monthly Discount (%)</label>
-              <input name="monthlyDiscount" type="number" step="0.1" min="0" defaultValue={property.monthlyDiscount ?? 0} className="w-full border rounded px-3 py-2" />
-              <p className="text-xs text-gray-500 mt-1">0–100</p>
+              <Label htmlFor="monthlyDiscount">Monthly Discount (%)</Label>
+              <Input id="monthlyDiscount" name="monthlyDiscount" type="number" step="0.1" min="0" defaultValue={property.monthlyDiscount ?? 0} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">0–100</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Max Guests</label>
-              <input name="maxGuests" type="number" min="1" defaultValue={property.maxGuests} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="maxGuests">Max Guests</Label>
+              <Input id="maxGuests" name="maxGuests" type="number" min="1" defaultValue={property.maxGuests} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Bedrooms</label>
-              <input name="bedrooms" type="number" min="1" defaultValue={property.bedrooms} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="bedrooms">Bedrooms</Label>
+              <Input id="bedrooms" name="bedrooms" type="number" min="1" defaultValue={property.bedrooms} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Bathrooms</label>
-              <input name="bathrooms" type="number" min="1" defaultValue={property.bathrooms} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="bathrooms">Bathrooms</Label>
+              <Input id="bathrooms" name="bathrooms" type="number" min="1" defaultValue={property.bathrooms} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Beds</label>
-              <input name="beds" type="number" min="0" defaultValue={property.beds ?? 0} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="beds">Beds</Label>
+              <Input id="beds" name="beds" type="number" min="0" defaultValue={property.beds ?? 0} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Min Stay (nights)</label>
-              <input name="minStay" type="number" min="1" defaultValue={property.minStay} className="w-full border rounded px-3 py-2" />
-              <p className="text-xs text-gray-500 mt-1">Must be at least 1 night</p>
+              <Label htmlFor="minStay">Min Stay (nights)</Label>
+              <Input id="minStay" name="minStay" type="number" min="1" defaultValue={property.minStay} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">Must be at least 1 night</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Max Stay (nights)</label>
-              <input name="maxStay" type="number" min="1" defaultValue={property.maxStay} className="w-full border rounded px-3 py-2" />
-              <p className="text-xs text-gray-500 mt-1">Should be ≥ Min Stay</p>
+              <Label htmlFor="maxStay">Max Stay (nights)</Label>
+              <Input id="maxStay" name="maxStay" type="number" min="1" defaultValue={property.maxStay} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">Should be ≥ Min Stay</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Advance Notice (hours)</label>
-              <input name="advanceNotice" type="number" min="0" defaultValue={property.advanceNotice} className="w-full border rounded px-3 py-2" />
-              <p className="text-xs text-gray-500 mt-1">0 for none</p>
+              <Label htmlFor="advanceNotice">Advance Notice (hours)</Label>
+              <Input id="advanceNotice" name="advanceNotice" type="number" min="0" defaultValue={property.advanceNotice} className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">0 for none</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Check-in Time</label>
-              <input name="checkInTime" defaultValue={property.checkInTime || '15:00'} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="checkInTime">Check-in Time</Label>
+              <Input id="checkInTime" name="checkInTime" defaultValue={property.checkInTime || '15:00'} className="mt-1" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Check-out Time</label>
-              <input name="checkOutTime" defaultValue={property.checkOutTime || '11:00'} className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="checkOutTime">Check-out Time</Label>
+              <Input id="checkOutTime" name="checkOutTime" defaultValue={property.checkOutTime || '11:00'} className="mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="starRating">Star Rating (1-5)</Label>
+              <input type="hidden" name="starRating" id="starRating-value" defaultValue={property.starRating?.toString() || ''} />
+              <Select defaultValue={property.starRating?.toString() || ''} onValueChange={(value) => {
+                const hiddenInput = document.getElementById('starRating-value') as HTMLInputElement;
+                if (hiddenInput) hiddenInput.value = value;
+              }}>
+                <SelectTrigger id="starRating" className="mt-1">
+                  <SelectValue placeholder="Not rated" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Not rated</SelectItem>
+                  <SelectItem value="1">1 Star</SelectItem>
+                  <SelectItem value="2">2 Stars</SelectItem>
+                  <SelectItem value="3">3 Stars</SelectItem>
+                  <SelectItem value="4">4 Stars</SelectItem>
+                  <SelectItem value="5">5 Stars</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Amenities (comma separated)</label>
-                <input name="amenities" defaultValue={(property.amenities || []).join(', ')} className="w-full border rounded px-3 py-2" />
+                <Label htmlFor="amenities">Amenities (comma separated)</Label>
+                <Input id="amenities" name="amenities" defaultValue={(property.amenities || []).join(', ')} className="mt-1" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Safety Features</label>
-                <input name="safetyFeatures" defaultValue={(property.safetyFeatures || []).join(', ')} className="w-full border rounded px-3 py-2" />
+                <Label htmlFor="propertyFacilities">Property Facilities</Label>
+                <Input id="propertyFacilities" name="propertyFacilities" defaultValue={(property.propertyFacilities || []).join(', ')} className="mt-1" />
+                <p className="text-xs text-muted-foreground mt-1">General property facilities (restaurant, gym, pool, etc.)</p>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Accessibility</label>
-                <input name="accessibility" defaultValue={(property.accessibility || []).join(', ')} className="w-full border rounded px-3 py-2" />
+                <Label htmlFor="safetyFeatures">Safety Features</Label>
+                <Input id="safetyFeatures" name="safetyFeatures" defaultValue={(property.safetyFeatures || []).join(', ')} className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="accessibility">Accessibility</Label>
+                <Input id="accessibility" name="accessibility" defaultValue={(property.accessibility || []).join(', ')} className="mt-1" />
               </div>
               <div className="md:col-span-3">
-                <label className="block text-sm font-medium mb-1">House Rules</label>
-                <input name="houseRules" defaultValue={(property.houseRules || []).join(', ')} className="w-full border rounded px-3 py-2" />
+                <Label htmlFor="houseRules">House Rules</Label>
+                <Input id="houseRules" name="houseRules" defaultValue={(property.houseRules || []).join(', ')} className="mt-1" />
               </div>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Cover Image URL (optional)</label>
-              <input name="imageUrl" className="w-full border rounded px-3 py-2" placeholder="https://.../image.jpg" />
+              <Label htmlFor="mainImage">Main Image URL (Primary display image)</Label>
+              <Input id="mainImage" name="mainImage" defaultValue={property.mainImage || ''} placeholder="https://.../main-image.jpg" className="mt-1" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Upload Images (append)</label>
-              <input name="images" type="file" multiple accept="image/jpeg,image/png,image/webp" className="w-full border rounded px-3 py-2" />
+              <Label htmlFor="imageUrl">Cover Image URL (Additional images)</Label>
+              <Input id="imageUrl" name="imageUrl" placeholder="https://.../image.jpg" className="mt-1" />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="images">Upload Images (append)</Label>
+              <Input id="images" name="images" type="file" multiple accept="image/jpeg,image/png,image/webp" className="mt-1" />
             </div>
             <div className="md:col-span-2 grid grid-cols-2 gap-4">
               <label className="inline-flex items-center gap-2 text-sm">
@@ -415,9 +486,9 @@ export default function EditProperty() {
               </label>
             </div>
             <div className="md:col-span-2">
-              <button type="submit" className="inline-flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-md">
+              <Button type="submit" className="bg-[#01502E] hover:bg-[#013d23]">
                 Save Changes
-              </button>
+              </Button>
             </div>
           </Form>
           {Array.isArray(property.images) && property.images.length > 0 && (

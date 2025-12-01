@@ -1,7 +1,7 @@
 import { json, type ActionFunctionArgs } from "@remix-run/node";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { canUserAccessConversation } from "~/lib/chat.server";
-import { checkRateLimit } from "~/lib/middleware/rate-limit.server";
+import { checkRateLimit } from "~/lib/chat-security.server";
 
 // ========================================
 // TYPESCRIPT INTERFACES

@@ -10,14 +10,15 @@ type ChatContainerProps = {
   currentUserId?: string;
   theme?: 'light' | 'dark' | 'auto';
   initialPeerId?: string;
+  initialConversations?: Conversation[]; // Accept conversations from loader
 };
 
-export default function ChatContainer({ className, currentUserId: currentUserIdProp, theme = 'light', initialPeerId }: ChatContainerProps) {
+export default function ChatContainer({ className, currentUserId: currentUserIdProp, theme = 'light', initialPeerId, initialConversations }: ChatContainerProps) {
   const [loading, setLoading] = useState(false);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>(initialConversations || []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(currentUserIdProp);
 
   async function loadConversations() {
     setLoading(true);
@@ -75,9 +76,44 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
     }
   }
 
+  // Initialize with loader data if provided, otherwise fetch
+  // This will update when loader data changes (after revalidation)
   useEffect(() => {
-    loadConversations();
-  }, []);
+    if (initialConversations && initialConversations.length > 0) {
+      // Use initial conversations from loader
+      const mapped: Conversation[] = initialConversations.map((c: any) => ({
+        id: c.id,
+        participants: Array.isArray(c.participants) ? c.participants.map((p: any) => ({ 
+          id: p.id, 
+          name: p.name, 
+          avatar: p.avatar, 
+          role: p.role,
+          online: p.online || false
+        })) : [],
+        lastMessage: c.lastMessage ? {
+          id: c.lastMessage.id,
+          conversationId: c.id,
+          senderId: c.lastMessage.senderId,
+          senderName: c.lastMessage.senderName,
+          content: c.lastMessage.content,
+          type: "text",
+          attachments: [],
+          createdAt: c.lastMessage.createdAt,
+        } : undefined,
+        unreadCount: c.unreadCount || 0,
+        updatedAt: c.updatedAt,
+      }));
+      setConversations(mapped);
+      if (mapped.length && !selectedId) {
+        setSelectedId(mapped[0].id);
+        setOpen(true);
+      }
+    } else if (initialConversations === undefined) {
+      // No initial data provided, fetch from API
+      loadConversations();
+    }
+    // Update when initialConversations changes (e.g., after revalidation)
+  }, [initialConversations]);
 
   // Listen for real-time messages to update conversation list
   useNotificationsStream(
@@ -91,7 +127,7 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
             const existing = prev.find(c => c.id === msg.conversationId);
             if (existing) {
               // Update existing conversation
-              return prev.map(c => 
+              const updated = prev.map(c => 
                 c.id === msg.conversationId
                   ? {
                       ...c,
@@ -112,6 +148,12 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
                     }
                   : c
               );
+              // Re-sort by updatedAt
+              return updated.sort((a, b) => {
+                const dateA = new Date(a.updatedAt || 0).getTime();
+                const dateB = new Date(b.updatedAt || 0).getTime();
+                return dateB - dateA;
+              });
             } else {
               // New conversation - reload list to get full details
               loadConversations();
@@ -208,16 +250,34 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
                     status: 'sent',
                   };
                   
-                  // Update conversation list with new last message
-                  setConversations((prev) => prev.map((c) => 
-                    c.id === msg.conversationId 
-                      ? { 
-                          ...c, 
-                          lastMessage: msg, 
-                          updatedAt: msg.createdAt 
-                        } 
-                      : c
-                  ));
+                  // Update conversation list with new last message and re-sort
+                  setConversations((prev) => {
+                    const updated = prev.map((c) => 
+                      c.id === msg.conversationId 
+                        ? { 
+                            ...c, 
+                            lastMessage: msg, 
+                            updatedAt: msg.createdAt 
+                          } 
+                        : c
+                    );
+                    // Re-sort by updatedAt to move updated conversation to top
+                    return updated.sort((a, b) => {
+                      const dateA = new Date(a.updatedAt || 0).getTime();
+                      const dateB = new Date(b.updatedAt || 0).getTime();
+                      return dateB - dateA;
+                    });
+                  });
+                  
+                  // Trigger page revalidation to refresh conversation list from server
+                  if (typeof window !== 'undefined' && (window as any).__remixRevalidator) {
+                    (window as any).__remixRevalidator.revalidate();
+                  }
+                  
+                  // Also reload conversations from API as fallback
+                  setTimeout(() => {
+                    loadConversations();
+                  }, 500);
                   
                   return msg;
                 } catch (error) {

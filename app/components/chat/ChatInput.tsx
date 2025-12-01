@@ -50,8 +50,12 @@ export function ChatInput({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!disabled && value.trim()) {
-        onSend(value.trim(), files);
+        const messageText = value.trim();
+        const messageFiles = [...files];
+        // Clear files immediately
         setFiles([]);
+        // onSend will handle clearing the input value
+        onSend(messageText, messageFiles);
       }
     }
   };
@@ -136,7 +140,14 @@ export function ChatInput({
         <button
           type="button"
           disabled={disabled || !value.trim()}
-          onClick={() => value.trim() && onSend(value.trim(), files)}
+          onClick={() => {
+            if (value.trim()) {
+              const messageText = value.trim();
+              const messageFiles = [...files];
+              setFiles([]);
+              onSend(messageText, messageFiles);
+            }
+          }}
           className={clsx(
             "inline-flex items-center gap-1 bg-[#01502E] text-white px-3 py-2 rounded-lg",
             disabled || !value.trim() ? "opacity-60 cursor-not-allowed" : "hover:bg-[#013d23]"

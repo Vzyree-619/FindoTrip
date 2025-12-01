@@ -1,5 +1,6 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useRevalidator } from "@remix-run/react";
+import { useEffect } from "react";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import ChatContainer from "~/components/chat/ChatContainer";
@@ -23,10 +24,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   // Get conversations where user is a participant
-  const conversations = await prisma.conversation.findMany({
+  // Note: We don't filter by isActive here because we want to show all conversations
+  // including newly created ones that might not have isActive set yet
+  const allConversations = await prisma.conversation.findMany({
     where: {
       participants: { has: userId },
-      isActive: true
     },
     include: {
       messages: {
@@ -40,6 +42,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     orderBy: { lastMessageAt: "desc" },
     take: 50
   });
+
+  // Filter out conversations hidden by this user
+  const conversations = allConversations.filter(
+    (conv) => !(conv.hiddenBy || []).includes(userId)
+  );
 
   // Process conversations and get participant details
   const processedConversations = await Promise.all(
@@ -104,6 +111,33 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function MessagesDashboard() {
   const { user, conversations, chatSettings, peerId } = useLoaderData<typeof loader>();
+  const revalidator = useRevalidator();
+
+  // Convert loader conversations to ChatContainer format
+  const formattedConversations = conversations.map((conv: any) => ({
+    id: conv.id,
+    participants: conv.participants || [],
+    lastMessage: conv.lastMessage ? {
+      id: conv.lastMessage.id,
+      conversationId: conv.id,
+      senderId: conv.lastMessage.senderId,
+      senderName: conv.lastMessage.senderName,
+      content: conv.lastMessage.content,
+      type: "text" as const,
+      attachments: [],
+      createdAt: conv.lastMessage.createdAt,
+    } : undefined,
+    unreadCount: conv.unreadCount || 0,
+    updatedAt: conv.updatedAt,
+  }));
+
+  // Expose revalidator to ChatContainer via window (temporary solution)
+  useEffect(() => {
+    (window as any).__remixRevalidator = revalidator;
+    return () => {
+      delete (window as any).__remixRevalidator;
+    };
+  }, [revalidator]);
 
   return (
     <ThemeProvider initialTheme={chatSettings?.theme || 'light'}>
@@ -129,6 +163,7 @@ export default function MessagesDashboard() {
             currentUserId={user.id}
             theme={chatSettings?.theme || 'light'}
             initialPeerId={peerId}
+            initialConversations={formattedConversations}
           />
         </div>
 

@@ -115,13 +115,19 @@ export function ChatInterface({
         }
         const json = await res.json();
         console.log('🟢 Conversation API response:', {
-          conversationId: json.conversation?.id,
-          participants: json.conversation?.participants,
-          messageCount: json.messages?.length
+          conversationId: json.data?.id,
+          participants: json.data?.participants,
+          messageCount: json.data?.messages?.length
         });
         return { 
-          conversation: json.conversation, 
-          messages: json.messages || [] 
+          conversation: json.data ? {
+            id: json.data.id,
+            participants: json.data.participants || [],
+            updatedAt: json.data.lastMessageAt,
+            lastMessage: json.data.messages?.[json.data.messages.length - 1],
+            unreadCount: 0
+          } : undefined, 
+          messages: json.data?.messages || [] 
         } as FetchConversationResult;
       } else if (targetUserId) {
         console.log('🔵 Fetching conversation with targetUserId:', targetUserId);
@@ -154,36 +160,18 @@ export function ChatInterface({
           messageCount: convJson.data?.messages?.length
         });
         return {
-          conversation: {
-            id: convJson.data?.id,
-            participants: convJson.data?.participants,
-            updatedAt: convJson.data?.lastMessageAt,
-            lastMessage: convJson.data?.messages?.[convJson.data.messages.length - 1],
+          conversation: convJson.data ? {
+            id: convJson.data.id,
+            participants: convJson.data.participants || [],
+            updatedAt: convJson.data.lastMessageAt,
+            lastMessage: convJson.data.messages?.[convJson.data.messages.length - 1],
             unreadCount: 0
-          },
+          } : undefined,
           messages: convJson.data?.messages || []
         } as FetchConversationResult;
       }
-      if (!res.ok) {
-        console.error('🔴 Failed to fetch conversation:', res.status, res.statusText);
-        throw new Error('Failed to fetch conversation');
-      }
-      const json = await res.json();
-      console.log('🟢 Conversation API response:', {
-        conversationId: json.data?.id,
-        participants: json.data?.participants,
-        messageCount: json.data?.messages?.length
-      });
-      return { 
-        conversation: {
-          id: json.data?.id,
-          participants: json.data?.participants,
-          updatedAt: json.data?.lastMessageAt,
-          lastMessage: json.data?.messages?.[json.data.messages.length - 1],
-          unreadCount: 0
-        },
-        messages: json.data?.messages || [] 
-      } as FetchConversationResult;
+      
+      throw new Error('No conversationId or targetUserId provided');
     };
     setLoading(true);
     try {
@@ -219,25 +207,7 @@ export function ChatInterface({
         }
         return merged;
       });
-      if (initialMessage && res.conversation?.id) {
-        try {
-          const sendFn =
-            onSendMessage ||
-            (async ({ text }: { targetUserId?: string; text: string; files?: File[] }) => {
-              if (!res.conversation?.id) return undefined;
-              const payload = { content: text };
-              const sendRes = await fetch(`/api/chat/conversations/${res.conversation.id}/messages`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-              });
-              const json = await sendRes.json();
-              return json?.data as Message;
-            });
-          const sent = await sendFn({ targetUserId, text: initialMessage, files: [] });
-          if (sent) setMessages((prev) => [...prev, sent]);
-        } catch {}
-      }
+      // Removed auto-send of initialMessage - user should type their own message
       setTimeout(scrollToBottom, 0);
     } catch (error) {
       console.error('🔴 Error loading conversation:', error);
@@ -257,15 +227,31 @@ export function ChatInterface({
       });
       
       if (res.ok) {
-        const updatedMessage = await res.json();
-        setMessages(prev => prev.map(m => 
-          m.id === messageId 
-            ? { ...m, content: newContent, isEdited: true, editedAt: new Date() }
-            : m
-        ));
+        const response = await res.json();
+        if (response.success && response.data) {
+          const updatedMessage = response.data;
+          setMessages(prev => prev.map(m => 
+            m.id === messageId 
+              ? { 
+                  ...m, 
+                  content: updatedMessage.content || newContent, 
+                  isEdited: true, 
+                  editedAt: updatedMessage.editedAt || new Date() 
+                }
+              : m
+          ));
+        } else {
+          console.error('Edit failed:', response.error);
+          throw new Error(response.error || 'Failed to edit message');
+        }
+      } else {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Edit failed:', res.status, errorData);
+        throw new Error(errorData.error || 'Failed to edit message');
       }
     } catch (error) {
       console.error('Failed to edit message:', error);
+      throw error; // Re-throw so UI can handle it
     }
   };
 
@@ -278,20 +264,31 @@ export function ChatInterface({
       });
       
       if (res.ok) {
-        setMessages(prev => prev.map(m => 
-          m.id === messageId 
-            ? { 
-                ...m, 
-                isDeleted: true, 
-                deletedAt: new Date(), 
-                deletedBy: currentUserId,
-                content: deleteForEveryone ? "This message was deleted" : "You deleted this message"
-              }
-            : m
-        ));
+        const response = await res.json();
+        if (response.success) {
+          setMessages(prev => prev.map(m => 
+            m.id === messageId 
+              ? { 
+                  ...m, 
+                  isDeleted: true, 
+                  deletedAt: new Date(), 
+                  deletedBy: currentUserId,
+                  content: deleteForEveryone ? "This message was deleted" : "You deleted this message"
+                }
+              : m
+          ));
+        } else {
+          console.error('Delete failed:', response.error);
+          throw new Error(response.error || 'Failed to delete message');
+        }
+      } else {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Delete failed:', res.status, errorData);
+        throw new Error(errorData.error || 'Failed to delete message');
       }
     } catch (error) {
       console.error('Failed to delete message:', error);
+      throw error; // Re-throw so UI can handle it
     }
   };
 
@@ -424,10 +421,15 @@ export function ChatInterface({
       createdAt: new Date().toISOString(),
       status: "sending",
     };
+    // Clear input immediately for better UX
+    const messageText = text;
+    setValue("");
+    setAttachments([]);
+    
     setMessages((prev) => [...prev, temp]);
     scrollToBottomSmooth();
     try {
-      const result = await (onSendMessage || defaultSend)({ targetUserId, text, files });
+      const result = await (onSendMessage || defaultSend)({ targetUserId, text: messageText, files });
       if (result) {
         // Replace temp with real message, and remove any duplicates
         setMessages((prev) => {
@@ -440,9 +442,9 @@ export function ChatInterface({
     } catch (error) {
       console.error("Failed to send message:", error);
       setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...m, status: "failed" } : m)));
+      // Restore message text on error so user can retry
+      setValue(messageText);
     }
-    setValue("");
-    setAttachments([]);
   };
 
   const onScrollTop = async () => {

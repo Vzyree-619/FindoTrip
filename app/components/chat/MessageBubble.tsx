@@ -57,8 +57,10 @@ export function MessageBubble({
       try {
         await onEdit(message.id, editContent.trim());
         setIsEditing(false);
-      } catch (error) {
+        setShowActions(false);
+      } catch (error: any) {
         console.error('Failed to edit message:', error);
+        alert(error?.message || 'Failed to edit message. Please try again.');
       }
     }
   };
@@ -69,8 +71,9 @@ export function MessageBubble({
         setIsDeleting(true);
         await onDelete(message.id, deleteForEveryone);
         setShowActions(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to delete message:', error);
+        alert(error?.message || 'Failed to delete message. Please try again.');
       } finally {
         setIsDeleting(false);
       }
