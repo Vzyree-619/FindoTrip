@@ -4,6 +4,12 @@ import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { useState } from "react";
 import { ArrowLeft, Upload, X, Plus } from "lucide-react";
+import { Input } from "~/components/ui/input";
+import { Textarea } from "~/components/ui/textarea";
+import { Label } from "~/components/ui/label";
+import { Button } from "~/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Checkbox } from "~/components/ui/checkbox";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -284,13 +290,15 @@ export default function EditRoomType() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6">
-          <button
+          <Button
+            type="button"
+            variant="ghost"
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+            className="mb-4"
           >
             <ArrowLeft className="w-5 h-5" />
             Back to Rooms
-          </button>
+          </Button>
           <h1 className="text-3xl font-bold text-gray-900">Edit Room Type</h1>
           <p className="text-gray-600 mt-2">Property: {property.name}</p>
         </div>
@@ -314,30 +322,30 @@ export default function EditRoomType() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Label htmlFor="name" className="mb-1">
                   Room Name *
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="name"
                   type="text"
                   name="name"
                   required
                   minLength={5}
                   defaultValue={room.name}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Label htmlFor="description" className="mb-1">
                   Description *
-                </label>
-                <textarea
+                </Label>
+                <Textarea
+                  id="description"
                   name="description"
                   required
                   minLength={50}
                   rows={4}
                   defaultValue={room.description || ''}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
             </div>
@@ -348,38 +356,43 @@ export default function EditRoomType() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Bed Configuration</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bed Type</label>
-                <select
-                  name="bedType"
-                  defaultValue={room.bedType || 'King'}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
-                >
-                  <option value="King">King</option>
-                  <option value="Queen">Queen</option>
-                  <option value="Twin">Twin</option>
-                  <option value="Double">Double</option>
-                  <option value="Single">Single</option>
-                </select>
+                <Label htmlFor="bedType" className="mb-1">Bed Type</Label>
+                <input type="hidden" name="bedType" id="bedType-value" defaultValue={room.bedType || 'King'} />
+                <Select defaultValue={room.bedType || 'King'} onValueChange={(value) => {
+                  const hiddenInput = document.getElementById('bedType-value') as HTMLInputElement;
+                  if (hiddenInput) hiddenInput.value = value;
+                }}>
+                  <SelectTrigger id="bedType" className="w-full">
+                    <SelectValue placeholder="Select bed type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="King">King</SelectItem>
+                    <SelectItem value="Queen">Queen</SelectItem>
+                    <SelectItem value="Twin">Twin</SelectItem>
+                    <SelectItem value="Double">Double</SelectItem>
+                    <SelectItem value="Single">Single</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Beds</label>
-                <input
+                <Label htmlFor="numberOfBeds" className="mb-1">Number of Beds</Label>
+                <Input
+                  id="numberOfBeds"
                   type="number"
                   name="numberOfBeds"
                   min="1"
                   defaultValue={room.numberOfBeds || 1}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bed Configuration</label>
-                <input
+                <Label htmlFor="bedConfiguration" className="mb-1">Bed Configuration</Label>
+                <Input
+                  id="bedConfiguration"
                   type="text"
                   name="bedConfiguration"
                   defaultValue={room.bedConfiguration || '1 King Bed'}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
             </div>
@@ -390,36 +403,36 @@ export default function EditRoomType() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Capacity</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Maximum Occupancy *</label>
-                <input
+                <Label htmlFor="maxOccupancy" className="mb-1">Maximum Occupancy *</Label>
+                <Input
+                  id="maxOccupancy"
                   type="number"
                   name="maxOccupancy"
                   min="1"
                   required
                   defaultValue={room.maxOccupancy || 2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Recommended Adults</label>
-                <input
+                <Label htmlFor="adults" className="mb-1">Recommended Adults</Label>
+                <Input
+                  id="adults"
                   type="number"
                   name="adults"
                   min="1"
                   defaultValue={room.adults || 2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Max Children</label>
-                <input
+                <Label htmlFor="children" className="mb-1">Max Children</Label>
+                <Input
+                  id="children"
                   type="number"
                   name="children"
                   min="0"
                   defaultValue={room.children || 0}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
             </div>
@@ -430,50 +443,61 @@ export default function EditRoomType() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Room Size & Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Room Size</label>
+                <Label htmlFor="roomSize" className="mb-1">Room Size</Label>
                 <div className="flex gap-2">
-                  <input
+                  <Input
+                    id="roomSize"
                     type="number"
                     name="roomSize"
                     step="0.1"
                     defaultValue={room.roomSize || ''}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
+                    className="flex-1"
                   />
-                  <select
-                    name="roomSizeUnit"
-                    defaultValue={room.roomSizeUnit || 'sqm'}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
-                  >
-                    <option value="sqm">sqm</option>
-                    <option value="sqft">sqft</option>
-                  </select>
+                  <input type="hidden" name="roomSizeUnit" id="roomSizeUnit-value" defaultValue={room.roomSizeUnit || 'sqm'} />
+                  <Select defaultValue={room.roomSizeUnit || 'sqm'} onValueChange={(value) => {
+                    const hiddenInput = document.getElementById('roomSizeUnit-value') as HTMLInputElement;
+                    if (hiddenInput) hiddenInput.value = value;
+                  }}>
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sqm">sqm</SelectItem>
+                      <SelectItem value="sqft">sqft</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Floor</label>
-                <input
+                <Label htmlFor="floor" className="mb-1">Floor</Label>
+                <Input
+                  id="floor"
                   type="text"
                   name="floor"
                   defaultValue={room.floor || ''}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">View</label>
-                <select
-                  name="view"
-                  defaultValue={room.view || ''}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
-                >
-                  <option value="">Select view</option>
-                  <option value="City View">City View</option>
-                  <option value="Ocean View">Ocean View</option>
-                  <option value="Garden View">Garden View</option>
-                  <option value="Mountain View">Mountain View</option>
-                  <option value="Pool View">Pool View</option>
-                </select>
+                <Label htmlFor="view" className="mb-1">View</Label>
+                <input type="hidden" name="view" id="view-value" defaultValue={room.view || ''} />
+                <Select defaultValue={room.view || ''} onValueChange={(value) => {
+                  const hiddenInput = document.getElementById('view-value') as HTMLInputElement;
+                  if (hiddenInput) hiddenInput.value = value;
+                }}>
+                  <SelectTrigger id="view" className="w-full">
+                    <SelectValue placeholder="Select view" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Select view</SelectItem>
+                    <SelectItem value="City View">City View</SelectItem>
+                    <SelectItem value="Ocean View">Ocean View</SelectItem>
+                    <SelectItem value="Garden View">Garden View</SelectItem>
+                    <SelectItem value="Mountain View">Mountain View</SelectItem>
+                    <SelectItem value="Pool View">Pool View</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </section>
@@ -508,13 +532,15 @@ export default function EditRoomType() {
                   {images.map((img, idx) => (
                     <div key={idx} className="relative">
                       <img src={img} alt={`Room ${idx + 1}`} className="w-full h-32 object-cover rounded-lg" />
-                      <button
+                      <Button
                         type="button"
+                        variant="destructive"
+                        size="icon"
                         onClick={() => setImages(images.filter((_, i) => i !== idx))}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1"
+                        className="absolute top-2 right-2 h-6 w-6 rounded-full"
                       >
                         <X className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -535,11 +561,9 @@ export default function EditRoomType() {
                         key={item}
                         className="flex items-center gap-2 cursor-pointer"
                       >
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={selectedAmenities.includes(item)}
-                          onChange={() => toggleAmenity(item)}
-                          className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
+                          onCheckedChange={() => toggleAmenity(item)}
                         />
                         <span className="text-sm text-gray-700">{item}</span>
                       </label>
@@ -549,21 +573,21 @@ export default function EditRoomType() {
               ))}
 
               <div className="flex gap-2">
-                <input
+                <Input
                   type="text"
                   value={customAmenity}
                   onChange={(e) => setCustomAmenity(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomAmenity())}
                   placeholder="Add custom amenity"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
+                  className="flex-1"
                 />
-                <button
+                <Button
                   type="button"
                   onClick={addCustomAmenity}
-                  className="px-4 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23]"
+                  className="bg-[#01502E] hover:bg-[#013d23]"
                 >
                   <Plus className="w-5 h-5" />
-                </button>
+                </Button>
               </div>
             </div>
           </section>
@@ -573,82 +597,85 @@ export default function EditRoomType() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Pricing</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Label htmlFor="basePrice" className="mb-1">
                   Base Price (per night) *
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="basePrice"
                   type="number"
                   name="basePrice"
                   step="0.01"
                   min="0"
                   required
                   defaultValue={room.basePrice}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-                <select
-                  name="currency"
-                  defaultValue={room.currency || 'PKR'}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
-                >
-                  <option value="PKR">PKR</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                </select>
+                <Label htmlFor="currency" className="mb-1">Currency</Label>
+                <input type="hidden" name="currency" id="currency-value" defaultValue={room.currency || 'PKR'} />
+                <Select defaultValue={room.currency || 'PKR'} onValueChange={(value) => {
+                  const hiddenInput = document.getElementById('currency-value') as HTMLInputElement;
+                  if (hiddenInput) hiddenInput.value = value;
+                }}>
+                  <SelectTrigger id="currency" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PKR">PKR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="GBP">GBP</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Label htmlFor="weekendPrice" className="mb-1">
                   Weekend Price (optional)
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="weekendPrice"
                   type="number"
                   name="weekendPrice"
                   step="0.01"
                   min="0"
                   defaultValue={room.weekendPrice || ''}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
             </div>
 
             <div className="mt-4 space-y-4">
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+                <Checkbox
                   name="enableDiscount"
                   defaultChecked={!!room.discountPercent}
-                  className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
                 />
                 <span className="text-sm font-medium text-gray-700">Enable Discount</span>
               </label>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Label htmlFor="discountPercent" className="mb-1">
                     Discount Percentage
-                  </label>
-                  <input
+                  </Label>
+                  <Input
+                    id="discountPercent"
                     type="number"
                     name="discountPercent"
                     min="0"
                     max="100"
                     defaultValue={room.discountPercent || ''}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Offer Name</label>
-                  <input
+                  <Label htmlFor="specialOffer" className="mb-1">Offer Name</Label>
+                  <Input
+                    id="specialOffer"
                     type="text"
                     name="specialOffer"
                     defaultValue={room.specialOffer || ''}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -660,25 +687,23 @@ export default function EditRoomType() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Inventory & Availability</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Label htmlFor="totalUnits" className="mb-1">
                   Total Number of This Room Type *
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="totalUnits"
                   type="number"
                   name="totalUnits"
                   min="1"
                   required
                   defaultValue={room.totalUnits || 1}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
 
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+                <Checkbox
                   name="available"
                   defaultChecked={room.available}
-                  className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
                 />
                 <span className="text-sm text-gray-700">Room type is active and available for booking</span>
               </label>
@@ -690,21 +715,17 @@ export default function EditRoomType() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Policies</h2>
             <div className="space-y-2">
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+                <Checkbox
                   name="smokingAllowed"
                   defaultChecked={room.smokingAllowed}
-                  className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
                 />
                 <span className="text-sm text-gray-700">Smoking Allowed</span>
               </label>
 
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+                <Checkbox
                   name="petsAllowed"
                   defaultChecked={room.petsAllowed}
-                  className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
                 />
                 <span className="text-sm text-gray-700">Pets Allowed</span>
               </label>
@@ -715,33 +736,34 @@ export default function EditRoomType() {
           <div className="flex justify-between gap-4 pt-6 border-t">
             <Form method="post" className="inline">
               <input type="hidden" name="intent" value="delete" />
-              <button
+              <Button
                 type="submit"
+                variant="outline"
                 onClick={(e) => {
                   if (!confirm("Are you sure you want to delete this room type? This action cannot be undone.")) {
                     e.preventDefault();
                   }
                 }}
-                className="px-6 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+                className="border-red-300 text-red-600 hover:bg-red-50"
               >
                 Delete Room Type
-              </button>
+              </Button>
             </Form>
 
             <div className="flex gap-4">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => navigate(-1)}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="px-6 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23] font-semibold"
+                className="bg-[#01502E] hover:bg-[#013d23]"
               >
                 Update Room Type
-              </button>
+              </Button>
             </div>
           </div>
         </Form>

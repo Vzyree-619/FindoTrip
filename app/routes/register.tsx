@@ -24,10 +24,16 @@ import {
   ArrowRight,
   Building,
   Camera,
-  Globe
+  Globe,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import TermsContent from "~/components/legal/TermsContent";
 import PrivacyContent from "~/components/legal/PrivacyContent";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+import { Label } from "~/components/ui/label";
+import { Checkbox } from "~/components/ui/checkbox";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await getUserId(request);
@@ -290,14 +296,15 @@ export default function Register() {
 
           {/* Continue Button */}
           <div className="text-center">
-            <button
+            <Button
               onClick={() => selectedRole && setStep('details')}
               disabled={!selectedRole}
-              className="inline-flex items-center px-8 py-4 bg-[#01502E] text-white rounded-xl font-semibold text-lg hover:bg-[#013d23] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              size="lg"
+              className="bg-[#01502E] hover:bg-[#013d23] text-white"
             >
               Continue with {selectedRole && roleOptions.find(r => r.id === selectedRole)?.title}
               <ArrowRight className="ml-2 h-5 w-5" />
-            </button>
+            </Button>
           </div>
 
           {/* Sign In Link */}
@@ -320,13 +327,15 @@ export default function Register() {
       <div className="max-w-md lg:max-w-lg w-full">
         {/* Header */}
         <div className="text-center mb-8">
-          <button
+          <Button
+            type="button"
+            variant="ghost"
             onClick={() => setStep('role')}
-            className="inline-flex items-center text-[#01502E] hover:text-[#013d23] mb-4"
+            className="mb-4 text-[#01502E] hover:text-[#013d23]"
           >
             <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
             Back to role selection
-          </button>
+          </Button>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
             Create Your Account
           </h2>
@@ -344,19 +353,19 @@ export default function Register() {
             
             {/* Full Name */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+              <Label htmlFor="name" className="mb-2">
                 Full Name
-              </label>
+              </Label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <User className="h-5 w-5 text-gray-400" />
                 </div>
-                <input
+                <Input
                   id="name"
                   name="name"
                   type="text"
                   required
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                  className="pl-10"
                   placeholder="John Doe"
                 />
               </div>
@@ -364,20 +373,20 @@ export default function Register() {
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <Label htmlFor="email" className="mb-2">
                 Email Address
-              </label>
+              </Label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-gray-400" />
                 </div>
-                <input
+                <Input
                   id="email"
                   name="email"
                   type="email"
                   autoComplete="email"
                   required
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                  className="pl-10"
                   placeholder="you@example.com"
                 />
               </div>
@@ -385,18 +394,18 @@ export default function Register() {
 
             {/* Phone */}
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+              <Label htmlFor="phone" className="mb-2">
                 Phone Number <span className="text-gray-500 text-xs">(Optional)</span>
-              </label>
+              </Label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Phone className="h-5 w-5 text-gray-400" />
                 </div>
-                <input
+                <Input
                   id="phone"
                   name="phone"
                   type="tel"
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                  className="pl-10"
                   placeholder="+1 (555) 000-0000"
                 />
               </div>
@@ -404,14 +413,14 @@ export default function Register() {
 
             {/* Password with Strength Indicator */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <Label htmlFor="password" className="mb-2">
                 Password
-              </label>
+              </Label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
-                <input
+                <Input
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
@@ -419,42 +428,23 @@ export default function Register() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                  className="pl-10 pr-10"
                   placeholder="••••••••"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
+                  className="absolute inset-y-0 right-0 h-full"
                 >
-                  {/* Minimal eye icons */}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    {showPassword ? (
-                      // Eye off
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9-4-9-7 0-1.07.42-2.065 1.125-2.825M6.52 6.52A9.966 9.966 0 0112 5c5 0 9 4 9 7 0 1.314-.526 2.525-1.406 3.5M3 3l18 18M9.88 9.88A3 3 0 1114.12 14.12"
-                      />
-                    ) : (
-                      // Eye
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    )}
-                  </svg>
-                </button>
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </Button>
               </div>
               
               {/* Password Strength Bar */}
@@ -518,17 +508,15 @@ export default function Register() {
             </div>
 
             {/* Terms and Conditions (Modal-trigger) */}
-            <div className="flex items-start">
-              <input
+            <div className="flex items-start space-x-2">
+              <Checkbox
                 id="terms"
                 name="terms"
-                type="checkbox"
                 required
                 checked={acceptedTerms}
-                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                className="h-4 w-4 mt-1 text-[#01502E] focus:ring-[#01502E] border-gray-300 rounded"
+                onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
               />
-              <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
+              <Label htmlFor="terms" className="text-sm font-normal cursor-pointer">
                 I agree to the{" "}
                 <button type="button" onClick={() => setShowTerms(true)} className="text-[#01502E] hover:text-[#013d23] font-medium underline">
                   Terms of Service
@@ -537,7 +525,7 @@ export default function Register() {
                 <button type="button" onClick={() => setShowTerms(true)} className="text-[#01502E] hover:text-[#013d23] font-medium underline">
                   Privacy Policy
                 </button>
-              </label>
+              </Label>
             </div>
 
             {/* Error Message */}
@@ -551,32 +539,34 @@ export default function Register() {
             )}
 
             {/* Submit Button */}
-            <button
+            <Button
               type="submit"
               disabled={isSubmitting || !acceptedTerms}
-              className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg text-white bg-[#01502E] hover:bg-[#013d23] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#01502E] font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#01502E] hover:bg-[#013d23] text-white"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                  <Loader2 className="animate-spin h-5 w-5" />
                   Creating account...
                 </>
               ) : (
                 "Create Account"
               )}
-            </button>
+            </Button>
 
             {/* Terms Modal */}
             {showTerms && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                 <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 relative">
-                  <button
+                  <Button
                     type="button"
-                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-3 right-3"
                     onClick={() => setShowTerms(false)}
                   >
                     <X className="h-5 w-5" />
-                  </button>
+                  </Button>
                   <h3 className="text-lg font-semibold mb-2">Terms & Privacy</h3>
                   {/* Progress bar */}
                   <div className="mb-2">
@@ -612,30 +602,28 @@ export default function Register() {
                       You’ve reviewed all sections
                     </div>
                   )}
-                  <div className="mt-3 flex items-start gap-2">
-                    <input
+                  <div className="mt-3 flex items-start space-x-2">
+                    <Checkbox
                       id="modalAgree"
-                      type="checkbox"
-                      className="h-4 w-4 mt-1 text-[#01502E] border-gray-300 rounded"
                       checked={modalAgree}
-                      onChange={(e) => setModalAgree(e.target.checked)}
+                      onCheckedChange={(checked) => setModalAgree(checked === true)}
                     />
-                    <label htmlFor="modalAgree" className="text-sm text-gray-700">
+                    <Label htmlFor="modalAgree" className="text-sm font-normal cursor-pointer">
                       I have read and agree to the Terms of Service and Privacy Policy
-                    </label>
+                    </Label>
                   </div>
                   <div className="mt-4 flex justify-between gap-2">
-                    <button type="button" className="px-4 py-2 rounded border" onClick={closeTermsModal}>Back to Form</button>
+                    <Button type="button" variant="outline" onClick={closeTermsModal}>Back to Form</Button>
                     <div className="flex gap-2">
-                      <button type="button" className="px-4 py-2 rounded border" onClick={closeTermsModal}>Close</button>
-                      <button
+                      <Button type="button" variant="outline" onClick={closeTermsModal}>Close</Button>
+                      <Button
                         type="button"
-                        className={`px-4 py-2 rounded text-white ${modalAgree ? 'bg-[#01502E] hover:bg-[#013d23]' : 'bg-gray-300 cursor-not-allowed'}`}
                         disabled={!modalAgree}
+                        className={modalAgree ? 'bg-[#01502E] hover:bg-[#013d23]' : ''}
                         onClick={() => { setAcceptedTerms(true); setShowTerms(false); }}
                       >
                         Accept
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -657,29 +645,31 @@ export default function Register() {
 
           {/* Social Login Placeholders */}
           <div className="mt-6 grid grid-cols-2 gap-4">
-            <button
+            <Button
               type="button"
-              className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              variant="outline"
               disabled
+              className="w-full"
             >
-              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
-              <span className="text-sm font-medium text-gray-700">Google</span>
-            </button>
-            <button
+              <span className="text-sm font-medium">Google</span>
+            </Button>
+            <Button
               type="button"
-              className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              variant="outline"
               disabled
+              className="w-full"
             >
-              <svg className="w-5 h-5 mr-2" fill="#1877F2" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
               </svg>
-              <span className="text-sm font-medium text-gray-700">Facebook</span>
-            </button>
+              <span className="text-sm font-medium">Facebook</span>
+            </Button>
           </div>
 
           {/* Sign In Link */}
