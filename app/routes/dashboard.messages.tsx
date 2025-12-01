@@ -141,8 +141,8 @@ export default function MessagesDashboard() {
 
   return (
     <ThemeProvider initialTheme={chatSettings?.theme || 'light'}>
-      <div className="bg-gray-50 dark:bg-gray-900">
-        <div className="px-4 sm:px-6 lg:px-8">
+      <div className="bg-gray-50 dark:bg-gray-900 w-full overflow-x-hidden max-w-full min-w-0 box-border">
+        <div className="px-2 sm:px-3 lg:px-4 w-full max-w-full box-border overflow-x-hidden min-w-0">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
@@ -158,7 +158,7 @@ export default function MessagesDashboard() {
         </div>
 
         {/* Chat Interface */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 h-[calc(100vh-220px)]">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 h-[calc(100vh-220px)] max-h-[calc(100vh-220px)] overflow-hidden w-full max-w-full box-border min-w-0">
           <ChatContainer 
             currentUserId={user.id}
             theme={chatSettings?.theme || 'light'}
@@ -168,7 +168,7 @@ export default function MessagesDashboard() {
         </div>
 
         {/* Quick Actions - responsive layout */}
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
             <div className="flex items-center gap-3 mb-3">
               <Users className="w-6 h-6 text-blue-600" />
@@ -182,32 +182,24 @@ export default function MessagesDashboard() {
             </button>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700 sm:col-span-1 lg:col-span-1">
             <div className="flex items-center gap-3 mb-3">
               <MessageCircle className="w-6 h-6 text-green-600" />
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">Support Chat</h3>
             </div>
             <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-              Get help from our support team
+              Get help from our support team. Manage your chat preferences and notifications.
             </p>
-            <button className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
-              Contact Support
-            </button>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
-            <div className="flex items-center gap-3 mb-3">
-              <Settings className="w-6 h-6 text-purple-600" />
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Chat Settings</h3>
-            </div>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-              Manage your chat preferences and notifications
-            </p>
-            <a href="/dashboard/settings/chat" className="block w-full">
-              <button className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors">
-                Settings
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                Contact Support
               </button>
-            </a>
+              <a href="/dashboard/settings/chat" className="flex-1">
+                <button className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors">
+                  Settings
+                </button>
+              </a>
+            </div>
           </div>
         </div>
         </div>

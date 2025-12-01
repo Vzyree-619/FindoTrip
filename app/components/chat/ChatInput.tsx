@@ -87,18 +87,18 @@ export function ChatInput({
   };
 
   return (
-    <div className="border-t bg-white dark:bg-gray-800 p-2" aria-label="Chat input area">
-      <div className="flex items-end gap-2">
+    <div className="border-t bg-white dark:bg-gray-800 p-2 w-full max-w-full overflow-x-hidden box-border" aria-label="Chat input area">
+      <div className="flex items-end gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+          className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors flex-shrink-0"
           aria-label="Attach files"
         >
           <Paperclip className="w-5 h-5" />
         </button>
         <input ref={fileRef} type="file" multiple className="hidden" onChange={onPickFiles} />
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0 max-w-full">
           <textarea
             ref={textareaRef}
             value={value}
@@ -112,13 +112,13 @@ export function ChatInput({
             maxLength={maxLength}
             rows={1}
             className={clsx(
-              "w-full resize-none rounded-lg border bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100",
+              "w-full max-w-full resize-none rounded-lg border bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 box-border",
               "focus:outline-none focus:ring-2 focus:ring-[#01502E] px-3 py-2 text-sm"
             )}
             aria-label="Type a message"
           />
           {isEmojiOpen && (
-            <div className="absolute bottom-full mb-2 left-0 bg-white dark:bg-gray-800 border dark:border-gray-600 rounded-lg shadow p-2 grid grid-cols-8 gap-1">
+            <div className="absolute bottom-full mb-2 left-0 bg-white dark:bg-gray-800 border dark:border-gray-600 rounded-lg shadow p-2 grid grid-cols-8 gap-1 max-w-[200px] overflow-hidden">
               {"😀😃😄😁😆😅😂😊😍😘😜🤗👍🙏👏🔥🎉✨🥳😎🤩".split("")
                 .filter(Boolean)
                 .map((e, i) => (
@@ -132,7 +132,7 @@ export function ChatInput({
         <button
           type="button"
           onClick={() => setIsEmojiOpen((s) => !s)}
-          className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+          className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors flex-shrink-0"
           aria-label="Emoji picker"
         >
           <Smile className="w-5 h-5" />
@@ -149,7 +149,7 @@ export function ChatInput({
             }
           }}
           className={clsx(
-            "inline-flex items-center gap-1 bg-[#01502E] text-white px-3 py-2 rounded-lg",
+            "inline-flex items-center gap-1 bg-[#01502E] text-white px-2 sm:px-3 py-2 rounded-lg flex-shrink-0",
             disabled || !value.trim() ? "opacity-60 cursor-not-allowed" : "hover:bg-[#013d23]"
           )}
           aria-label="Send message"

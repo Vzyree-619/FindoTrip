@@ -41,6 +41,7 @@ body {
   background: #ffffff;
   min-height: 100vh;
   overflow-y: overlay;
+  overflow-x: hidden;
 }
 
 ul,

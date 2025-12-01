@@ -118,7 +118,7 @@ export default function App() {
         {/* Preload critical resources */}
         <link rel="preload" href="/FindoTripLogo.png" as="image" />
       </head>
-      <body className="bg-white text-gray-900 antialiased">
+      <body className="bg-white text-gray-900 antialiased overflow-x-hidden">
         {/* Skip to content for accessibility */}
         <SkipToContent />
 

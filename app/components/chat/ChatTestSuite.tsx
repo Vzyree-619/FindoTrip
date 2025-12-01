@@ -41,7 +41,7 @@ export function ChatTestSuite() {
     
     "Typing Indicators": async () => {
       // Test typing API
-      const response = await fetch("/api/chat.typing", {
+      const response = await fetch("/api/chat/typing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId: "test:test", isTyping: true }),

@@ -300,7 +300,7 @@ export function ChatInterface({
     if (typing && now - lastTypingSentRef.current < 2000) return;
     lastTypingSentRef.current = now;
     try {
-      await fetch("/api/chat.typing", {
+      await fetch("/api/chat/typing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId: cid, isTyping: typing }),
@@ -476,27 +476,41 @@ export function ChatInterface({
 
   if (variant === 'modal' && !isOpen) return null;
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (variant === 'modal' && isOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [variant, isOpen]);
+
   return (
     <div
       className={clsx(
         variant === 'modal'
-          ? "fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/30"
-          : "w-full h-full",
+          ? "fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/30 p-4 overflow-y-auto"
+          : "w-full h-full min-h-0 overflow-hidden max-w-full box-border",
         className
       )}
       role="dialog"
       aria-modal={variant === 'modal' ? "true" : undefined}
+      onClick={variant === 'modal' ? (e) => {
+        if (e.target === e.currentTarget) onClose();
+      } : undefined}
     >
       <div
         className={clsx(
           variant === 'modal'
-            ? "w-full sm:w-[720px] h-[80vh] sm:h-[600px] bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out]"
-            : "h-full bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-sm flex flex-col overflow-hidden"
+            ? "w-full sm:w-[720px] max-w-full h-[90vh] sm:h-[85vh] max-h-[90vh] bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out] my-auto"
+            : "h-full min-h-0 w-full max-w-full bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-sm flex flex-col overflow-hidden box-border"
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-[#01502E] to-[#013d23] text-white">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-[#01502E] to-[#013d23] text-white flex-shrink-0 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             {(() => {
               // Find the other participant (not the current user)
               const otherParticipant = conversation?.participants?.find(p => p.id !== currentUserId) || conversation?.participants?.[0];
@@ -516,16 +530,16 @@ export function ChatInterface({
                       (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant?.name || 'User')}&background=01502E&color=fff`;
                     }}
                   />
-                  <div>
-                    <div className="font-semibold text-white">{otherParticipant?.name || "Chat"}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-white truncate">{otherParticipant?.name || "Chat"}</div>
                     {otherParticipant?.role && ['PROPERTY_OWNER', 'VEHICLE_OWNER', 'TOUR_GUIDE'].includes(otherParticipant.role) && (
-                      <div className="text-xs text-white/90 font-medium">
+                      <div className="text-xs text-white/90 font-medium truncate">
                         {otherParticipant.role === 'PROPERTY_OWNER' ? 'Property Owner' : 
                          otherParticipant.role === 'VEHICLE_OWNER' ? 'Vehicle Owner' : 
                          otherParticipant.role === 'TOUR_GUIDE' ? 'Tour Guide' : ''}
                       </div>
                     )}
-                    <div className="text-xs text-white/70">{isTyping ? "typing…" : otherParticipant?.online ? "online" : "offline"}</div>
+                    <div className="text-xs text-white/70 truncate">{isTyping ? "typing…" : otherParticipant?.online ? "online" : "offline"}</div>
                   </div>
                 </>
               );
@@ -539,7 +553,7 @@ export function ChatInterface({
         </div>
 
         {/* Messages */}
-        <div ref={listRef} onScroll={onScrollTop} className={`flex-1 overflow-y-auto p-3 space-y-2 min-h-0 ${
+        <div ref={listRef} onScroll={onScrollTop} className={`flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-3 space-y-2 min-h-0 w-full max-w-full box-border ${
           resolvedTheme === 'dark' ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
           {loading ? (
@@ -576,7 +590,7 @@ export function ChatInterface({
         </div>
 
         {/* Input */}
-        <div className="border-t">
+        <div className="border-t flex-shrink-0 w-full max-w-full overflow-x-hidden box-border">
           <ChatInput
             value={value}
             onChange={setValue}

@@ -200,7 +200,7 @@ export default function Dashboard() {
       <ThemeProvider
         initialTheme={appearanceSettings.theme as "light" | "dark" | "auto"}
       >
-        <div className="bg-gray-50 dark:bg-gray-900 min-h-screen flex flex-col">
+        <div className="bg-gray-50 dark:bg-gray-900 min-h-screen flex flex-col overflow-x-hidden w-full">
           {/* Desktop Sidebar */}
           <div className="hidden md:flex md:fixed md:top-0 md:left-0 md:h-screen md:w-64 md:flex-col md:z-40">
             <ProviderSidebar user={user} stats={stats} />
@@ -287,8 +287,10 @@ export default function Dashboard() {
           </div>
 
           {/* Main Content */}
-          <main className="flex-1 md:ml-64 overflow-auto">
-            <Outlet />
+          <main className="flex-1 md:ml-64 overflow-auto overflow-x-hidden" style={{ width: 'calc(100vw - 256px)', maxWidth: 'calc(100vw - 256px)' }}>
+            <div className="w-full max-w-full min-w-0 overflow-x-hidden box-border">
+              <Outlet />
+            </div>
           </main>
         </div>
       </ThemeProvider>
@@ -315,7 +317,7 @@ export default function Dashboard() {
     <ThemeProvider
       initialTheme={appearanceSettings.theme as "light" | "dark" | "auto"}
     >
-      <div className="bg-gray-50 dark:bg-gray-900 min-h-screen flex flex-col">
+      <div className="bg-gray-50 dark:bg-gray-900 min-h-screen flex flex-col overflow-x-hidden w-full">
         {/* Desktop Sidebar */}
         <div className="hidden md:flex md:fixed md:top-0 md:left-0 md:h-screen md:w-64 md:flex-col md:z-40 md:bg-white dark:md:bg-gray-800">
           <CustomerSidebar user={safeUser} navigation={navigation} />
@@ -360,8 +362,10 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 md:ml-64 overflow-auto">
-          <Outlet />
+        <main className="flex-1 md:ml-64 overflow-auto overflow-x-hidden" style={{ width: 'calc(100vw - 256px)', maxWidth: 'calc(100vw - 256px)' }}>
+          <div className="w-full max-w-full min-w-0 overflow-x-hidden box-border">
+            <Outlet />
+          </div>
         </main>
       </div>
     </ThemeProvider>

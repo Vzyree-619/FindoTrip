@@ -185,9 +185,9 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
 
   return (
     <ThemeProvider initialTheme={theme}>
-      <div className={`${className} h-full flex flex-col`}>
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-3 sm:gap-4 min-h-0">
-          <div className="lg:col-span-2 border rounded-md overflow-hidden flex flex-col max-h-full">
+      <div className={`${className} h-full flex flex-col overflow-hidden w-full max-w-full box-border`}>
+        <div className="flex-1 flex flex-col lg:flex-row gap-1.5 sm:gap-2 min-h-0 overflow-hidden w-full max-w-full min-w-0 box-border">
+          <div className="lg:w-[260px] xl:w-[300px] border rounded-md overflow-hidden flex flex-col min-h-0 max-h-full w-full min-w-0 flex-shrink-0 box-border">
             <ConversationList
               conversations={conversations}
               loading={loading}
@@ -197,11 +197,11 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
                 setOpen(true);
               }}
               onSearch={() => {}}
-              className="flex-1"
+              className="flex-1 min-h-0"
               currentUserId={currentUserId}
             />
           </div>
-          <div className="lg:col-span-3 flex flex-col min-h-0">
+          <div className="lg:flex-1 flex flex-col min-h-0 overflow-hidden w-full max-w-full min-w-0">
             <ChatInterface
               isOpen={open}
               onClose={() => setOpen(false)}
