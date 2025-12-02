@@ -164,7 +164,7 @@ export default function Privacy() {
           </p>
           <ul>
             <li>Email: privacy@findotrip.com</li>
-            <li>Address: FindoTrip Privacy Team, Pakistan</li>
+            <li>Address: Skardu, Pakistan</li>
           </ul>
 
           <h2>15. Data Protection Officer</h2>
