@@ -101,7 +101,7 @@ export function MessageBubble({
   const content = (
     <div 
       className={clsx(
-        "rounded-2xl px-3 py-2 text-sm shadow cursor-pointer hover:opacity-90 transition-opacity overflow-wrap-anywhere break-words",
+        "rounded-2xl px-3 py-2 text-sm shadow cursor-pointer hover:opacity-90 transition-opacity",
         isSender 
           ? "bg-[#01502E] text-white" 
           : resolvedTheme === 'dark' 
@@ -113,8 +113,9 @@ export function MessageBubble({
       style={{ 
         wordBreak: 'break-word', 
         overflowWrap: 'break-word', 
-        maxWidth: '75%',
-        width: 'fit-content'
+        maxWidth: '95%',
+        width: 'fit-content',
+        whiteSpace: 'pre-wrap'
       }}
     >
       {message.isDeleted ? (
@@ -161,7 +162,7 @@ export function MessageBubble({
           </div>
         </div>
       ) : message.type === "text" ? (
-        <span className="whitespace-pre-wrap break-words break-all overflow-wrap-anywhere">
+        <span className="whitespace-pre-wrap">
           {renderWithLinks(message.content)}
         </span>
       ) : message.type === "image" ? (
@@ -273,7 +274,7 @@ function renderWithLinks(text: string) {
   const parts = text.split(/(https?:\/\/[^\s]+)/g);
   return parts.map((part, i) =>
     part.match(/^https?:\/\//) ? (
-      <a key={i} href={part} target="_blank" rel="noreferrer" className="underline break-all overflow-wrap-anywhere">
+      <a key={i} href={part} target="_blank" rel="noreferrer" className="underline break-words">
         {part}
       </a>
     ) : (

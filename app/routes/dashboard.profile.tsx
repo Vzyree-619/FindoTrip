@@ -487,7 +487,7 @@ export default function ProfileSettings() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-[#01502E] hover:bg-[#013d23]"
+                    className="bg-[#01502E] hover:bg-[#013d23] text-white"
                   >
                     {isSubmitting ? (
                       <Loader2 className="animate-spin h-4 w-4" />
@@ -612,7 +612,7 @@ export default function ProfileSettings() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-[#01502E] hover:bg-[#013d23]"
+                    className="bg-[#01502E] hover:bg-[#013d23] text-white"
                   >
                     {isSubmitting ? (
                       <Loader2 className="animate-spin h-4 w-4" />
@@ -694,7 +694,7 @@ export default function ProfileSettings() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-[#01502E] hover:bg-[#013d23]"
+                    className="bg-[#01502E] hover:bg-[#013d23] text-white"
                   >
                     {isSubmitting ? (
                       <Loader2 className="animate-spin h-4 w-4" />
@@ -848,7 +848,7 @@ function AvatarUploader({ userName }: { userName: string }) {
           <div className="mt-2 flex gap-2">
             <Button 
               type="submit" 
-              className="bg-[#01502E] hover:bg-[#013d23]"
+              className="bg-[#01502E] hover:bg-[#013d23] text-white"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Saving...' : 'Save'}
