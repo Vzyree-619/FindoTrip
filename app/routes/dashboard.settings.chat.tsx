@@ -19,6 +19,11 @@ import {
   EyeOff,
 } from "lucide-react";
 import { ThemeProvider, updateGlobalTheme } from "~/contexts/ThemeContext";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+import { Label } from "~/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Checkbox } from "~/components/ui/checkbox";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -245,27 +250,32 @@ export default function ChatSettings() {
 
                   {/* Font Size */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                    <Label className="mb-3">
                       Font Size
-                    </label>
-                    <select
-                      name="fontSize"
-                      defaultValue={chatSettings.fontSize}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#01502E]"
-                    >
-                      <option value="small">Small</option>
-                      <option value="medium">Medium</option>
-                      <option value="large">Large</option>
-                    </select>
+                    </Label>
+                    <input type="hidden" name="fontSize" id="fontSize-value" defaultValue={chatSettings.fontSize} />
+                    <Select defaultValue={chatSettings.fontSize} onValueChange={(value) => {
+                      const hiddenInput = document.getElementById('fontSize-value') as HTMLInputElement;
+                      if (hiddenInput) hiddenInput.value = value;
+                    }}>
+                      <SelectTrigger id="fontSize" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="small">Small</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="large">Large</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
-                <button
+                <Button
                   type="submit"
-                  className="bg-[#01502E] text-white px-6 py-2 rounded-md hover:bg-[#013d23] transition-colors"
+                  className="bg-[#01502E] hover:bg-[#013d23]"
                 >
                   Save Appearance Settings
-                </button>
+                </Button>
               </Form>
             </div>
 
@@ -283,11 +293,9 @@ export default function ChatSettings() {
 
                 <div className="space-y-4">
                   <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="notificationsEnabled"
                       defaultChecked={chatSettings.notificationsEnabled}
-                      className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                     />
                     <div>
                       <span className="font-medium">Enable Notifications</span>
@@ -298,11 +306,9 @@ export default function ChatSettings() {
                   </label>
 
                   <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="soundEnabled"
                       defaultChecked={chatSettings.soundEnabled}
-                      className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                     />
                     <div>
                       <span className="font-medium">Sound Notifications</span>
@@ -313,11 +319,9 @@ export default function ChatSettings() {
                   </label>
 
                   <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="messagePreview"
                       defaultChecked={chatSettings.messagePreview}
-                      className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                     />
                     <div>
                       <span className="font-medium">Message Preview</span>
@@ -328,12 +332,12 @@ export default function ChatSettings() {
                   </label>
                 </div>
 
-                <button
+                <Button
                   type="submit"
-                  className="bg-[#01502E] text-white px-6 py-2 rounded-md hover:bg-[#013d23] transition-colors"
+                  className="bg-[#01502E] hover:bg-[#013d23]"
                 >
                   Save Notification Settings
-                </button>
+                </Button>
               </Form>
             </div>
 
@@ -355,11 +359,9 @@ export default function ChatSettings() {
 
                 <div className="space-y-4">
                   <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="showOnlineStatus"
                       defaultChecked={privacySettings.showOnlineStatus}
-                      className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                     />
                     <div>
                       <span className="font-medium">Show Online Status</span>
@@ -370,11 +372,9 @@ export default function ChatSettings() {
                   </label>
 
                   <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="showReadReceipts"
                       defaultChecked={privacySettings.showReadReceipts}
-                      className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                     />
                     <div>
                       <span className="font-medium">Read Receipts</span>
@@ -385,11 +385,9 @@ export default function ChatSettings() {
                   </label>
 
                   <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="showTypingIndicators"
                       defaultChecked={privacySettings.showTypingIndicators}
-                      className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                     />
                     <div>
                       <span className="font-medium">Typing Indicators</span>
@@ -400,11 +398,9 @@ export default function ChatSettings() {
                   </label>
 
                   <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="allowFileSharing"
                       defaultChecked={privacySettings.allowFileSharing}
-                      className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                     />
                     <div>
                       <span className="font-medium">File Sharing</span>
@@ -415,13 +411,11 @@ export default function ChatSettings() {
                   </label>
 
                   <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="allowMessagesFromProviders"
                       defaultChecked={
                         privacySettings.allowMessagesFromProviders
                       }
-                      className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                     />
                     <div>
                       <span className="font-medium">
@@ -434,13 +428,11 @@ export default function ChatSettings() {
                   </label>
 
                   <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="allowMessagesFromCustomers"
                       defaultChecked={
                         privacySettings.allowMessagesFromCustomers
                       }
-                      className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                     />
                     <div>
                       <span className="font-medium">
@@ -453,12 +445,12 @@ export default function ChatSettings() {
                   </label>
                 </div>
 
-                <button
+                <Button
                   type="submit"
-                  className="bg-[#01502E] text-white px-6 py-2 rounded-md hover:bg-[#013d23] transition-colors"
+                  className="bg-[#01502E] hover:bg-[#013d23]"
                 >
                   Save Privacy Settings
-                </button>
+                </Button>
               </Form>
             </div>
 
@@ -476,11 +468,9 @@ export default function ChatSettings() {
 
                 <div className="space-y-4">
                   <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="autoDownloadMedia"
                       defaultChecked={chatSettings.autoDownloadMedia}
-                      className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                     />
                     <div>
                       <span className="font-medium">Auto-download Media</span>
@@ -491,11 +481,9 @@ export default function ChatSettings() {
                   </label>
 
                   <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="autoRespondWhenOffline"
                       defaultChecked={privacySettings.autoRespondWhenOffline}
-                      className="rounded border-gray-300 text-[#01502E] focus:ring-[#01502E]"
                     />
                     <div>
                       <span className="font-medium">
@@ -508,12 +496,12 @@ export default function ChatSettings() {
                   </label>
                 </div>
 
-                <button
+                <Button
                   type="submit"
-                  className="bg-[#01502E] text-white px-6 py-2 rounded-md hover:bg-[#013d23] transition-colors"
+                  className="bg-[#01502E] hover:bg-[#013d23]"
                 >
                   Save Advanced Settings
-                </button>
+                </Button>
               </Form>
             </div>
           </div>

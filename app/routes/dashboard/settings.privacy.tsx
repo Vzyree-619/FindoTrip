@@ -4,6 +4,11 @@ import { useState } from "react";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import { Shield, Eye, EyeOff, MessageCircle, Users, AlertTriangle, Check, X } from "lucide-react";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+import { Label } from "~/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Checkbox } from "~/components/ui/checkbox";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -188,11 +193,9 @@ export default function PrivacySettings() {
             <div className="space-y-3 pl-7">
               {isCustomer && (
                 <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     name="allowMessagesFromProviders"
                     defaultChecked={privacySettings.allowMessagesFromProviders}
-                    className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
                   />
                   <span className="text-gray-700">Allow providers to message me</span>
                 </label>
@@ -201,12 +204,10 @@ export default function PrivacySettings() {
               {!isCustomer && (
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="allowMessagesFromCustomers"
                       defaultChecked={true}
                       disabled
-                      className="w-4 h-4 text-[#01502E] border-gray-300 rounded"
                     />
                     <span className="text-gray-600">Allow customers to message me (always enabled for business)</span>
                   </label>
@@ -214,21 +215,17 @@ export default function PrivacySettings() {
               )}
 
               <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
+                <Checkbox
                   name="allowMessageForwarding"
                   defaultChecked={privacySettings.allowMessageForwarding}
-                  className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
                 />
                 <span className="text-gray-700">Allow message forwarding</span>
               </label>
 
               <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
+                <Checkbox
                   name="allowFileSharing"
                   defaultChecked={privacySettings.allowFileSharing}
-                  className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
                 />
                 <span className="text-gray-700">Allow file sharing in messages</span>
               </label>
@@ -244,31 +241,25 @@ export default function PrivacySettings() {
 
             <div className="space-y-3 pl-7">
               <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
+                <Checkbox
                   name="showOnlineStatus"
                   defaultChecked={privacySettings.showOnlineStatus}
-                  className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
                 />
                 <span className="text-gray-700">Show online status to chat participants</span>
               </label>
 
               <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
+                <Checkbox
                   name="showReadReceipts"
                   defaultChecked={privacySettings.showReadReceipts}
-                  className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
                 />
                 <span className="text-gray-700">Show read receipts</span>
               </label>
 
               <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
+                <Checkbox
                   name="showTypingIndicators"
                   defaultChecked={privacySettings.showTypingIndicators}
-                  className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
                 />
                 <span className="text-gray-700">Show typing indicators</span>
               </label>
@@ -281,11 +272,9 @@ export default function PrivacySettings() {
               <h2 className="text-lg font-semibold text-gray-900">Auto-Response</h2>
               <div className="pl-7">
                 <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     name="autoRespondWhenOffline"
                     defaultChecked={privacySettings.autoRespondWhenOffline}
-                    className="w-4 h-4 text-[#01502E] border-gray-300 rounded focus:ring-[#01502E]"
                   />
                   <span className="text-gray-700">Send auto-response when offline</span>
                 </label>
@@ -294,13 +283,13 @@ export default function PrivacySettings() {
           )}
 
           <div className="pt-4">
-            <button
+            <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-[#01502E] text-white px-6 py-2 rounded-lg hover:bg-[#013d23] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="bg-[#01502E] hover:bg-[#013d23]"
             >
               {isSubmitting ? "Saving..." : "Save Settings"}
-            </button>
+            </Button>
           </div>
         </Form>
       </div>
@@ -320,43 +309,47 @@ export default function PrivacySettings() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 User ID to Block
               </label>
-              <input
+              <Input
                 type="text"
                 name="targetUserId"
                 value={blockUserId}
                 onChange={(e) => setBlockUserId(e.target.value)}
                 placeholder="Enter user ID"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#01502E] focus:border-[#01502E]"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label className="mb-1">
                 Reason (Optional)
-              </label>
-              <select
-                name="reason"
-                value={blockReason}
-                onChange={(e) => setBlockReason(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#01502E] focus:border-[#01502E]"
-              >
-                <option value="">Select reason</option>
-                <option value="spam">Spam messages</option>
-                <option value="harassment">Harassment</option>
-                <option value="inappropriate">Inappropriate content</option>
-                <option value="scam">Scam attempt</option>
-                <option value="other">Other</option>
-              </select>
+              </Label>
+              <input type="hidden" name="reason" id="reason-value" value={blockReason} />
+              <Select value={blockReason} onValueChange={(value) => {
+                setBlockReason(value);
+                const hiddenInput = document.getElementById('reason-value') as HTMLInputElement;
+                if (hiddenInput) hiddenInput.value = value;
+              }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Select reason</SelectItem>
+                  <SelectItem value="spam">Spam messages</SelectItem>
+                  <SelectItem value="harassment">Harassment</SelectItem>
+                  <SelectItem value="inappropriate">Inappropriate content</SelectItem>
+                  <SelectItem value="scam">Scam attempt</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <button
+          <Button
             type="submit"
             disabled={!blockUserId || isSubmitting}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            variant="destructive"
           >
             Block User
-          </button>
+          </Button>
         </Form>
       </div>
 
@@ -378,12 +371,13 @@ export default function PrivacySettings() {
                 <Form method="post" className="inline">
                   <input type="hidden" name="action" value="unblockUser" />
                   <input type="hidden" name="targetUserId" value={blockedUser.id} />
-                  <button
+                  <Button
                     type="submit"
-                    className="text-[#01502E] hover:text-[#013d23] font-medium"
+                    variant="ghost"
+                    className="text-[#01502E] hover:text-[#013d23]"
                   >
                     Unblock
-                  </button>
+                  </Button>
                 </Form>
               </div>
             ))}

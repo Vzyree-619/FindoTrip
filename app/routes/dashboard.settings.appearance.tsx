@@ -214,26 +214,31 @@ export default function AppearanceSettings() {
 
               {/* Font Size */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                <Label className="mb-3">
                   Font Size
-                </label>
-                <select
-                  name="fontSize"
-                  defaultValue={appearanceSettings.fontSize}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#01502E]"
-                >
-                  <option value="small">Small</option>
-                  <option value="medium">Medium (Default)</option>
-                  <option value="large">Large</option>
-                </select>
+                </Label>
+                <input type="hidden" name="fontSize" id="fontSize-value" defaultValue={appearanceSettings.fontSize} />
+                <Select defaultValue={appearanceSettings.fontSize} onValueChange={(value) => {
+                  const hiddenInput = document.getElementById('fontSize-value') as HTMLInputElement;
+                  if (hiddenInput) hiddenInput.value = value;
+                }}>
+                  <SelectTrigger id="fontSize" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="small">Small</SelectItem>
+                    <SelectItem value="medium">Medium (Default)</SelectItem>
+                    <SelectItem value="large">Large</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              <button
+              <Button
                 type="submit"
-                className="bg-[#01502E] dark:bg-[#01502E] text-white px-6 py-2 rounded-md hover:bg-[#013d23] dark:hover:bg-[#013d23] transition-colors"
+                className="bg-[#01502E] hover:bg-[#013d23]"
               >
                 Save Theme Settings
-              </button>
+              </Button>
             </Form>
           </div>
 
@@ -251,11 +256,9 @@ export default function AppearanceSettings() {
 
               <div className="space-y-4">
                 <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     name="compactMode"
                     defaultChecked={appearanceSettings.compactMode}
-                    className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-[#01502E] focus:ring-[#01502E]"
                   />
                   <div>
                     <span className="font-medium text-gray-900 dark:text-gray-100">
@@ -268,11 +271,9 @@ export default function AppearanceSettings() {
                 </label>
 
                 <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     name="sidebarCollapsed"
                     defaultChecked={appearanceSettings.sidebarCollapsed}
-                    className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-[#01502E] focus:ring-[#01502E]"
                   />
                   <div>
                     <span className="font-medium text-gray-900 dark:text-gray-100">
@@ -285,11 +286,9 @@ export default function AppearanceSettings() {
                 </label>
 
                 <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     name="animationsEnabled"
                     defaultChecked={appearanceSettings.animationsEnabled}
-                    className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-[#01502E] focus:ring-[#01502E]"
                   />
                   <div>
                     <span className="font-medium text-gray-900 dark:text-gray-100">

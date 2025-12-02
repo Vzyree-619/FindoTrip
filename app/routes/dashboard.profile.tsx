@@ -26,6 +26,10 @@ import {
   EyeOff,
   Loader2,
 } from "lucide-react";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+import { Label } from "~/components/ui/label";
+import { Checkbox } from "~/components/ui/checkbox";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -388,37 +392,38 @@ export default function ProfileSettings() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                    <Label htmlFor="name" className="mb-2">
                       Full Name *
-                    </label>
+                    </Label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <User className="h-5 w-5 text-gray-400" />
                       </div>
-                      <input
+                      <Input
                         type="text"
                         name="name"
                         id="name"
                         defaultValue={user.name}
                         required
-                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#01502E] focus:border-[#01502E]"
+                        className="pl-10"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    <Label htmlFor="email" className="mb-2">
                       Email Address
-                    </label>
+                    </Label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Mail className="h-5 w-5 text-gray-400" />
                       </div>
-                      <input
+                      <Input
                         type="email"
+                        id="email"
                         value={user.email}
                         disabled
-                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                        className="pl-10 bg-gray-50 text-gray-500 cursor-not-allowed"
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
@@ -427,71 +432,70 @@ export default function ProfileSettings() {
                   </div>
 
                   <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                    <Label htmlFor="phone" className="mb-2">
                       Phone Number
-                    </label>
+                    </Label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Phone className="h-5 w-5 text-gray-400" />
                       </div>
-                      <input
+                      <Input
                         type="tel"
                         name="phone"
                         id="phone"
                         defaultValue={user.phone || ""}
-                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#01502E] focus:border-[#01502E]"
+                        className="pl-10"
                         placeholder="+92 XXX XXXXXXX"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
+                    <Label htmlFor="city" className="mb-2">
                       City
-                    </label>
+                    </Label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <MapPin className="h-5 w-5 text-gray-400" />
                       </div>
-                      <input
+                      <Input
                         type="text"
                         name="city"
                         id="city"
                         defaultValue={user.city || ""}
-                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#01502E] focus:border-[#01502E]"
+                        className="pl-10"
                         placeholder="Skardu"
                       />
                     </div>
                   </div>
 
                   <div className="md:col-span-2">
-                    <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">
+                    <Label htmlFor="country" className="mb-2">
                       Country
-                    </label>
-                    <input
+                    </Label>
+                    <Input
                       type="text"
                       name="country"
                       id="country"
                       defaultValue={user.country || ""}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#01502E] focus:border-[#01502E]"
                       placeholder="Pakistan"
                     />
                   </div>
                 </div>
 
                 <div className="flex justify-end">
-                  <button
+                  <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23] disabled:opacity-50"
+                    className="bg-[#01502E] hover:bg-[#013d23]"
                   >
                     {isSubmitting ? (
-                      <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                      <Loader2 className="animate-spin h-4 w-4" />
                     ) : (
-                      <Save className="h-4 w-4 mr-2" />
+                      <Save className="h-4 w-4" />
                     )}
                     Save Changes
-                  </button>
+                  </Button>
                 </div>
               </Form>
             </div>
@@ -508,23 +512,25 @@ export default function ProfileSettings() {
                 <input type="hidden" name="intent" value="change-password" />
 
                 <div>
-                  <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  <Label htmlFor="currentPassword" className="mb-2">
                     Current Password *
-                  </label>
+                  </Label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Lock className="h-5 w-5 text-gray-400" />
                     </div>
-                    <input
+                    <Input
                       type={showCurrentPassword ? "text" : "password"}
                       name="currentPassword"
                       id="currentPassword"
                       required
-                      className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#01502E] focus:border-[#01502E]"
+                      className="pl-10 pr-10"
                     />
-                    <button
+                    <Button
                       type="button"
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute inset-y-0 right-0 h-full"
                       onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                     >
                       {showCurrentPassword ? (
@@ -532,30 +538,32 @@ export default function ProfileSettings() {
                       ) : (
                         <Eye className="h-5 w-5 text-gray-400" />
                       )}
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                    <Label htmlFor="newPassword" className="mb-2">
                       New Password *
-                    </label>
+                    </Label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Lock className="h-5 w-5 text-gray-400" />
                       </div>
-                      <input
+                      <Input
                         type={showNewPassword ? "text" : "password"}
                         name="newPassword"
                         id="newPassword"
                         required
                         minLength={8}
-                        className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#01502E] focus:border-[#01502E]"
+                        className="pl-10 pr-10"
                       />
-                      <button
+                      <Button
                         type="button"
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute inset-y-0 right-0 h-full"
                         onClick={() => setShowNewPassword(!showNewPassword)}
                       >
                         {showNewPassword ? (
@@ -563,29 +571,31 @@ export default function ProfileSettings() {
                         ) : (
                           <Eye className="h-5 w-5 text-gray-400" />
                         )}
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                    <Label htmlFor="confirmPassword" className="mb-2">
                       Confirm New Password *
-                    </label>
+                    </Label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Lock className="h-5 w-5 text-gray-400" />
                       </div>
-                      <input
+                      <Input
                         type={showConfirmPassword ? "text" : "password"}
                         name="confirmPassword"
                         id="confirmPassword"
                         required
                         minLength={8}
-                        className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#01502E] focus:border-[#01502E]"
+                        className="pl-10 pr-10"
                       />
-                      <button
+                      <Button
                         type="button"
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute inset-y-0 right-0 h-full"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       >
                         {showConfirmPassword ? (
@@ -593,24 +603,24 @@ export default function ProfileSettings() {
                         ) : (
                           <Eye className="h-5 w-5 text-gray-400" />
                         )}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex justify-end">
-                  <button
+                  <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23] disabled:opacity-50"
+                    className="bg-[#01502E] hover:bg-[#013d23]"
                   >
                     {isSubmitting ? (
-                      <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                      <Loader2 className="animate-spin h-4 w-4" />
                     ) : (
-                      <Lock className="h-4 w-4 mr-2" />
+                      <Lock className="h-4 w-4" />
                     )}
                     Change Password
-                  </button>
+                  </Button>
                 </div>
               </Form>
             </div>
@@ -639,11 +649,9 @@ export default function ProfileSettings() {
                         </p>
                       </div>
                     </div>
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="emailNotifications"
                       defaultChecked
-                      className="h-4 w-4 text-[#01502E] focus:ring-[#01502E] border-gray-300 rounded"
                     />
                   </div>
 
@@ -659,10 +667,8 @@ export default function ProfileSettings() {
                         </p>
                       </div>
                     </div>
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="smsNotifications"
-                      className="h-4 w-4 text-[#01502E] focus:ring-[#01502E] border-gray-300 rounded"
                     />
                   </div>
 
@@ -678,27 +684,25 @@ export default function ProfileSettings() {
                         </p>
                       </div>
                     </div>
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       name="marketingEmails"
-                      className="h-4 w-4 text-[#01502E] focus:ring-[#01502E] border-gray-300 rounded"
                     />
                   </div>
                 </div>
 
                 <div className="mt-6 flex justify-end">
-                  <button
+                  <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#01502E] hover:bg-[#013d23] disabled:opacity-50"
+                    className="bg-[#01502E] hover:bg-[#013d23]"
                   >
                     {isSubmitting ? (
-                      <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                      <Loader2 className="animate-spin h-4 w-4" />
                     ) : (
-                      <Save className="h-4 w-4 mr-2" />
+                      <Save className="h-4 w-4" />
                     )}
                     Save Preferences
-                  </button>
+                  </Button>
                 </div>
               </Form>
             </div>
@@ -713,13 +717,15 @@ export default function ProfileSettings() {
               <p className="text-sm text-gray-600 mb-4">
                 Once you delete your account, there is no going back. Please be certain.
               </p>
-              <button
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => setShowDeleteModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
+                className="border-red-300 text-red-700 hover:bg-red-50"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="h-4 w-4" />
                 Delete Account
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -738,41 +744,45 @@ export default function ProfileSettings() {
                 <Form method="post" className="space-y-4">
                   <input type="hidden" name="intent" value="delete-account" />
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Label htmlFor="confirmDelete" className="mb-2">
                       Type <strong>DELETE</strong> to confirm:
-                    </label>
-                    <input
+                    </Label>
+                    <Input
                       type="text"
                       name="confirmDelete"
+                      id="confirmDelete"
                       required
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                      className="focus:ring-red-500 focus:border-red-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Label htmlFor="deletePassword" className="mb-2">
                       Enter your password:
-                    </label>
-                    <input
+                    </Label>
+                    <Input
                       type="password"
                       name="password"
+                      id="deletePassword"
                       required
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                      className="focus:ring-red-500 focus:border-red-500"
                     />
                   </div>
                   <div className="flex gap-3">
-                    <button
+                    <Button
                       type="submit"
-                      className="flex-1 inline-flex justify-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700"
+                      variant="destructive"
+                      className="flex-1"
                     >
                       Delete Account
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="outline"
                       onClick={() => setShowDeleteModal(false)}
-                      className="flex-1 inline-flex justify-center px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-md hover:bg-gray-300"
+                      className="flex-1"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </Form>
               </div>
@@ -819,15 +829,15 @@ function AvatarUploader({ userName }: { userName: string }) {
             if (file) setPreview(URL.createObjectURL(file));
           }}
         />
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => inputRef.current?.click()}
-          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
           disabled={isSubmitting}
         >
-          <Camera className="w-4 h-4 mr-2" />
+          <Camera className="w-4 h-4" />
           Change Photo
-        </button>
+        </Button>
         <p className="text-xs text-gray-500 mt-1">JPG, PNG, WEBP. 5MB max.</p>
         {preview && (
           <div className="mt-2">
@@ -836,15 +846,16 @@ function AvatarUploader({ userName }: { userName: string }) {
         )}
         {preview && (
           <div className="mt-2 flex gap-2">
-            <button 
+            <Button 
               type="submit" 
-              className="px-3 py-2 bg-[#01502E] text-white rounded-md hover:bg-[#013d23] transition-colors disabled:opacity-50"
+              className="bg-[#01502E] hover:bg-[#013d23]"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Saving...' : 'Save'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={() => {
                 setPreview(null);
                 if (inputRef.current) {
