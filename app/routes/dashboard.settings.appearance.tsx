@@ -9,6 +9,10 @@ import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import { Settings, Palette, Sun, Moon, Monitor } from "lucide-react";
 import { updateGlobalTheme } from "~/contexts/ThemeContext";
+import { Button } from "~/components/ui/button";
+import { Label } from "~/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Checkbox } from "~/components/ui/checkbox";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
@@ -235,7 +239,7 @@ export default function AppearanceSettings() {
 
               <Button
                 type="submit"
-                className="bg-[#01502E] hover:bg-[#013d23]"
+                className="bg-[#01502E] hover:bg-[#013d23] text-white"
               >
                 Save Theme Settings
               </Button>
@@ -302,12 +306,12 @@ export default function AppearanceSettings() {
                 </label>
               </div>
 
-              <button
+              <Button
                 type="submit"
-                className="bg-[#01502E] dark:bg-[#01502E] text-white px-6 py-2 rounded-md hover:bg-[#013d23] dark:hover:bg-[#013d23] transition-colors"
+                className="bg-[#01502E] hover:bg-[#013d23] text-white"
               >
                 Save Display Settings
-              </button>
+              </Button>
             </Form>
           </div>
 

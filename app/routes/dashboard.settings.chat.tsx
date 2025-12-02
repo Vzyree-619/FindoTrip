@@ -272,7 +272,7 @@ export default function ChatSettings() {
 
                 <Button
                   type="submit"
-                  className="bg-[#01502E] hover:bg-[#013d23]"
+                  className="bg-[#01502E] hover:bg-[#013d23] text-white"
                 >
                   Save Appearance Settings
                 </Button>
@@ -334,7 +334,7 @@ export default function ChatSettings() {
 
                 <Button
                   type="submit"
-                  className="bg-[#01502E] hover:bg-[#013d23]"
+                  className="bg-[#01502E] hover:bg-[#013d23] text-white"
                 >
                   Save Notification Settings
                 </Button>
@@ -447,7 +447,7 @@ export default function ChatSettings() {
 
                 <Button
                   type="submit"
-                  className="bg-[#01502E] hover:bg-[#013d23]"
+                  className="bg-[#01502E] hover:bg-[#013d23] text-white"
                 >
                   Save Privacy Settings
                 </Button>
@@ -498,7 +498,7 @@ export default function ChatSettings() {
 
                 <Button
                   type="submit"
-                  className="bg-[#01502E] hover:bg-[#013d23]"
+                  className="bg-[#01502E] hover:bg-[#013d23] text-white"
                 >
                   Save Advanced Settings
                 </Button>
