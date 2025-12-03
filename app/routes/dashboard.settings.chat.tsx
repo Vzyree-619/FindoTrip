@@ -253,13 +253,13 @@ export default function ChatSettings() {
                     <Label className="mb-3">
                       Font Size
                     </Label>
-                    <input type="hidden" name="fontSize" id="fontSize-value" defaultValue={chatSettings.fontSize} />
-                    <Select defaultValue={chatSettings.fontSize} onValueChange={(value) => {
+                    <input type="hidden" name="fontSize" id="fontSize-value" defaultValue={chatSettings.fontSize || "medium"} />
+                    <Select defaultValue={chatSettings.fontSize || "medium"} onValueChange={(value) => {
                       const hiddenInput = document.getElementById('fontSize-value') as HTMLInputElement;
                       if (hiddenInput) hiddenInput.value = value;
                     }}>
                       <SelectTrigger id="fontSize" className="w-full">
-                        <SelectValue />
+                        <SelectValue placeholder="Select font size" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="small">Small</SelectItem>

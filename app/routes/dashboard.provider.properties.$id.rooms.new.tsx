@@ -432,16 +432,16 @@ export default function NewRoomType() {
 
               <div>
                 <Label htmlFor="view" className="mb-1">View</Label>
-                <input type="hidden" name="view" id="view-value" defaultValue="" />
-                <Select onValueChange={(value) => {
+                <input type="hidden" name="view" id="view-value" defaultValue="none" />
+                <Select defaultValue="none" onValueChange={(value) => {
                   const hiddenInput = document.getElementById('view-value') as HTMLInputElement;
-                  if (hiddenInput) hiddenInput.value = value;
+                  if (hiddenInput) hiddenInput.value = value === "none" ? "" : value;
                 }}>
                   <SelectTrigger id="view" className="w-full">
                     <SelectValue placeholder="Select view" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Select view</SelectItem>
+                    <SelectItem value="none">Select view</SelectItem>
                     <SelectItem value="City View">City View</SelectItem>
                     <SelectItem value="Ocean View">Ocean View</SelectItem>
                     <SelectItem value="Garden View">Garden View</SelectItem>

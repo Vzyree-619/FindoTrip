@@ -153,7 +153,7 @@ export default function PrivacySettings() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const [blockUserId, setBlockUserId] = useState("");
-  const [blockReason, setBlockReason] = useState("");
+  const [blockReason, setBlockReason] = useState("none");
 
   const isSubmitting = navigation.state === "submitting";
   const isCustomer = user?.role === "CUSTOMER";
@@ -322,17 +322,17 @@ export default function PrivacySettings() {
               <Label className="mb-1">
                 Reason (Optional)
               </Label>
-              <input type="hidden" name="reason" id="reason-value" value={blockReason} />
-              <Select value={blockReason} onValueChange={(value) => {
+              <input type="hidden" name="reason" id="reason-value" value={blockReason === "none" ? "" : blockReason} />
+              <Select value={blockReason || "none"} onValueChange={(value) => {
                 setBlockReason(value);
                 const hiddenInput = document.getElementById('reason-value') as HTMLInputElement;
-                if (hiddenInput) hiddenInput.value = value;
+                if (hiddenInput) hiddenInput.value = value === "none" ? "" : value;
               }}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select reason" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Select reason</SelectItem>
+                  <SelectItem value="none">Select reason</SelectItem>
                   <SelectItem value="spam">Spam messages</SelectItem>
                   <SelectItem value="harassment">Harassment</SelectItem>
                   <SelectItem value="inappropriate">Inappropriate content</SelectItem>

@@ -221,13 +221,13 @@ export default function AppearanceSettings() {
                 <Label className="mb-3">
                   Font Size
                 </Label>
-                <input type="hidden" name="fontSize" id="fontSize-value" defaultValue={appearanceSettings.fontSize} />
-                <Select defaultValue={appearanceSettings.fontSize} onValueChange={(value) => {
+                <input type="hidden" name="fontSize" id="fontSize-value" defaultValue={appearanceSettings.fontSize || "medium"} />
+                <Select defaultValue={appearanceSettings.fontSize || "medium"} onValueChange={(value) => {
                   const hiddenInput = document.getElementById('fontSize-value') as HTMLInputElement;
                   if (hiddenInput) hiddenInput.value = value;
                 }}>
                   <SelectTrigger id="fontSize" className="w-full">
-                    <SelectValue />
+                    <SelectValue placeholder="Select font size" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="small">Small</SelectItem>

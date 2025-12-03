@@ -421,16 +421,16 @@ export default function EditProperty() {
             </div>
             <div>
               <Label htmlFor="starRating">Star Rating (1-5)</Label>
-              <input type="hidden" name="starRating" id="starRating-value" defaultValue={property.starRating?.toString() || ''} />
-              <Select defaultValue={property.starRating?.toString() || ''} onValueChange={(value) => {
+              <input type="hidden" name="starRating" id="starRating-value" defaultValue={property.starRating?.toString() || '0'} />
+              <Select defaultValue={property.starRating?.toString() || '0'} onValueChange={(value) => {
                 const hiddenInput = document.getElementById('starRating-value') as HTMLInputElement;
-                if (hiddenInput) hiddenInput.value = value;
+                if (hiddenInput) hiddenInput.value = value === "0" ? "" : value;
               }}>
                 <SelectTrigger id="starRating" className="mt-1">
                   <SelectValue placeholder="Not rated" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Not rated</SelectItem>
+                  <SelectItem value="0">Not rated</SelectItem>
                   <SelectItem value="1">1 Star</SelectItem>
                   <SelectItem value="2">2 Stars</SelectItem>
                   <SelectItem value="3">3 Stars</SelectItem>

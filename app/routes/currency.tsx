@@ -187,11 +187,11 @@ export default function CurrencyPage() {
                       setConvertedAmount("");
                     }}>
                       <SelectTrigger id="fromCurrency" className="w-full">
-                        <SelectValue />
+                        <SelectValue placeholder="Select currency" />
                       </SelectTrigger>
                       <SelectContent>
                         {currencies.map((currency) => (
-                          <SelectItem key={currency.code} value={currency.code}>
+                          <SelectItem key={currency.code} value={currency.code || ""}>
                             {currency.code} - {currency.name}
                           </SelectItem>
                         ))}
@@ -236,11 +236,11 @@ export default function CurrencyPage() {
                       setConvertedAmount("");
                     }}>
                       <SelectTrigger id="toCurrency" className="w-full">
-                        <SelectValue />
+                        <SelectValue placeholder="Select currency" />
                       </SelectTrigger>
                       <SelectContent>
                         {currencies.map((currency) => (
-                          <SelectItem key={currency.code} value={currency.code}>
+                          <SelectItem key={currency.code} value={currency.code || ""}>
                             {currency.code} - {currency.name}
                           </SelectItem>
                         ))}

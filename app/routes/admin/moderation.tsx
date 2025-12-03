@@ -382,16 +382,16 @@ export default function AdminModeration() {
                         className="pl-10 w-64"
                       />
                     </div>
-                    <input type="hidden" name="statusFilter" id="statusFilter-value" defaultValue="" />
-                    <Select defaultValue="" onValueChange={(value) => {
+                    <input type="hidden" name="statusFilter" id="statusFilter-value" defaultValue="all" />
+                    <Select defaultValue="all" onValueChange={(value) => {
                       const hiddenInput = document.getElementById('statusFilter-value') as HTMLInputElement;
-                      if (hiddenInput) hiddenInput.value = value;
+                      if (hiddenInput) hiddenInput.value = value === "all" ? "" : value;
                     }}>
                       <SelectTrigger className="w-[140px]">
                         <SelectValue placeholder="All Status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Status</SelectItem>
+                        <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="reviewed">Reviewed</SelectItem>
                         <SelectItem value="resolved">Resolved</SelectItem>
