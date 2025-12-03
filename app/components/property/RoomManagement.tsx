@@ -142,18 +142,18 @@ export default function RoomManagement({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Room Types</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Room Types</h2>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">
             Manage different room types for your property
           </p>
         </div>
         <button
           onClick={handleAddRoom}
-          className="flex items-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23] transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23] transition-colors text-sm sm:text-base"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
           Add Room Type
         </button>
       </div>
@@ -172,7 +172,7 @@ export default function RoomManagement({
           </button>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {rooms.map(room => (
             <div key={room.id} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
               {/* Room Image */}
@@ -338,7 +338,7 @@ function RoomForm({ room, onSave, onCancel, loading }: RoomFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 space-y-6">
+    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-4 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex justify-between items-center pb-4 border-b">
         <h2 className="text-2xl font-bold text-gray-900">
           {room ? "Edit Room Type" : "Add New Room Type"}
@@ -384,7 +384,7 @@ function RoomForm({ room, onSave, onCancel, loading }: RoomFormProps) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Base Price *
@@ -434,7 +434,7 @@ function RoomForm({ room, onSave, onCancel, loading }: RoomFormProps) {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Capacity</h3>
         
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Max Occupancy *
@@ -479,7 +479,7 @@ function RoomForm({ room, onSave, onCancel, loading }: RoomFormProps) {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Bed Configuration</h3>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Bed Type
@@ -528,7 +528,7 @@ function RoomForm({ room, onSave, onCancel, loading }: RoomFormProps) {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Room Details</h3>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Room Size
@@ -545,7 +545,7 @@ function RoomForm({ room, onSave, onCancel, loading }: RoomFormProps) {
               <select
                 value={formData.roomSizeUnit}
                 onChange={e => setFormData({ ...formData, roomSizeUnit: e.target.value })}
-                className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
+                className="w-20 sm:w-24 px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent text-sm"
               >
                 <option value="sqm">sqm</option>
                 <option value="sqft">sqft</option>
@@ -707,7 +707,7 @@ function RoomForm({ room, onSave, onCancel, loading }: RoomFormProps) {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Policies</h3>
         
-        <div className="flex gap-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -742,7 +742,7 @@ function RoomForm({ room, onSave, onCancel, loading }: RoomFormProps) {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Special Offer (Optional)</h3>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Discount Percent
@@ -773,19 +773,19 @@ function RoomForm({ room, onSave, onCancel, loading }: RoomFormProps) {
       </div>
 
       {/* Form Actions */}
-      <div className="flex gap-4 pt-6 border-t">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-6 border-t">
         <button
           type="button"
           onClick={onCancel}
           disabled={loading}
-          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm sm:text-base"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="flex-1 px-4 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23] transition-colors disabled:opacity-50"
+          className="flex-1 px-4 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23] transition-colors disabled:opacity-50 text-sm sm:text-base"
         >
           {loading ? "Saving..." : room ? "Update Room" : "Add Room"}
         </button>

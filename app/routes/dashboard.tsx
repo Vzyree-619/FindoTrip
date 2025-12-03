@@ -287,7 +287,7 @@ export default function Dashboard() {
           </div>
 
           {/* Main Content */}
-          <main className="flex-1 md:ml-64 overflow-auto overflow-x-hidden" style={{ width: 'calc(100vw - 256px)', maxWidth: 'calc(100vw - 256px)' }}>
+          <main className="flex-1 w-full md:ml-64 md:w-[calc(100vw-256px)] md:max-w-[calc(100vw-256px)] overflow-auto overflow-x-hidden">
             <div className="w-full max-w-full min-w-0 overflow-x-hidden box-border">
               <Outlet />
             </div>
@@ -362,7 +362,7 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 md:ml-64 overflow-auto overflow-x-hidden" style={{ width: 'calc(100vw - 256px)', maxWidth: 'calc(100vw - 256px)' }}>
+        <main className="flex-1 w-full md:ml-64 md:w-[calc(100vw-256px)] md:max-w-[calc(100vw-256px)] overflow-auto overflow-x-hidden">
           <div className="w-full max-w-full min-w-0 overflow-x-hidden box-border">
             <Outlet />
           </div>
