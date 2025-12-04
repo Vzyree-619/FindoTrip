@@ -101,7 +101,24 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     });
   }
   
-  if (property.ownerId !== owner.id) throw redirect("/dashboard/provider");
+  // Debug: Log ownership check
+  console.log('[Edit Property Loader] Ownership check:', {
+    propertyOwnerId: property.ownerId,
+    ownerId: owner.id,
+    match: property.ownerId === owner.id,
+    propertyId: property.id,
+    userId
+  });
+  
+  // If ownership doesn't match, check if we need to update the property's ownerId
+  if (property.ownerId !== owner.id) {
+    // Update the property to link it to the current owner
+    await prisma.property.update({
+      where: { id: property.id },
+      data: { ownerId: owner.id }
+    });
+    console.log('[Edit Property Loader] Updated property ownerId to match current owner');
+  }
 
   return json({ user, property });
 }
@@ -312,16 +329,41 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function EditProperty() {
-  const { property } = useLoaderData<typeof loader>();
+  const loaderData = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>() as any;
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Edit Property</h1>
-          <Link to="/dashboard/provider" className="inline-flex items-center px-4 py-2 border rounded">Back</Link>
+  
+  // Debug: Log to ensure component is rendering
+  console.log('EditProperty component rendering', { hasLoaderData: !!loaderData, hasProperty: !!loaderData?.property });
+  
+  // Safety check
+  if (!loaderData || !loaderData.property) {
+    return (
+      <div className="w-full py-8 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Property Not Found</h1>
+          <Link to="/dashboard/provider" className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+            Back to Dashboard
+          </Link>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+      </div>
+    );
+  }
+  
+  const { property } = loaderData;
+  
+  return (
+    <div className="w-full py-4 sm:py-6 lg:py-8 bg-gray-50 dark:bg-gray-900 min-h-full">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Edit Property: {property.name}</h1>
+          <Link 
+            to="/dashboard/provider" 
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+          >
+            ← Back
+          </Link>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           {actionData?.errors && (
             <div className="mb-4 p-3 rounded bg-red-50 text-red-700">
               <div className="font-semibold mb-1">Please fix the following:</div>

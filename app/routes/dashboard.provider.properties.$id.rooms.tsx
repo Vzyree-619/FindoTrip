@@ -1,5 +1,5 @@
 import { json, redirect, type LoaderFunctionArgs } from "@remix-run/node";
-import { Link, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
+import { Link, useLoaderData, useNavigate, useSearchParams, Outlet, useLocation } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { Plus, Edit, Trash2, Calendar, Bed, Users, DollarSign, TrendingUp, Eye, CheckCircle } from "lucide-react";
@@ -111,6 +111,18 @@ export default function PropertyRoomsManagement() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const created = searchParams.get("created") === "1";
+  const location = useLocation();
+  
+  // Check if we're on a child route (like new room page, edit room page, etc.)
+  const isChildRoute = location.pathname.includes("/rooms/new") || 
+                       (location.pathname.includes("/rooms/") && 
+                        !location.pathname.endsWith("/rooms") &&
+                        location.pathname !== `/dashboard/provider/properties/${property.id}/rooms`);
+
+  // If we're on a child route, only render the Outlet
+  if (isChildRoute) {
+    return <Outlet />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -196,7 +208,8 @@ export default function PropertyRoomsManagement() {
             <p className="text-gray-600 mb-6">Start by adding your first room type for this property</p>
             <Link
               to={`/dashboard/provider/properties/${property.id}/rooms/new`}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23] transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23] transition-colors relative z-50"
+              prefetch="intent"
             >
               <Plus className="w-5 h-5" />
               Add First Room Type

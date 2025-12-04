@@ -11,6 +11,8 @@ import {
   useLoaderData,
   useSearchParams,
   useSubmit,
+  Outlet,
+  useLocation,
 } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
@@ -308,8 +310,8 @@ export async function action({ request }: ActionFunctionArgs) {
           })),
         });
       }
-      // Redirect to room management page for the new property
-      return redirect(`/dashboard/provider/properties/${created.id}/rooms?created=1`);
+      // Redirect back to dashboard with success message
+      return redirect("/dashboard/provider?created=1");
     } catch (e) {
       console.error(e);
       return json({ error: "Failed to create property" }, { status: 500 });
@@ -323,8 +325,13 @@ export default function ProviderDashboard() {
   const { user, owner, properties, error } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
   const submitted = searchParams.get("submitted") === "1";
+  const created = searchParams.get("created") === "1";
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
+  const location = useLocation();
+  
+  // Check if we're on a child route (like edit property page)
+  const isChildRoute = location.pathname !== "/dashboard/provider" && location.pathname.startsWith("/dashboard/provider");
 
   // Show error if user doesn't have access
   if (error) {
@@ -357,6 +364,12 @@ export default function ProviderDashboard() {
   const hasRejectedItems = safeProperties.some(
     (p: any) => p.approvalStatus === "REJECTED"
   );
+  
+  // Check if we're on a child route (like edit property page)
+  // If we're on a child route, only render the Outlet (edit page, etc.)
+  if (isChildRoute) {
+    return <Outlet />;
+  }
 
   return (
     <div className="min-h-screen  bg-gray-50 dark:bg-gray-900 w-full overflow-x-hidden">
@@ -487,6 +500,26 @@ export default function ProviderDashboard() {
           </div>
         ) : null}
 
+        {/* Success Message for Property Creation */}
+        {created && (
+          <div className="mb-4 sm:mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 sm:p-4 flex items-start gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                Property created successfully! 🎉
+              </p>
+              <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                Use the "Manage Rooms" button on your property card to add room types with pricing, capacity, and amenities.
+              </p>
+            </div>
+            <Link
+              to="/dashboard/provider"
+              className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200 text-sm"
+            >
+              ×
+            </Link>
+          </div>
+        )}
+
         {/* Properties Grid */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-2 sm:p-3 md:p-4 lg:p-6 mb-4 sm:mb-6 md:mb-8 w-full">
           <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 md:mb-4">
@@ -560,24 +593,34 @@ export default function ProviderDashboard() {
                         {p.available ? "Available" : "Unavailable"}
                       </span>
                     </div>
-                    <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row gap-2 text-xs sm:text-sm relative z-10">
+                    <div className="mt-3 sm:mt-4 flex flex-col gap-2 text-xs sm:text-sm relative z-10">
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Link
+                          to={`/accommodations/${p.id}`}
+                          className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer"
+                        >
+                          View
+                        </Link>
+                        <Link
+                          to={`/dashboard/provider/properties/${p.id}/edit`}
+                          className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer block"
+                        >
+                          Edit
+                        </Link>
+                        {p.approvalStatus === "APPROVED" && p.available && (
+                          <Link
+                            to={`/book/property/${p.id}`}
+                            className="flex-1 text-center bg-[#01502E] hover:bg-[#003d21] text-white rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer"
+                          >
+                            Book
+                          </Link>
+                        )}
+                      </div>
                       <Link
-                        to={`/accommodations/${p.id}`}
-                        className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer"
+                        to={`/dashboard/provider/properties/${p.id}/rooms`}
+                        className="w-full text-center border-2 border-[#01502E] dark:border-[#4ade80] text-[#01502E] dark:text-[#4ade80] hover:bg-[#01502E] hover:text-white dark:hover:bg-[#4ade80] dark:hover:text-gray-900 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer font-medium"
                       >
-                        View
-                      </Link>
-                      <Link
-                        to={`/dashboard/provider/properties/${p.id}/edit`}
-                        className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer block"
-                      >
-                        Edit
-                      </Link>
-                      <Link
-                        to={`/book/property/${p.id}`}
-                        className="flex-1 text-center bg-[#01502E] hover:bg-[#003d21] text-white rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer"
-                      >
-                        Book
+                        Manage Rooms
                       </Link>
                     </div>
                   </div>
@@ -851,7 +894,7 @@ export default function ProviderDashboard() {
                   💡 Next Step: Add Rooms
                 </p>
                 <p className="text-xs text-blue-700 dark:text-blue-300">
-                  After creating the property, you'll be redirected to add room types with pricing, capacity, and amenities.
+                  After creating the property, use the "Manage Rooms" button on the property card to add room types with diverse pricing, capacity, and amenities.
                 </p>
               </div>
             </div>
@@ -866,6 +909,7 @@ export default function ProviderDashboard() {
           </form>
         </div>
       </div>
+      
       {/* Contact Support Floating Button */}
       <SupportButton userId={user.id} userRole={user.role} />
     </div>
