@@ -451,6 +451,14 @@ function ProviderSidebar({ user, stats }: any) {
           >
             📅 My Bookings
           </Link>
+          {user.role === "PROPERTY_OWNER" && (
+            <Link
+              to="/dashboard/provider/revenue"
+              className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            >
+              💰 Revenue & Commissions
+            </Link>
+          )}
           <Link
             to="/dashboard/messages"
             className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"

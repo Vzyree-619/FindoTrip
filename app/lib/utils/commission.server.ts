@@ -52,20 +52,31 @@ export async function calculateCommission(
 /**
  * Create commission record
  */
-export async function createCommission(calculation: CommissionCalculation): Promise<void> {
+export async function createCommission(calculation: CommissionCalculation, propertyOwnerId?: string, vehicleOwnerId?: string, tourGuideId?: string): Promise<void> {
+  const commissionData: any = {
+    amount: calculation.commissionAmount,
+    percentage: calculation.commissionRate * 100,
+    currency: calculation.currency,
+    status: "PENDING",
+    bookingId: calculation.bookingId,
+    bookingType: calculation.bookingType,
+    serviceId: calculation.serviceId,
+    serviceType: calculation.bookingType,
+    userId: calculation.providerId,
+    calculatedAt: new Date(),
+  };
+  
+  // Link to specific provider model
+  if (calculation.bookingType === "property" && propertyOwnerId) {
+    commissionData.propertyOwnerId = propertyOwnerId;
+  } else if (calculation.bookingType === "vehicle" && vehicleOwnerId) {
+    commissionData.vehicleOwnerId = vehicleOwnerId;
+  } else if (calculation.bookingType === "tour" && tourGuideId) {
+    commissionData.tourGuideId = tourGuideId;
+  }
+  
   await prisma.commission.create({
-    data: {
-      amount: calculation.commissionAmount,
-      percentage: calculation.commissionRate * 100,
-      currency: calculation.currency,
-      status: "PENDING",
-      bookingId: calculation.bookingId,
-      bookingType: calculation.bookingType,
-      serviceId: calculation.serviceId,
-      serviceType: calculation.bookingType,
-      userId: calculation.providerId,
-      calculatedAt: new Date(),
-    },
+    data: commissionData,
   });
 }
 

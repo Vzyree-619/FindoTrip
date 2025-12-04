@@ -386,10 +386,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
           booking.id,
           "property",
           propertyId,
-          providerUserId || userId,
+          booking.property.ownerId, // providerId
           booking.totalPrice
         );
-        await createCommission(calc);
+        await createCommission(calc, booking.property.ownerId); // Pass propertyOwnerId
       } catch (e) {
         console.error("Failed to create commission for property booking", e);
       }
