@@ -74,9 +74,34 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   });
   if (!property) throw redirect("/dashboard/provider");
 
-  // Verify ownership
-  const owner = await prisma.propertyOwner.findUnique({ where: { userId }, select: { id: true } });
-  if (!owner || property.ownerId !== owner.id) throw redirect("/dashboard/provider");
+  // Verify ownership - auto-create PropertyOwner if missing
+  let owner = await prisma.propertyOwner.findUnique({ where: { userId }, select: { id: true } });
+  
+  if (!owner) {
+    // Auto-create PropertyOwner if it doesn't exist (user has PROPERTY_OWNER role)
+    const userData = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true, phone: true },
+    });
+    
+    owner = await prisma.propertyOwner.create({
+      data: {
+        userId,
+        businessName: userData?.name || "My Business",
+        businessType: "individual",
+        businessPhone: userData?.phone || "",
+        businessEmail: userData?.email || "",
+        businessAddress: "",
+        businessCity: "",
+        businessState: "",
+        businessCountry: "",
+        businessPostalCode: "",
+        verified: false,
+      },
+    });
+  }
+  
+  if (property.ownerId !== owner.id) throw redirect("/dashboard/provider");
 
   return json({ user, property });
 }
@@ -89,8 +114,33 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (!user || user.role !== "PROPERTY_OWNER") return json({ error: "Not authorized" }, { status: 403 });
 
   const property = await prisma.property.findUnique({ where: { id }, select: { ownerId: true, images: true } });
-  const owner = await prisma.propertyOwner.findUnique({ where: { userId }, select: { id: true } });
-  if (!property || !owner || property.ownerId !== owner.id) return json({ error: "Invalid property" }, { status: 403 });
+  let owner = await prisma.propertyOwner.findUnique({ where: { userId }, select: { id: true } });
+  
+  // Auto-create PropertyOwner if it doesn't exist
+  if (!owner) {
+    const userData = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true, phone: true },
+    });
+    
+    owner = await prisma.propertyOwner.create({
+      data: {
+        userId,
+        businessName: userData?.name || "My Business",
+        businessType: "individual",
+        businessPhone: userData?.phone || "",
+        businessEmail: userData?.email || "",
+        businessAddress: "",
+        businessCity: "",
+        businessState: "",
+        businessCountry: "",
+        businessPostalCode: "",
+        verified: false,
+      },
+    });
+  }
+  
+  if (!property || property.ownerId !== owner.id) return json({ error: "Invalid property" }, { status: 403 });
 
   const form = await request.formData();
   const intent = form.get("intent") || "update";
@@ -258,7 +308,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (finalImages.length) data.images = Array.from(new Set(finalImages));
 
   await prisma.property.update({ where: { id }, data });
-  return redirect(`/dashboard/provider`);
+  return redirect(`/dashboard/provider?updated=1`);
 }
 
 export default function EditProperty() {
@@ -282,7 +332,17 @@ export default function EditProperty() {
               </ul>
             </div>
           )}
-          <Form method="post" encType="multipart/form-data" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {actionData?.error && (
+            <div className="mb-4 p-3 rounded bg-red-50 text-red-700">
+              <div className="font-semibold">{actionData.error}</div>
+            </div>
+          )}
+          <form
+            method="post"
+            action="."
+            encType="multipart/form-data"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
             <input type="hidden" name="intent" value="update" />
             <div>
               <Label htmlFor="name">Name</Label>
@@ -490,7 +550,7 @@ export default function EditProperty() {
                 Save Changes
               </Button>
             </div>
-          </Form>
+          </form>
           {Array.isArray(property.images) && property.images.length > 0 && (
             <div className="mt-6">
               <h3 className="font-semibold mb-2">Current Images</h3>

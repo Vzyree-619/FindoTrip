@@ -10,6 +10,7 @@ import {
   useActionData,
   useLoaderData,
   useSearchParams,
+  useSubmit,
 } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
@@ -96,12 +97,34 @@ export async function action({ request }: ActionFunctionArgs) {
   if (!user || user.role !== "PROPERTY_OWNER")
     return json({ error: "Not authorized" }, { status: 403 });
 
-  const owner = await prisma.propertyOwner.findUnique({
+  let owner = await prisma.propertyOwner.findUnique({
     where: { userId },
     select: { id: true },
   });
-  if (!owner)
-    return json({ error: "Owner profile not found" }, { status: 400 });
+  
+  // Auto-create PropertyOwner if it doesn't exist (user has PROPERTY_OWNER role)
+  if (!owner) {
+    const userData = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true, phone: true },
+    });
+    
+    owner = await prisma.propertyOwner.create({
+      data: {
+        userId,
+        businessName: userData?.name || "My Business",
+        businessType: "individual",
+        businessPhone: userData?.phone || "",
+        businessEmail: userData?.email || "",
+        businessAddress: "",
+        businessCity: "",
+        businessState: "",
+        businessCountry: "",
+        businessPostalCode: "",
+        verified: false,
+      },
+    });
+  }
 
   const form = await request.formData();
   const intent = form.get("intent");
@@ -301,6 +324,7 @@ export default function ProviderDashboard() {
   const [searchParams] = useSearchParams();
   const submitted = searchParams.get("submitted") === "1";
   const actionData = useActionData<typeof action>();
+  const submit = useSubmit();
 
   // Show error if user doesn't have access
   if (error) {
@@ -360,7 +384,7 @@ export default function ProviderDashboard() {
                 )}
                 <Form
                   method="post"
-                  action="/dashboard/provider"
+                  action="."
                   encType="multipart/form-data"
                   className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-2 flex-1 min-w-0"
                 >
@@ -536,22 +560,22 @@ export default function ProviderDashboard() {
                         {p.available ? "Available" : "Unavailable"}
                       </span>
                     </div>
-                    <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row gap-2 text-xs sm:text-sm">
+                    <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row gap-2 text-xs sm:text-sm relative z-10">
                       <Link
                         to={`/accommodations/${p.id}`}
-                        className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 sm:px-3 py-1.5 sm:py-2"
+                        className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer"
                       >
                         View
                       </Link>
                       <Link
                         to={`/dashboard/provider/properties/${p.id}/edit`}
-                        className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 sm:px-3 py-1.5 sm:py-2"
+                        className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer block"
                       >
                         Edit
                       </Link>
                       <Link
                         to={`/book/property/${p.id}`}
-                        className="flex-1 text-center bg-[#01502E] hover:bg-[#003d21] text-white rounded px-2 sm:px-3 py-1.5 sm:py-2"
+                        className="flex-1 text-center bg-[#01502E] hover:bg-[#003d21] text-white rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer"
                       >
                         Book
                       </Link>
@@ -582,9 +606,10 @@ export default function ProviderDashboard() {
               Manage Room Types
             </Link>
           </div>
-          <Form
+          <form
             method="post"
             action="/dashboard/provider"
+            data-remix-prevent
             className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4 w-full max-w-full"
           >
             <input type="hidden" name="intent" value="create" />
@@ -838,7 +863,7 @@ export default function ProviderDashboard() {
                 <Plus className="w-3 h-3 sm:w-4 sm:h-4" /> Create Property
               </button>
             </div>
-          </Form>
+          </form>
         </div>
       </div>
       {/* Contact Support Floating Button */}
