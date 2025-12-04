@@ -248,7 +248,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <Link
-                  to="/dashboard/guide/bookings"
+                  to={user.role === "TOUR_GUIDE" ? "/dashboard/guide/bookings" : user.role === "PROPERTY_OWNER" ? "/dashboard/provider" : user.role === "VEHICLE_OWNER" ? "/dashboard/vehicle-owner" : "/dashboard/bookings"}
                   className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
@@ -262,14 +262,14 @@ export default function Dashboard() {
                   💬 Messages
                 </Link>
                 <Link
-                  to="/dashboard/guide/reviews"
+                  to={user.role === "TOUR_GUIDE" ? "/dashboard/guide/reviews" : user.role === "PROPERTY_OWNER" ? "/dashboard/provider/reviews" : user.role === "VEHICLE_OWNER" ? "/dashboard/vehicle-owner" : "/dashboard/reviews"}
                   className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   ⭐ Reviews
                 </Link>
                 <Link
-                  to="/dashboard/guide/profile"
+                  to={user.role === "TOUR_GUIDE" ? "/dashboard/guide/profile" : user.role === "PROPERTY_OWNER" ? "/dashboard/provider" : user.role === "VEHICLE_OWNER" ? "/dashboard/vehicle-owner" : "/dashboard/profile"}
                   className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
@@ -373,6 +373,28 @@ export default function Dashboard() {
 }
 
 function ProviderSidebar({ user, stats }: any) {
+  // Determine routes based on user role
+  const getBookingsRoute = () => {
+    if (user.role === "TOUR_GUIDE") return "/dashboard/guide/bookings";
+    if (user.role === "PROPERTY_OWNER") return "/dashboard/provider";
+    if (user.role === "VEHICLE_OWNER") return "/dashboard/vehicle-owner";
+    return "/dashboard/bookings";
+  };
+
+  const getReviewsRoute = () => {
+    if (user.role === "TOUR_GUIDE") return "/dashboard/guide/reviews";
+    if (user.role === "PROPERTY_OWNER") return "/dashboard/provider/reviews";
+    if (user.role === "VEHICLE_OWNER") return "/dashboard/vehicle-owner";
+    return "/dashboard/reviews";
+  };
+
+  const getProfileRoute = () => {
+    if (user.role === "TOUR_GUIDE") return "/dashboard/guide/profile";
+    if (user.role === "PROPERTY_OWNER") return "/dashboard/provider";
+    if (user.role === "VEHICLE_OWNER") return "/dashboard/vehicle-owner";
+    return "/dashboard/profile";
+  };
+
   return (
     <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto flex flex-col">
       <div className="p-6">
@@ -424,7 +446,7 @@ function ProviderSidebar({ user, stats }: any) {
 
         <div className="px-6 py-3 space-y-2">
           <Link
-            to="/dashboard/guide/bookings"
+            to={getBookingsRoute()}
             className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
           >
             📅 My Bookings
@@ -436,13 +458,13 @@ function ProviderSidebar({ user, stats }: any) {
             💬 Messages
           </Link>
           <Link
-            to="/dashboard/guide/reviews"
+            to={getReviewsRoute()}
             className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
           >
             ⭐ Reviews
           </Link>
           <Link
-            to="/dashboard/guide/profile"
+            to={getProfileRoute()}
             className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
           >
             ⚙️ Profile

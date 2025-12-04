@@ -191,62 +191,15 @@ export async function action({ request }: ActionFunctionArgs) {
       ? parseFloat(form.get("longitude") as string)
       : undefined;
 
-    const basePrice = parseFloat((form.get("basePrice") as string) || "0");
-    const cleaningFee = (form.get("cleaningFee") as string)
-      ? parseFloat(form.get("cleaningFee") as string)
-      : 0;
-    const serviceFee = (form.get("service") as string)
-      ? parseFloat(form.get("service") as string)
-      : 0;
-    const taxRate = (form.get("taxRate") as string)
-      ? parseFloat(form.get("taxRate") as string)
-      : 0;
-    const currency = (form.get("currency") as string) || "PKR";
-    const weekendPricing = (form.get("weekendPricing") as string)
-      ? parseFloat(form.get("weekendPricing") as string)
-      : undefined;
-    const monthlyDiscount = (form.get("monthlyDiscount") as string)
-      ? parseFloat(form.get("monthlyDiscount") as string)
-      : 0;
-    const weeklyDiscount = (form.get("weeklyDiscount") as string)
-      ? parseFloat(form.get("weeklyDiscount") as string)
-      : 0;
-
-    const maxGuests = parseInt((form.get("maxGuests") as string) || "1", 10);
-    const bedrooms = parseInt((form.get("bedrooms") as string) || "1", 10);
-    const bathrooms = parseInt((form.get("bathrooms") as string) || "1", 10);
-    const beds = (form.get("beds") as string)
-      ? parseInt(form.get("beds") as string, 10)
-      : undefined;
-    const minStay = (form.get("minStay") as string)
-      ? parseInt(form.get("minStay") as string, 10)
-      : 1;
-    const maxStay = (form.get("maxStay") as string)
-      ? parseInt(form.get("maxStay") as string, 10)
-      : 365;
-    const advanceNotice = (form.get("advanceNotice") as string)
-      ? parseInt(form.get("advanceNotice") as string, 10)
-      : 0;
-    const checkInTime = (form.get("checkInTime") as string) || "15:00";
-    const checkOutTime = (form.get("checkOutTime") as string) || "11:00";
-    const available = form.get("available") === "on";
-    const instantBook = form.get("instantBook") === "on";
-    const selfCheckIn = form.get("selfCheckIn") === "on";
-
     const imageUrl = (form.get("imageUrl") as string) || "";
     const mainImage = (form.get("mainImage") as string) || imageUrl || undefined;
     const starRating = (form.get("starRating") as string)
       ? parseInt(form.get("starRating") as string, 10)
       : undefined;
-    const amenitiesRaw = (form.get("amenities") as string) || "";
     const propertyFacilitiesRaw = (form.get("propertyFacilities") as string) || "";
     const safetyRaw = (form.get("safetyFeatures") as string) || "";
     const accessibilityRaw = (form.get("accessibility") as string) || "";
     const houseRulesRaw = (form.get("houseRules") as string) || "";
-    const amenities = amenitiesRaw
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
     const propertyFacilities = propertyFacilitiesRaw
       .split(",")
       .map((s) => s.trim())
@@ -264,9 +217,9 @@ export async function action({ request }: ActionFunctionArgs) {
       .map((s) => s.trim())
       .filter(Boolean);
 
-    if (!name || !city || !country || isNaN(basePrice)) {
+    if (!name || !city || !country) {
       return json(
-        { error: "Name, city, country and base price are required" },
+        { error: "Name, city, and country are required" },
         { status: 400 }
       );
     }
@@ -284,37 +237,28 @@ export async function action({ request }: ActionFunctionArgs) {
           postalCode,
           latitude: isNaN(latitude as any) ? undefined : latitude,
           longitude: isNaN(longitude as any) ? undefined : longitude,
-          maxGuests,
-          bedrooms,
-          bathrooms,
-          beds,
-          basePrice,
-          cleaningFee,
-          serviceFee,
-          taxRate,
-          currency,
-          weekendPricing,
-          monthlyDiscount,
-          weeklyDiscount,
+          // Required fields with defaults (will be overridden by room data)
+          maxGuests: 1,
+          bedrooms: 0,
+          bathrooms: 0,
+          basePrice: 0,
+          cleaningFee: 0,
+          serviceFee: 0,
+          taxRate: 0,
+          currency: "PKR",
+          // Media
           images: imageUrl ? [imageUrl] : [],
-          mainImage: mainImage || (imageUrl ? imageUrl : undefined),
           videos: [],
           virtualTour: null,
           floorPlan: null,
-          amenities,
+          // Property-level features
+          amenities: [], // Room amenities are added at room level
           propertyFacilities,
           safetyFeatures,
           accessibility,
           houseRules,
           starRating: starRating && starRating >= 1 && starRating <= 5 ? starRating : undefined,
-          available,
-          instantBook,
-          selfCheckIn,
-          minStay,
-          maxStay,
-          advanceNotice,
-          checkInTime,
-          checkOutTime,
+          // Status
           ownerId: owner.id,
           approvalStatus: "PENDING",
           rating: 0,
@@ -322,7 +266,7 @@ export async function action({ request }: ActionFunctionArgs) {
           totalBookings: 0,
           viewCount: 0,
           favoriteCount: 0,
-        },
+        } as any, // Type assertion to bypass Prisma client type issues
       });
       // Notify admins about pending property approval
       const admins = await prisma.user.findMany({
@@ -341,8 +285,8 @@ export async function action({ request }: ActionFunctionArgs) {
           })),
         });
       }
-      // Redirect to revalidate dashboard lists and banners
-      return redirect("/dashboard/provider?submitted=1");
+      // Redirect to room management page for the new property
+      return redirect(`/dashboard/provider/properties/${created.id}/rooms?created=1`);
     } catch (e) {
       console.error(e);
       return json({ error: "Failed to create property" }, { status: 500 });
@@ -416,6 +360,7 @@ export default function ProviderDashboard() {
                 )}
                 <Form
                   method="post"
+                  action="/dashboard/provider"
                   encType="multipart/form-data"
                   className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-2 flex-1 min-w-0"
                 >
@@ -639,6 +584,7 @@ export default function ProviderDashboard() {
           </div>
           <Form
             method="post"
+            action="/dashboard/provider"
             className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4 w-full max-w-full"
           >
             <input type="hidden" name="intent" value="create" />
@@ -748,137 +694,28 @@ export default function ProviderDashboard() {
               />
             </div>
             <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="basePrice" className="text-xs md:text-sm">
-                Base Price (PKR)
+              <Label htmlFor="latitude" className="text-xs md:text-sm">
+                Latitude (optional)
               </Label>
               <Input
-                id="basePrice"
-                name="basePrice"
+                id="latitude"
+                name="latitude"
                 type="number"
-                step="1"
-                min="0"
-                required
-                placeholder="4000"
+                step="0.000001"
+                placeholder="35.123456"
                 className="mt-1 w-full max-w-full"
               />
             </div>
             <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="cleaningFee" className="text-xs md:text-sm">
-                Cleaning Fee
+              <Label htmlFor="longitude" className="text-xs md:text-sm">
+                Longitude (optional)
               </Label>
               <Input
-                id="cleaningFee"
-                name="cleaningFee"
+                id="longitude"
+                name="longitude"
                 type="number"
-                step="1"
-                min="0"
-                placeholder="0"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="service" className="text-xs md:text-sm">
-                Service Fee
-              </Label>
-              <Input
-                id="service"
-                name="service"
-                type="number"
-                step="1"
-                min="0"
-                placeholder="0"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="taxRate" className="text-xs md:text-sm">
-                Tax Rate
-              </Label>
-              <Input
-                id="taxRate"
-                name="taxRate"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.02"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="currency" className="text-xs md:text-sm">
-                Currency
-              </Label>
-              <Input
-                id="currency"
-                name="currency"
-                placeholder="PKR"
-                defaultValue="PKR"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="maxGuests" className="text-xs md:text-sm">
-                Max Guests
-              </Label>
-              <Input
-                id="maxGuests"
-                name="maxGuests"
-                type="number"
-                min="1"
-                required
-                placeholder="4"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="bedrooms" className="text-xs md:text-sm">
-                Bedrooms
-              </Label>
-              <Input
-                id="bedrooms"
-                name="bedrooms"
-                type="number"
-                min="1"
-                required
-                placeholder="2"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="bathrooms" className="text-xs md:text-sm">
-                Bathrooms
-              </Label>
-              <Input
-                id="bathrooms"
-                name="bathrooms"
-                type="number"
-                min="1"
-                required
-                placeholder="1"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="beds" className="text-xs md:text-sm">
-                Beds (optional)
-              </Label>
-              <Input
-                id="beds"
-                name="beds"
-                type="number"
-                min="0"
-                placeholder="2"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="md:col-span-2 w-full min-w-0 col-span-1 md:col-span-2">
-              <Label htmlFor="amenities" className="text-xs md:text-sm">
-                Amenities (comma separated)
-              </Label>
-              <Input
-                id="amenities"
-                name="amenities"
-                placeholder="WiFi, Parking, Breakfast"
+                step="0.000001"
+                placeholder="75.123456"
                 className="mt-1 w-full max-w-full"
               />
             </div>
@@ -916,85 +753,6 @@ export default function ProviderDashboard() {
                   className="mt-1 w-full max-w-full"
                 />
               </div>
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="weekendPricing" className="text-xs md:text-sm">
-                Weekend Pricing Multiplier
-              </Label>
-              <Input
-                id="weekendPricing"
-                name="weekendPricing"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="1.15"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="weeklyDiscount" className="text-xs md:text-sm">
-                Weekly Discount (%)
-              </Label>
-              <Input
-                id="weeklyDiscount"
-                name="weeklyDiscount"
-                type="number"
-                step="0.1"
-                min="0"
-                placeholder="3"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="monthlyDiscount" className="text-xs md:text-sm">
-                Monthly Discount (%)
-              </Label>
-              <Input
-                id="monthlyDiscount"
-                name="monthlyDiscount"
-                type="number"
-                step="0.1"
-                min="0"
-                placeholder="5"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="checkInTime" className="text-xs md:text-sm">
-                Check-in Time
-              </Label>
-              <Input
-                id="checkInTime"
-                name="checkInTime"
-                placeholder="15:00"
-                defaultValue="15:00"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="checkOutTime" className="text-xs md:text-sm">
-                Check-out Time
-              </Label>
-              <Input
-                id="checkOutTime"
-                name="checkOutTime"
-                placeholder="11:00"
-                defaultValue="11:00"
-                className="mt-1 w-full max-w-full"
-              />
-            </div>
-            <div className="w-full min-w-0 col-span-1">
-              <Label htmlFor="advanceNotice" className="text-xs md:text-sm">
-                Advance Notice (hours)
-              </Label>
-              <Input
-                id="advanceNotice"
-                name="advanceNotice"
-                type="number"
-                min="0"
-                placeholder="0"
-                className="mt-1 w-full max-w-full"
-              />
             </div>
             <div className="w-full min-w-0 col-span-1">
               <Label htmlFor="starRating" className="text-xs md:text-sm">
@@ -1062,31 +820,15 @@ export default function ProviderDashboard() {
                 className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
               />
             </div>
-            <div className="md:col-span-2 w-full min-w-0 col-span-1 md:col-span-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-              <label className="inline-flex items-center gap-2 text-xs md:text-sm text-gray-900 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  name="available"
-                  className="h-4 w-4 rounded border-gray-300 dark:border-gray-600"
-                />{" "}
-                Available
-              </label>
-              <label className="inline-flex items-center gap-2 text-xs md:text-sm text-gray-900 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  name="instantBook"
-                  className="h-4 w-4 rounded border-gray-300 dark:border-gray-600"
-                />{" "}
-                Instant Book
-              </label>
-              <label className="inline-flex items-center gap-2 text-xs md:text-sm text-gray-900 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  name="selfCheckIn"
-                  className="h-4 w-4 rounded border-gray-300 dark:border-gray-600"
-                />{" "}
-                Self Check-in
-              </label>
+            <div className="md:col-span-2 w-full min-w-0 col-span-1 md:col-span-2">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4">
+                <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-200 font-medium mb-1">
+                  💡 Next Step: Add Rooms
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  After creating the property, you'll be redirected to add room types with pricing, capacity, and amenities.
+                </p>
+              </div>
             </div>
             <div className="md:col-span-2 w-full min-w-0 col-span-1 md:col-span-2">
               <button
