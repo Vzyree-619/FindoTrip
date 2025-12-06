@@ -3,6 +3,7 @@ import { Form, useLoaderData, useParams, Link } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { Calendar } from "~/components/ui/calendar";
+import React, { useState } from "react";
 
 function normalizeDate(d: Date) {
   const x = new Date(d);
@@ -90,7 +91,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 export default function RoomInventory() {
   const { roomType, inventories, capacity } = useLoaderData<typeof loader>();
   const params = useParams();
-  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(undefined);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   // Build a map for quick lookup
   const invMap = new Map<string, any>();
   inventories.forEach((i: any) => {

@@ -78,7 +78,7 @@ export default function Stays({ stays = [] }) {
               >
                 <div className="relative h-64 overflow-hidden">
                   <img 
-                    src={stay.image || "/placeholder-hotel.jpg"} 
+                    src={stay.image || "/landingPageImg.jpg"} 
                     alt={stay.name} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   />

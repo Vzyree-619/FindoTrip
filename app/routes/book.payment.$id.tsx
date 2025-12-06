@@ -532,8 +532,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
         }
       }
 
+      let createdPayment;
       if (paymentMethod === 'pay_at_pickup') {
-        await prisma.payment.create({
+        createdPayment = await prisma.payment.create({
           data: {
             amount: booking.totalPrice,
             currency: booking.currency,
@@ -562,7 +563,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
           });
         }
       } else if (paymentMethod === 'bank_transfer') {
-        await prisma.payment.create({
+        createdPayment = await prisma.payment.create({
           data: {
             amount: booking.totalPrice,
             currency: booking.currency,
@@ -591,7 +592,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
           });
         }
       } else if (existingPayment) {
-        await prisma.payment.update({
+        createdPayment = await prisma.payment.update({
           where: { id: existingPayment.id },
           data: {
             method: methodMapped,
@@ -603,7 +604,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
           },
         });
       } else {
-        await prisma.payment.create({
+        createdPayment = await prisma.payment.create({
           data: {
             amount: booking.totalPrice,
             currency: booking.currency,
@@ -619,6 +620,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
           },
         });
       }
+      
+      // Fetch the payment record to use in commission creation
+      const paymentRecord = createdPayment || existingPayment || await prisma.payment.findFirst({
+        where: { bookingId, bookingType }
+      });
 
       // Update booking status
       if (paymentMethod === 'pay_at_pickup' || paymentMethod === 'bank_transfer') {
@@ -745,19 +751,48 @@ export async function action({ request, params }: ActionFunctionArgs) {
         if (!existingCommission) {
           const commissionRate = 0.1;
           const commissionAmount = booking.totalPrice * commissionRate;
+          
+          // Determine commission status based on payment method
+          // For pay-at-property (CASH), commission stays PENDING until owner pays
+          // For online payments, commission can be marked as PENDING (to be paid later) or PAID (if auto-deducted)
+          const paymentMethodValue = paymentRecord?.method;
+          const commissionStatus = paymentMethodValue === "CASH" || paymentMethodValue === "BANK_TRANSFER" ? "PENDING" : "PENDING"; // Always PENDING for manual payment
+          
+          // Get provider user ID for commission
+          let providerUserId = providerUserIdX;
+          if (!providerUserId && bookingType === "property" && "property" in booking) {
+            providerUserId = booking.property.owner?.user?.id;
+          } else if (!providerUserId && bookingType === "vehicle" && "vehicle" in booking) {
+            providerUserId = booking.vehicle.owner?.user?.id;
+          } else if (!providerUserId && bookingType === "tour" && "tour" in booking) {
+            providerUserId = booking.tour.guide?.user?.id;
+          }
+          
+          // Create commission with proper provider relationship
+          const commissionData: any = {
+            amount: commissionAmount,
+            percentage: commissionRate * 100,
+            currency: booking.currency,
+            status: commissionStatus,
+            bookingId,
+            bookingType,
+            serviceId,
+            serviceType: bookingType,
+            userId: providerUserId || providerId,
+            calculatedAt: new Date(),
+          };
+          
+          // Link to specific provider model
+          if (bookingType === "property") {
+            commissionData.propertyOwnerId = providerId;
+          } else if (bookingType === "vehicle") {
+            commissionData.vehicleOwnerId = providerId;
+          } else if (bookingType === "tour") {
+            commissionData.tourGuideId = providerId;
+          }
+          
           await prisma.commission.create({
-            data: {
-              amount: commissionAmount,
-              percentage: commissionRate * 100,
-              currency: booking.currency,
-              status: "PENDING",
-              bookingId,
-              bookingType,
-              serviceId,
-              serviceType: bookingType,
-              userId: providerUserIdX || providerId,
-              calculatedAt: new Date(),
-            },
+            data: commissionData,
           });
         }
 

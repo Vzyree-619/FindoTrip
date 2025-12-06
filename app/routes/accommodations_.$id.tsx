@@ -3,9 +3,13 @@ import { useLoaderData, Link, useRevalidator, useNavigate } from "@remix-run/rea
 import { ChatInterface } from "~/components/chat";
 import ShareModal from "~/components/common/ShareModal";
 import FloatingShareButton from "~/components/common/FloatingShareButton";
+import PropertyDetailTabs from "~/components/property/PropertyDetailTabs";
+import PropertySearchWidget from "~/components/property/PropertySearchWidget";
 import { useState } from "react";
 import { prisma } from "~/lib/db/db.server";
 import { getUser, getUserId } from "~/lib/auth/auth.server";
+import { calculateStayPrice } from "~/lib/pricing.server";
+import { checkRoomAvailability } from "~/lib/availability.server";
 import {
   MapPin,
   Users,
@@ -30,6 +34,13 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
 
   const user = await getUser(request);
+  const url = new URL(request.url);
+
+  // Get search parameters
+  const checkIn = url.searchParams.get('checkIn');
+  const checkOut = url.searchParams.get('checkOut');
+  const adults = parseInt(url.searchParams.get('adults') || '2');
+  const children = parseInt(url.searchParams.get('children') || '0');
 
   const property = await prisma.property.findUnique({
     where: { id },
@@ -72,8 +83,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     1: reviews.filter((r) => r.rating === 1).length,
   };
 
-  // Fetch similar properties
-  const similarProperties = await prisma.property.findMany({
+  // Fetch similar properties with room types for starting price
+  const similarPropertiesRaw = await prisma.property.findMany({
     where: {
       id: { not: id },
       city: property.city,
@@ -81,22 +92,129 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       available: true,
       approvalStatus: "APPROVED",
     },
+    include: {
+      roomTypes: {
+        where: { available: true },
+        select: { basePrice: true },
+        orderBy: { basePrice: 'asc' },
+        take: 1
+      }
+    },
     take: 4,
     orderBy: { rating: "desc" },
   });
 
-  // Fetch room types separately (avoid relation include issues if client isn't regenerated)
-  // Room types fetched separately; guard for environments where Prisma client isn't regenerated yet
+  // Calculate starting price for similar properties
+  const similarProperties = similarPropertiesRaw.map(p => {
+    const lowestRoom = p.roomTypes[0];
+    const startingPrice = lowestRoom ? lowestRoom.basePrice : p.basePrice;
+    return {
+      ...p,
+      startingPrice,
+      images: p.images || [],
+      basePrice: p.basePrice || 0,
+      currency: (p as any).currency || 'PKR'
+    };
+  });
+
+  // Fetch room types with full details
   let roomTypes: any[] = [];
   try {
-    const anyPrisma: any = prisma as any;
-    if (anyPrisma.roomType?.findMany) {
-      roomTypes = await anyPrisma.roomType.findMany({ where: { propertyId: id } });
+    roomTypes = await prisma.roomType.findMany({ 
+      where: { 
+        propertyId: id,
+        available: true
+      },
+      orderBy: {
+        basePrice: 'asc'
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching room types:", error);
+  }
+
+  // If dates provided, check availability for each room
+  let roomsWithAvailability = roomTypes;
+  let numberOfNights = 0;
+  
+  if (checkIn && checkOut) {
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    
+    // Validate dates
+    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime()) || checkOutDate <= checkInDate) {
+      // Invalid dates, return rooms without availability
+    } else {
+      numberOfNights = Math.ceil(
+        (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // For each room, check availability and calculate dynamic pricing
+      roomsWithAvailability = await Promise.all(
+        roomTypes.map(async (room) => {
+          try {
+            // Check availability using the availability checker
+            const availability = await checkRoomAvailability(
+              room.id,
+              checkInDate,
+              checkOutDate,
+              1 // Check for 1 room
+            );
+
+            // Calculate dynamic pricing for the stay
+            let dynamicPricing = null;
+            let totalPrice = room.basePrice * numberOfNights;
+            let avgPricePerNight = room.basePrice;
+
+            if (availability.isAvailable) {
+              try {
+                dynamicPricing = await calculateStayPrice(
+                  room.id,
+                  checkInDate,
+                  checkOutDate,
+                  new Date() // Booking date (now)
+                );
+                totalPrice = dynamicPricing.total;
+                avgPricePerNight = dynamicPricing.averagePricePerNight;
+              } catch (error) {
+                console.error(`Error calculating pricing for room ${room.id}:`, error);
+                // Fallback to base price calculation
+                dynamicPricing = null;
+              }
+            }
+
+            return {
+              ...room,
+              availableUnits: availability.availableUnits || 0,
+              isAvailable: availability.isAvailable,
+              dynamicPricing,
+              totalPrice,
+              avgPricePerNight,
+              availabilityDetails: availability.availabilityDetails,
+            };
+          } catch (error) {
+            console.error(`Error checking availability for room ${room.id}:`, error);
+            return {
+              ...room,
+              availableUnits: room.totalUnits || 1,
+              isAvailable: true,
+              dynamicPricing: null,
+              totalPrice: room.basePrice * numberOfNights,
+              avgPricePerNight: room.basePrice,
+            };
+          }
+        })
+      );
     }
-  } catch {}
+  }
 
   // Map property -> accommodation shape used by UI
-  const accommodation = { ...property, roomTypes, pricePerNight: property.basePrice, currency: (property as any).currency || 'PKR' } as any;
+  const accommodation = { 
+    ...property, 
+    roomTypes: roomsWithAvailability, 
+    pricePerNight: property.basePrice, 
+    currency: (property as any).currency || 'PKR' 
+  } as any;
 
   return json({ 
     accommodation, 
@@ -104,7 +222,14 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     isWishlisted, 
     reviews,
     ratingBreakdown,
-    similarProperties 
+    similarProperties,
+    searchParams: checkIn && checkOut ? {
+      checkIn,
+      checkOut,
+      adults,
+      children,
+      numberOfNights
+    } : null
   });
 }
 
@@ -121,10 +246,12 @@ export default function AccommodationDetail() {
   const [chatOpen, setChatOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [roomTypeId, setRoomTypeId] = useState<string | undefined>(undefined);
+  const [numberOfRooms, setNumberOfRooms] = useState(1);
+  const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
 
   const images = accommodation.images.length > 0 
     ? accommodation.images 
-    : ["/placeholder-hotel.jpg"];
+    : ["/landingPageImg.jpg"];
 
   const nextImage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
@@ -182,8 +309,9 @@ export default function AccommodationDetail() {
           </button>
           
           <img
-            src={images[currentImageIndex]}
+            src={imageErrors[currentImageIndex] ? "/landingPageImg.jpg" : images[currentImageIndex]}
             alt={`${accommodation.name} - Image ${currentImageIndex + 1}`}
+            onError={() => setImageErrors(prev => ({ ...prev, [currentImageIndex]: true }))}
             className="max-h-[90vh] max-w-[90vw] object-contain"
           />
           
@@ -283,40 +411,196 @@ export default function AccommodationDetail() {
           </div>
         </div>
 
-        {/* Room Types */}
-        {Array.isArray(accommodation.roomTypes) && accommodation.roomTypes.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Available Room Types</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {accommodation.roomTypes.map((rt: any) => (
-                <div key={rt.id} className={`border rounded-lg overflow-hidden ${roomTypeId === rt.id ? 'ring-2 ring-[#01502E]' : ''}`}>
-                  <div className="h-40 bg-gray-100">
-                    <img src={rt.images?.[0] || accommodation.images?.[0] || '/placeholder-hotel.jpg'} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-lg font-semibold">{rt.name}</div>
-                        <div className="text-sm text-gray-600">Sleeps {rt.maxGuests}{rt.bedType ? ` • ${rt.bedType}` : ''}</div>
+        {/* Property Search Widget - Sticky */}
+        <PropertySearchWidget propertyId={accommodation.id} />
+
+        {/* Main Content with Tabs */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          {/* Tabs Content */}
+          <div className="lg:col-span-2" data-rooms-tab>
+            <PropertyDetailTabs
+              property={{
+                id: accommodation.id,
+                name: accommodation.name,
+                description: accommodation.description,
+                address: accommodation.address,
+                city: accommodation.city,
+                country: accommodation.country,
+                amenities: accommodation.amenities || [],
+                latitude: accommodation.latitude,
+                longitude: accommodation.longitude,
+                cleaningFee: accommodation.cleaningFee || 0,
+                serviceFee: accommodation.serviceFee || 0,
+                taxRate: accommodation.taxRate || 0,
+                currency: accommodation.currency || 'PKR'
+              }}
+              roomTypes={accommodation.roomTypes || []}
+              reviews={reviews}
+              checkIn={checkIn ? new Date(checkIn) : null}
+              checkOut={checkOut ? new Date(checkOut) : null}
+              numberOfNights={nights}
+              numberOfRooms={numberOfRooms}
+              selectedRoomId={roomTypeId || null}
+              onRoomSelect={(roomId) => setRoomTypeId(roomId)}
+              onDateChange={(newCheckIn, newCheckOut) => {
+                setCheckIn(newCheckIn ? newCheckIn.toISOString().split('T')[0] : '');
+                setCheckOut(newCheckOut ? newCheckOut.toISOString().split('T')[0] : '');
+              }}
+              onGuestsChange={(adults, children) => {
+                setGuests(adults + children);
+              }}
+            />
+          </div>
+
+          {/* Quick Booking Card (Sidebar) */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
+              <div className="mb-4">
+                {roomTypeId && accommodation.roomTypes?.find((rt: any) => rt.id === roomTypeId) ? (() => {
+                  const selectedRoom = accommodation.roomTypes.find((rt: any) => rt.id === roomTypeId);
+                  const displayPrice = nights > 0 && selectedRoom?.avgPricePerNight 
+                    ? selectedRoom.avgPricePerNight 
+                    : selectedRoom?.basePrice || 0;
+                  const isDynamicPrice = nights > 0 && selectedRoom?.dynamicPricing;
+                  
+                  return (
+                    <>
+                      <div className="text-xs text-gray-600 mb-1">Selected Room</div>
+                      <div className="text-sm font-semibold text-gray-900 mb-2">
+                        {selectedRoom?.name}
                       </div>
-                      <div className="text-[#01502E] font-semibold">PKR {rt.basePrice.toLocaleString()}/night</div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-[#01502E]">
+                          {accommodation.currency} {displayPrice.toLocaleString()}
+                        </span>
+                        <span className="text-gray-600">/ night</span>
+                      </div>
+                      {isDynamicPrice && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Average price for selected dates
+                        </div>
+                      )}
+                    </>
+                  );
+                })() : (
+                  <>
+                    <div className="text-xs text-gray-600 mb-1">Starting from</div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold text-[#01502E]">
+                        {accommodation.currency} {accommodation.basePrice.toLocaleString()}
+                      </span>
+                      <span className="text-gray-600">/ night</span>
                     </div>
-                    {rt.amenities?.length ? (
-                      <div className="mt-2 text-sm text-gray-700 line-clamp-2">{rt.amenities.slice(0,5).join(', ')}</div>
-                    ) : null}
-                    <div className="mt-3 flex gap-2">
-                      <button onClick={() => setRoomTypeId(rt.id)} className={`flex-1 text-center px-3 py-2 rounded border ${roomTypeId === rt.id ? 'bg-[#01502E] text-white border-[#01502E]' : 'bg-white'}`}>{roomTypeId === rt.id ? 'Selected' : 'Select'}</button>
-                      <button onClick={() => { setRoomTypeId(rt.id); handleBooking(); }} className="flex-1 text-center px-3 py-2 rounded bg-[#01502E] text-white">Book</button>
+                  </>
+                )}
+              </div>
+
+              {nights > 0 && roomTypeId && (() => {
+                const selectedRoom = accommodation.roomTypes?.find((rt: any) => rt.id === roomTypeId);
+                const dynamicPricing = selectedRoom?.dynamicPricing;
+                const displayTotal = dynamicPricing?.total || selectedRoom?.totalPrice || totalPrice;
+                const displayAvg = dynamicPricing?.averagePricePerNight || selectedRoom?.avgPricePerNight || pricePerNight;
+                
+                return (
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="text-sm text-gray-600 mb-3">
+                      {nights} night{nights !== 1 ? 's' : ''}: {checkIn && checkOut ? `${new Date(checkIn).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(checkOut).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
                     </div>
+                    
+                    {dynamicPricing && dynamicPricing.nights ? (
+                      <>
+                        {/* Per-night breakdown */}
+                        <div className="space-y-1 mb-3 text-sm">
+                          {dynamicPricing.nights.slice(0, 3).map((night: any, idx: number) => (
+                            <div key={idx} className="flex justify-between">
+                              <span className="text-gray-600">
+                                Night {idx + 1} ({new Date(night.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}):
+                              </span>
+                              <span className="font-medium">
+                                {accommodation.currency} {night.finalPrice.toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                          {dynamicPricing.nights.length > 3 && (
+                            <div className="text-xs text-gray-500 italic">
+                              ... and {dynamicPricing.nights.length - 3} more night{dynamicPricing.nights.length - 3 !== 1 ? 's' : ''}
+                            </div>
+                          )}
+                        </div>
+                        <div className="border-t pt-2 mb-2"></div>
+                        
+                        {/* Fees breakdown */}
+                        <div className="space-y-1 mb-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Subtotal:</span>
+                            <span>{accommodation.currency} {dynamicPricing.subtotal.toLocaleString()}</span>
+                          </div>
+                          {dynamicPricing.cleaningFee > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Cleaning fee:</span>
+                              <span>{accommodation.currency} {dynamicPricing.cleaningFee.toLocaleString()}</span>
+                            </div>
+                          )}
+                          {dynamicPricing.serviceFee > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Service fee:</span>
+                              <span>{accommodation.currency} {dynamicPricing.serviceFee.toLocaleString()}</span>
+                            </div>
+                          )}
+                          {dynamicPricing.taxAmount > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Taxes:</span>
+                              <span>{accommodation.currency} {dynamicPricing.taxAmount.toLocaleString()}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="border-t pt-2 mb-2"></div>
+                        
+                        {/* Total and average */}
+                        <div className="flex justify-between text-lg font-bold mb-2">
+                          <span>Total:</span>
+                          <span className="text-[#01502E]">
+                            {accommodation.currency} {displayTotal.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600 text-center">
+                          Avg: {accommodation.currency} {displayAvg.toLocaleString()}/night
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                          <span>Total:</span>
+                          <span className="text-[#01502E]">
+                            {accommodation.currency} {displayTotal.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600 text-center mt-2">
+                          Avg: {accommodation.currency} {displayAvg.toLocaleString()}/night
+                        </div>
+                      </>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })()}
+
+              <button
+                onClick={handleBooking}
+                disabled={!checkIn || !checkOut || guests < 1 || !roomTypeId}
+                className="w-full py-3 bg-[#01502E] text-white rounded-lg font-semibold hover:bg-[#013d23] disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+              >
+                {!roomTypeId ? "Select a Room First" : user ? "Reserve Now" : "Sign in to book"}
+              </button>
+
+              <p className="text-center text-sm text-gray-600 mt-3">
+                You won't be charged yet
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Image Gallery */}
-        <div className="grid grid-cols-4 gap-2 mb-8 h-[400px]">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-8 h-[300px] md:h-[400px]">
           <div
             className="col-span-2 row-span-2 cursor-pointer overflow-hidden rounded-l-lg"
             onClick={() => {
@@ -325,8 +609,9 @@ export default function AccommodationDetail() {
             }}
           >
             <img
-              src={images[0]}
+              src={imageErrors[0] ? "/landingPageImg.jpg" : images[0]}
               alt={accommodation.name}
+              onError={() => setImageErrors(prev => ({ ...prev, [0]: true }))}
               className="w-full h-full object-cover hover:scale-105 transition"
             />
           </div>
@@ -342,8 +627,9 @@ export default function AccommodationDetail() {
               }}
             >
               <img
-                src={image}
+                src={imageErrors[idx + 1] ? "/landingPageImg.jpg" : image}
                 alt={`${accommodation.name} - ${idx + 2}`}
+                onError={() => setImageErrors(prev => ({ ...prev, [idx + 1]: true }))}
                 className="w-full h-full object-cover hover:scale-105 transition"
               />
             </div>
@@ -358,273 +644,6 @@ export default function AccommodationDetail() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2">
-            {/* Property Info */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="px-3 py-1 bg-[#01502E] text-white rounded-full text-sm font-semibold">
-                  {accommodation.type}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-4 gap-4 mb-6 pb-6 border-b">
-                <div className="flex items-center gap-2">
-                  <Users size={20} className="text-gray-600" />
-                  <div>
-                    <div className="text-sm text-gray-600">Guests</div>
-                    <div className="font-semibold">{accommodation.maxGuests}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Bed size={20} className="text-gray-600" />
-                  <div>
-                    <div className="text-sm text-gray-600">Bedrooms</div>
-                    <div className="font-semibold">{accommodation.bedrooms}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Bath size={20} className="text-gray-600" />
-                  <div>
-                    <div className="text-sm text-gray-600">Bathrooms</div>
-                    <div className="font-semibold">{accommodation.bathrooms}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h2 className="text-xl font-semibold mb-3">About this property</h2>
-                <p className="text-gray-700 leading-relaxed">
-                  {accommodation.description}
-                </p>
-              </div>
-            </div>
-
-            {/* Amenities */}
-            {accommodation.amenities.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-xl font-semibold mb-4">Amenities</h2>
-                <div className="grid grid-cols-2 gap-3">
-                  {accommodation.amenities.map((amenity: string, idx: number) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Check size={18} className="text-[#01502E]" />
-                      <span className="text-gray-700">{amenity}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Location */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Location</h2>
-              <div className="text-gray-700">
-                <p className="mb-2">{accommodation.address}</p>
-                <p>
-                  {accommodation.city}, {accommodation.country}
-                </p>
-                {accommodation.latitude && accommodation.longitude && (
-                  <div className="mt-4 h-64 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-500">Map placeholder</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Booking Card */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
-              <div className="mb-4">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-[#01502E]">
-                    {accommodation.currency} {accommodation.basePrice.toLocaleString()}
-                  </span>
-                  <span className="text-gray-600">/ night</span>
-                </div>
-              </div>
-
-              <div className="space-y-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Check-in
-                  </label>
-                  <input
-                    type="date"
-                    value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
-                    min={new Date().toISOString().split("T")[0]}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Check-out
-                  </label>
-                  <input
-                    type="date"
-                    value={checkOut}
-                    onChange={(e) => setCheckOut(e.target.value)}
-                    min={checkIn || new Date().toISOString().split("T")[0]}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Guests
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={accommodation.maxGuests}
-                    value={guests}
-                    onChange={(e) => setGuests(parseInt(e.target.value))}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
-
-              {nights > 0 && (
-                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-700">
-                      {accommodation.currency} {accommodation.pricePerNight.toLocaleString()} × {nights} nights
-                    </span>
-                    <span className="font-semibold">{accommodation.currency} {totalPrice.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                    <span>Total</span>
-                    <span className="text-[#01502E]">{accommodation.currency} {totalPrice.toLocaleString()}</span>
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={handleBooking}
-                disabled={!checkIn || !checkOut || guests < 1}
-                className="w-full py-3 bg-[#01502E] text-white rounded-lg font-semibold hover:bg-[#013d23] disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-              >
-                {user ? "Reserve" : "Sign in to book"}
-              </button>
-
-              <p className="text-center text-sm text-gray-600 mt-3">
-                You won't be charged yet
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Reviews Section */}
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-6">Guest Reviews</h2>
-          
-          {reviews.length > 0 ? (
-            <>
-              {/* Rating Summary */}
-              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Overall Rating */}
-                  <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <div className="text-5xl font-bold text-[#01502E]">
-                        {accommodation.rating.toFixed(1)}
-                      </div>
-                      <div className="flex items-center justify-center gap-1 mt-2">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            size={20}
-                            fill={i < Math.round(accommodation.rating) ? "#01502E" : "none"}
-                            className={i < Math.round(accommodation.rating) ? "text-[#01502E]" : "text-gray-300"}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {accommodation.reviewCount} reviews
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Rating Breakdown */}
-                  <div className="space-y-2">
-                    {[5, 4, 3, 2, 1].map((rating) => (
-                      <div key={rating} className="flex items-center gap-2">
-                        <span className="text-sm w-12">{rating} stars</span>
-                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-[#01502E]"
-                            style={{
-                              width: `${reviews.length > 0 ? (ratingBreakdown[rating as keyof typeof ratingBreakdown] / reviews.length) * 100 : 0}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="text-sm text-gray-600 w-8">
-                          {ratingBreakdown[rating as keyof typeof ratingBreakdown]}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Individual Reviews */}
-              <div className="space-y-4">
-                {reviews.map((review) => (
-                  <div key={review.id} className="bg-white rounded-lg shadow-md p-6">
-                    <div className="flex items-start gap-4">
-                      {/* Avatar */}
-                      <div className="flex-shrink-0">
-                        {review.user?.avatar ? (
-                          <img
-                            src={review.user.avatar}
-                            alt={review.user.name || "User"}
-                            className="w-12 h-12 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-[#01502E] flex items-center justify-center text-white font-bold">
-                            {review.user?.name?.[0]?.toUpperCase() || "?"}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Review Content */}
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold">{review.user?.name || "Anonymous"}</h3>
-                          <div className="flex items-center gap-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                size={16}
-                                fill={i < review.rating ? "#01502E" : "none"}
-                                className={i < review.rating ? "text-[#01502E]" : "text-gray-300"}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2">
-                          {new Date(review.createdAt).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
-                        </p>
-                        <p className="text-gray-700">{review.comment}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="bg-white rounded-lg shadow-md p-12 text-center">
-              <p className="text-gray-600">No reviews yet. Be the first to review this property!</p>
-            </div>
-          )}
-        </div>
 
         {/* Similar Properties Section */}
         {similarProperties.length > 0 && (
@@ -640,9 +659,12 @@ export default function AccommodationDetail() {
                   {/* Image */}
                   <div className="relative h-48 overflow-hidden">
                     <img
-                      src={property.images[0] || "/placeholder-hotel.jpg"}
-                      alt={property.name}
+                      src={(property.images && property.images.length > 0) ? property.images[0] : "/landingPageImg.jpg"}
+                      alt={property.name || "Property"}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/landingPageImg.jpg";
+                      }}
                     />
                     <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs font-semibold text-gray-700">
                       {property.type}
@@ -665,7 +687,7 @@ export default function AccommodationDetail() {
           <div className="flex justify-between items-center mt-3">
             <div>
               <span className="text-xl font-bold text-[#01502E]">
-                {accommodation.currency} {property.basePrice.toLocaleString()}
+                {property.currency || accommodation.currency} {(property.startingPrice || property.basePrice || 0).toLocaleString()}
               </span>
               <span className="text-sm text-gray-600"> /night</span>
             </div>
@@ -693,33 +715,122 @@ export default function AccommodationDetail() {
           onClose={() => setChatOpen(false)}
           targetUserId={accommodation.owner.user.id}
           currentUserId={user?.id}
-          initialMessage={`Hi, I'm interested in ${accommodation.name}${checkIn && checkOut ? ` for ${checkIn} to ${checkOut}` : ''}.`}
-          fetchConversation={async ({ targetUserId }) => {
-            const response = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
-            if (!response.ok) throw new Error("Failed to fetch conversation");
-            return response.json();
+          fetchConversation={async ({ targetUserId, conversationId }) => {
+            console.log('🔵 [Accommodation] Fetching conversation:', { targetUserId, conversationId });
+            
+            // Get owner name from accommodation data as fallback
+            const ownerName = accommodation?.owner?.user?.name;
+            const ownerAvatar = accommodation?.owner?.user?.avatar;
+            const ownerId = accommodation?.owner?.user?.id;
+            
+            // If we have conversationId, fetch it directly
+            if (conversationId) {
+              const response = await fetch(`/api/chat/conversations/${conversationId}`);
+              if (!response.ok) throw new Error("Failed to fetch conversation");
+              const json = await response.json();
+              
+              // Ensure owner name is correct in participants
+              const participants = (json.data?.participants || []).map((p: any) => {
+                if (p.id === ownerId && ownerName) {
+                  return { ...p, name: ownerName, avatar: ownerAvatar || p.avatar };
+                }
+                return p;
+              });
+              
+              return {
+                conversation: {
+                  id: json.data?.id,
+                  participants: participants,
+                  updatedAt: json.data?.lastMessageAt,
+                  lastMessage: json.data?.messages?.[json.data.messages.length - 1],
+                  unreadCount: 0
+                },
+                messages: json.data?.messages || []
+              };
+            }
+            
+            // Otherwise create/get conversation by targetUserId
+            if (targetUserId) {
+              const createRes = await fetch(`/api/chat/conversations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetUserId, type: 'CUSTOMER_PROVIDER' })
+              });
+              if (!createRes.ok) throw new Error("Failed to create conversation");
+              const createJson = await createRes.json();
+              const convId = createJson.data?.id;
+              
+              console.log('🟢 [Accommodation] Conversation created:', convId);
+              
+              // Fetch the full conversation details
+              const response = await fetch(`/api/chat/conversations/${convId}`);
+              if (!response.ok) throw new Error("Failed to fetch conversation");
+              const json = await response.json();
+              
+              // Ensure owner name is correct in participants
+              const participants = (json.data?.participants || []).map((p: any) => {
+                if (p.id === ownerId && ownerName) {
+                  return { ...p, name: ownerName, avatar: ownerAvatar || p.avatar };
+                }
+                return p;
+              });
+              
+              return {
+                conversation: {
+                  id: json.data?.id,
+                  participants: participants,
+                  updatedAt: json.data?.lastMessageAt,
+                  lastMessage: json.data?.messages?.[json.data.messages.length - 1],
+                  unreadCount: 0
+                },
+                messages: json.data?.messages || []
+              };
+            }
+            
+            throw new Error('No conversationId or targetUserId provided');
           }}
           onSendMessage={async ({ conversationId, targetUserId, text }) => {
+            console.log('🔵 [Accommodation] Sending message:', { conversationId, targetUserId, text: text?.substring(0, 20) });
             let cid = conversationId;
+            
+            // Create conversation if needed
             if (!cid && targetUserId) {
-              const convRes = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
+              const convRes = await fetch(`/api/chat/conversations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetUserId, type: 'CUSTOMER_PROVIDER' })
+              });
+              if (!convRes.ok) throw new Error('Failed to create conversation');
               const convJson = await convRes.json();
-              cid = convJson?.conversation?.id;
+              cid = convJson?.data?.id;
+              console.log('🟢 [Accommodation] Conversation created:', cid);
             }
+            
             if (!cid) throw new Error('Missing conversation ID');
+            
             const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ content: text })
             });
+            
+            if (!res.ok) {
+              const errorText = await res.text();
+              console.error('🔴 [Accommodation] Failed to send message:', res.status, errorText);
+              throw new Error('Failed to send message');
+            }
+            
             const json = await res.json();
-            if (!res.ok || !json?.success) throw new Error('Failed to send message');
+            if (!json?.success) throw new Error('Failed to send message');
+            
             const m = json.data;
+            console.log('🟢 [Accommodation] Message sent:', m.id);
+            
             return {
               id: m.id,
-              conversationId: cid,
+              conversationId: m.conversationId || cid,
               senderId: m.senderId,
-              senderName: m.senderName || m.sender?.name,
+              senderName: m.senderName || m.sender?.name || 'Unknown',
               senderAvatar: m.senderAvatar || m.sender?.avatar,
               content: m.content,
               type: (m.type || 'text').toString().toLowerCase(),

@@ -57,8 +57,10 @@ export function MessageBubble({
       try {
         await onEdit(message.id, editContent.trim());
         setIsEditing(false);
-      } catch (error) {
+        setShowActions(false);
+      } catch (error: any) {
         console.error('Failed to edit message:', error);
+        alert(error?.message || 'Failed to edit message. Please try again.');
       }
     }
   };
@@ -69,8 +71,9 @@ export function MessageBubble({
         setIsDeleting(true);
         await onDelete(message.id, deleteForEveryone);
         setShowActions(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to delete message:', error);
+        alert(error?.message || 'Failed to delete message. Please try again.');
       } finally {
         setIsDeleting(false);
       }
@@ -98,15 +101,22 @@ export function MessageBubble({
   const content = (
     <div 
       className={clsx(
-        "max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow cursor-pointer hover:opacity-90 transition-opacity",
+        "rounded-2xl px-3 py-2 text-sm shadow cursor-pointer hover:opacity-90 transition-opacity",
         isSender 
-          ? "bg-[#01502E] text-white self-end" 
+          ? "bg-[#01502E] text-white" 
           : resolvedTheme === 'dark' 
             ? "bg-gray-800 text-gray-100 border border-gray-700" 
             : "bg-white text-gray-900 border border-gray-200"
       )}
       onClick={handleMessageClick}
       title="Click to view message details"
+      style={{ 
+        wordBreak: 'break-word', 
+        overflowWrap: 'break-word', 
+        maxWidth: '95%',
+        width: 'fit-content',
+        whiteSpace: 'pre-wrap'
+      }}
     >
       {message.isDeleted ? (
         <div className="italic opacity-60">
@@ -152,13 +162,13 @@ export function MessageBubble({
           </div>
         </div>
       ) : message.type === "text" ? (
-        <span className="whitespace-pre-wrap break-words">
+        <span className="whitespace-pre-wrap">
           {renderWithLinks(message.content)}
         </span>
       ) : message.type === "image" ? (
-        <img src={message.attachments?.[0]?.url} alt={message.content || "image"} className="rounded-lg max-h-64" />
+        <img src={message.attachments?.[0]?.url} alt={message.content || "image"} className="rounded-lg max-h-64 max-w-full object-contain" />
       ) : (
-        <a href={message.attachments?.[0]?.url} className="underline" target="_blank" rel="noreferrer">
+        <a href={message.attachments?.[0]?.url} className="underline break-all" target="_blank" rel="noreferrer">
           {message.attachments?.[0]?.name || message.content || "Attachment"}
         </a>
       )}
@@ -180,14 +190,23 @@ export function MessageBubble({
   );
 
   return (
-    <div className={clsx("w-full flex items-end gap-2", isSender ? "justify-end" : "justify-start")}
+    <div className={clsx("w-full max-w-full flex items-end gap-2 min-w-0 px-1", isSender ? "justify-end" : "justify-start")}
          role="listitem" aria-label={isSender ? "Sent message" : "Received message"}>
       {!isSender && showAvatar && (
-        <img src={avatarUrl || "/avatar.png"} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
+        <img 
+          src={avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(senderName || 'User')}&background=01502E&color=fff&size=128`} 
+          alt="avatar" 
+          className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(senderName || 'User')}&background=01502E&color=fff&size=128`;
+          }}
+        />
       )}
-      {content}
+      <div className={clsx("min-w-0 max-w-full", isSender ? "flex items-end justify-end" : "flex items-end justify-start")}>
+        {content}
+      </div>
       {(isSender || isAdmin) && !message.isDeleted && (
-        <div className="relative" ref={actionsRef}>
+        <div className="relative flex-shrink-0" ref={actionsRef}>
           <button 
             className="p-1 opacity-60 hover:opacity-100" 
             aria-label="Message actions"
@@ -197,7 +216,7 @@ export function MessageBubble({
           </button>
           
           {showActions && (
-            <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[160px]">
+            <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[160px] max-w-[200px] overflow-hidden">
               {canEdit && (
                 <button
                   onClick={() => {
@@ -255,7 +274,7 @@ function renderWithLinks(text: string) {
   const parts = text.split(/(https?:\/\/[^\s]+)/g);
   return parts.map((part, i) =>
     part.match(/^https?:\/\//) ? (
-      <a key={i} href={part} target="_blank" rel="noreferrer" className="underline break-all">
+      <a key={i} href={part} target="_blank" rel="noreferrer" className="underline break-words">
         {part}
       </a>
     ) : (

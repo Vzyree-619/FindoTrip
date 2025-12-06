@@ -5,6 +5,7 @@ import { prisma } from "~/lib/db/db.server";
 import PropertyCard from "~/components/features/accommodations/PropertyCard";
 import PriceRangeSlider from "~/components/common/PriceRangeSlider";
 import { ChevronLeft, ChevronRight, Search, MapPin, Filter } from "lucide-react";
+import { getPropertiesWithStartingPrices } from "~/lib/property.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
@@ -96,40 +97,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
       if (maxPrice !== undefined) where.basePrice.lte = maxPrice;
     }
 
-    // Get accommodations
-    // Safe room type counts even if prisma client is stale or delegate unsupported
-    const roomTypeCountsPromise = (async () => {
-      try {
-        const anyPrisma: any = prisma as any;
-        if (anyPrisma.roomType && typeof anyPrisma.roomType.groupBy === 'function') {
-          return await anyPrisma.roomType.groupBy({ by: ['propertyId'], _count: { _all: true } });
-        }
-      } catch {}
-      return [] as any[];
-    })();
+    // Get accommodations with starting prices (handles multi-room properties)
+    let accommodations;
+    try {
+      accommodations = await getPropertiesWithStartingPrices({
+        city,
+        type,
+        guests,
+        minPrice,
+        maxPrice,
+        checkIn,
+        checkOut,
+        limit,
+        offset: (page - 1) * limit
+      });
+    } catch (error) {
+      console.error('Error fetching accommodations:', error);
+      throw error;
+    }
 
-    const [accommodationsRaw, total, types, cities, roomTypeCounts] = await Promise.all([
-      prisma.property.findMany({
-        where,
-        include: {
-          owner: {
-            select: {
-              id: true,
-              businessName: true,
-              verified: true,
-              user: {
-                select: {
-                  name: true,
-                  avatar: true
-                }
-              }
-            }
-          }
-        },
-        orderBy: { rating: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit
-      }),
+    const [total, types, cities] = await Promise.all([
       prisma.property.count({ where }),
       prisma.property.findMany({
         where: { approvalStatus: 'APPROVED', available: true },
@@ -140,16 +127,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         where: { approvalStatus: 'APPROVED', available: true },
         select: { city: true, country: true },
         distinct: ['city', 'country']
-      }),
-      roomTypeCountsPromise
-    ]);
-    const countsMap = new Map(
-      (roomTypeCounts as any[]).map((r: any) => {
-        const cnt = ((r._count?._all ?? r?._count) || 0);
-        return [r.propertyId, cnt];
       })
-    );
-    const accommodations = accommodationsRaw.map((p: any) => ({ ...p, roomTypeCount: countsMap.get(p.id) || 0 }));
+    ]);
     // Fallback only when no filters are active; otherwise return empty results
     const hasActiveFilters = Boolean(
       city || country || type || name || searchTerm || (minPrice !== undefined) || (maxPrice !== undefined) || guests || checkIn || checkOut
@@ -181,16 +160,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
           bedrooms: 2,
           bathrooms: 1,
           basePrice,
+          startingPrice: basePrice,
+          currency: 'PKR',
           rating: 4.2 + (i % 3) * 0.2,
           reviewCount: 10 + i,
-          images: ['/placeholder-hotel.jpg'],
+          images: ['/landingPageImg.jpg'],
+          amenities: ['WiFi', 'Parking', 'Pool', 'Gym'],
           owner: {
             id: `owner-demo-${i+1}`,
             businessName: 'Demo Hospitality Co.',
             verified: true,
             user: { name: 'Demo Owner', avatar: null }
           },
-          roomTypeCount: 3
+          isRoomBased: false,
+          totalRoomTypes: 0,
+          roomTypeCount: 0
         };
       });
       const filtersOut = {
@@ -554,7 +538,8 @@ export default function AccommodationsPage() {
                     city={property.city}
                     country={property.country}
                     type={property.type}
-                    pricePerNight={property.basePrice}
+                    pricePerNight={property.startingPrice}
+                    currency={property.currency}
                     maxGuests={property.maxGuests}
                     bedrooms={property.bedrooms}
                     bathrooms={property.bathrooms}
@@ -562,7 +547,8 @@ export default function AccommodationsPage() {
                     rating={property.rating}
                     reviewCount={property.reviewCount}
                     amenities={property.amenities}
-                    roomTypeCount={property.roomTypeCount}
+                    isRoomBased={property.isRoomBased}
+                    roomTypeCount={property.totalRoomTypes || 0}
                   />
                 ))}
               </div>

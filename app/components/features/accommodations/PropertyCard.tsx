@@ -1,5 +1,6 @@
 import { Link } from "@remix-run/react";
-import { MapPin, Users, Bed, Bath, Star } from "lucide-react";
+import { MapPin, Users, Bed, Bath, Star, Heart, Wifi, Car, Dumbbell, Utensils } from "lucide-react";
+import { useState } from "react";
 
 interface PropertyCardProps {
   id: string;
@@ -8,6 +9,7 @@ interface PropertyCardProps {
   country: string;
   type: string;
   pricePerNight: number;
+  currency?: string;
   nights?: number;
   maxGuests: number;
   bedrooms: number;
@@ -17,7 +19,25 @@ interface PropertyCardProps {
   reviewCount: number;
   amenities?: string[];
   roomTypeCount?: number;
+  isRoomBased?: boolean;
+  starRating?: number;
+  mainImage?: string;
 }
+
+// Amenity icon mapping
+const amenityIcons: Record<string, any> = {
+  'WiFi': Wifi,
+  'Free WiFi': Wifi,
+  'Parking': Car,
+  'Free Parking': Car,
+  'Gym': Dumbbell,
+  'Fitness Center': Dumbbell,
+  'Restaurant': Utensils,
+  'Pool': '🏊',
+  'Spa': '💆',
+  'Air Conditioning': '❄️',
+  'Pet Friendly': '🐾',
+};
 
 export default function PropertyCard({
   id,
@@ -26,6 +46,7 @@ export default function PropertyCard({
   country,
   type,
   pricePerNight,
+  currency = "PKR",
   nights,
   maxGuests,
   bedrooms,
@@ -35,13 +56,19 @@ export default function PropertyCard({
   reviewCount,
   amenities = [],
   roomTypeCount,
+  isRoomBased = false,
+  starRating,
+  mainImage,
 }: PropertyCardProps) {
-  const mainImage = images[0] || "/placeholder-hotel.jpg";
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const mainImageUrl = mainImage || images[0] || "/landingPageImg.jpg";
+  const fallbackImage = "/landingPageImg.jpg";
   
   // Format price
-  const formattedPrice = `PKR ${pricePerNight.toLocaleString()}`;
+  const formattedPrice = `${currency} ${pricePerNight.toLocaleString()}`;
   const perNightPrice = nights && nights > 0 ? Math.round(pricePerNight / nights) : pricePerNight;
-  const formattedPerNight = `PKR ${perNightPrice.toLocaleString()}`;
+  const formattedPerNight = `${currency} ${perNightPrice.toLocaleString()}`;
 
   // Get rating color
   const getRatingColor = (rating: number) => {
@@ -51,109 +78,200 @@ export default function PropertyCard({
     return "bg-red-500";
   };
 
+  // Get rating text
+  const getRatingText = (rating: number) => {
+    if (rating >= 9) return "Exceptional";
+    if (rating >= 8) return "Excellent";
+    if (rating >= 7) return "Very Good";
+    if (rating >= 6) return "Good";
+    return "Fair";
+  };
+
+  // Get top 4 amenities with icons
+  const topAmenities = amenities.slice(0, 4).map(amenity => {
+    const normalized = amenity.toLowerCase();
+    const icon = Object.keys(amenityIcons).find(key => 
+      normalized.includes(key.toLowerCase())
+    );
+    return {
+      name: amenity,
+      icon: icon ? amenityIcons[icon] : null,
+      isEmoji: typeof amenityIcons[icon] === 'string'
+    };
+  });
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsFavorite(!isFavorite);
+    // TODO: Implement favorite API call
+  };
+
   return (
     <Link
       to={`/accommodations/${id}`}
-      className="bg-white shadow-md rounded-lg overflow-hidden transition transform hover:scale-105 hover:shadow-xl block"
+      className="group bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02] block border border-gray-100"
     >
-      {/* Image */}
-      <div className="relative h-48 overflow-hidden">
+      {/* Image Section */}
+      <div className="relative h-64 overflow-hidden bg-gray-200">
         <img
-          src={mainImage}
+          src={imageError ? fallbackImage : mainImageUrl}
           alt={name}
-          className="w-full h-full object-cover"
+          onError={() => setImageError(true)}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
         />
-        <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs font-semibold text-gray-700">
+        
+        {/* Favorite Button */}
+        <button
+          onClick={handleFavoriteClick}
+          className="absolute top-3 right-3 z-10 p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-colors shadow-md"
+          aria-label="Add to favorites"
+        >
+          <Heart 
+            className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} 
+          />
+        </button>
+
+        {/* Property Type Badge */}
+        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-gray-700">
           {type}
         </div>
+
+        {/* Star Rating Badge (if available) */}
+        {starRating && (
+          <div className="absolute bottom-3 left-3 bg-[#01502E]/90 backdrop-blur-sm px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1">
+            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+            {starRating}
+          </div>
+        )}
       </div>
 
-      {/* Content */}
-      <div className="p-4">
-        {/* Title and Location */}
-        <h3 className="text-[#01502E] font-semibold text-lg mb-1 line-clamp-1">
-          {name}
-        </h3>
-        <div className="flex items-center text-gray-600 text-sm mb-2">
-          <MapPin size={14} className="mr-1" />
+      {/* Content Section */}
+      <div className="p-5">
+        {/* Hotel Name with Star Rating */}
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="text-xl font-bold text-gray-900 line-clamp-1 flex-1 group-hover:text-[#01502E] transition-colors">
+            {name}
+          </h3>
+        </div>
+
+        {/* Location */}
+        <div className="flex items-center text-gray-600 text-sm mb-3">
+          <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
           <span className="line-clamp-1">
             {city}, {country}
           </span>
         </div>
 
-        {/* Property Details */}
-        <div className="flex items-center gap-3 text-sm text-gray-600 mb-3">
-          <div className="flex items-center">
-            <Users size={14} className="mr-1" />
-            <span>{maxGuests}</span>
+        {/* Guest Rating */}
+        {reviewCount > 0 && (
+          <div className="flex items-center gap-2 mb-3">
+            <span
+              className={`${getRatingColor(rating)} text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-1`}
+            >
+              <Star className="w-3 h-3 fill-white" />
+              {rating.toFixed(1)}
+            </span>
+            <span className="text-sm text-gray-700 font-medium">
+              {getRatingText(rating)}
+            </span>
+            <span className="text-xs text-gray-500">
+              ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})
+            </span>
           </div>
-          <div className="flex items-center">
-            <Bed size={14} className="mr-1" />
-            <span>{bedrooms}</span>
-          </div>
-          <div className="flex items-center">
-            <Bath size={14} className="mr-1" />
-            <span>{bathrooms}</span>
-          </div>
-          {typeof roomTypeCount === 'number' && (
-            <div className="flex items-center">
-              <span className="ml-2 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs">{roomTypeCount} room types</span>
-            </div>
-          )}
-        </div>
+        )}
 
-        {/* Amenities Preview */}
-        {amenities.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            {amenities.slice(0, 3).map((amenity, idx) => (
-              <span
-                key={idx}
-                className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded"
-              >
-                {amenity}
-              </span>
+        {/* Key Amenities (Icons) */}
+        {topAmenities.length > 0 && (
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            {topAmenities.map((amenity, idx) => (
+              <div key={idx} className="flex items-center gap-1 text-xs text-gray-600">
+                {amenity.icon ? (
+                  amenity.isEmoji ? (
+                    <span className="text-base">{amenity.icon}</span>
+                  ) : (
+                    <amenity.icon className="w-4 h-4" />
+                  )
+                ) : (
+                  <span className="text-green-600">✓</span>
+                )}
+                <span className="hidden sm:inline">{amenity.name}</span>
+              </div>
             ))}
-            {amenities.length > 3 && (
-              <span className="text-xs text-gray-500 px-2 py-1">
-                +{amenities.length - 3} more
+            {amenities.length > 4 && (
+              <span className="text-xs text-gray-500">
+                +{amenities.length - 4} more
               </span>
             )}
           </div>
         )}
 
-        {/* Price and Rating */}
-        <div className="flex justify-between items-center">
-          <div>
-            <span className="text-xl font-bold text-[#01502E]">
-              {formattedPrice}
+        {/* Room Types Count (for multi-room properties) */}
+        {isRoomBased && roomTypeCount !== undefined && roomTypeCount > 0 && (
+          <div className="mb-4">
+            <span className="inline-block bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
+              {roomTypeCount} {roomTypeCount === 1 ? 'room type' : 'room types'} available
             </span>
-            {nights && nights > 0 ? (
-              <span className="text-sm text-gray-600"> total · {nights} night{nights > 1 ? 's' : ''}</span>
-            ) : (
-              <span className="text-sm text-gray-600"> /night</span>
-            )}
-            {nights && nights > 0 && (
-              <div className="text-xs text-gray-500">
-                {formattedPerNight} /night
-              </div>
-            )}
           </div>
-          
-          {reviewCount > 0 && (
-            <div className="flex items-center gap-2">
-              <span
-                className={`${getRatingColor(
-                  rating
-                )} text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-1`}
-              >
-                <Star size={12} fill="white" />
-                {rating.toFixed(1)}
-              </span>
-              <span className="text-xs text-gray-600">
-                ({reviewCount})
-              </span>
+        )}
+
+        {/* Property Details (for single-unit) */}
+        {!isRoomBased && (
+          <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+            <div className="flex items-center gap-1">
+              <Users className="w-4 h-4" />
+              <span>{maxGuests} guests</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Bed className="w-4 h-4" />
+              <span>{bedrooms} bed{bedrooms !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Bath className="w-4 h-4" />
+              <span>{bathrooms} bath{bathrooms !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Price Section - PROMINENT */}
+        <div className="border-t border-gray-200 pt-4">
+          {isRoomBased && (
+            <div className="text-xs text-gray-600 mb-1 font-medium">
+              Starting from
             </div>
           )}
+          <div className="flex items-baseline justify-between">
+            <div>
+              <div className="text-2xl font-bold text-[#01502E]">
+                {formattedPrice}
+              </div>
+              {nights && nights > 0 ? (
+                <div className="text-sm text-gray-600 mt-1">
+                  total · {nights} night{nights > 1 ? 's' : ''}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600 mt-1">
+                  /night
+                </div>
+              )}
+              {nights && nights > 0 && (
+                <div className="text-xs text-gray-500 mt-1">
+                  {formattedPerNight} /night
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* View Button */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.href = `/accommodations/${id}`;
+            }}
+            className="w-full mt-4 bg-[#01502E] text-white py-2.5 px-4 rounded-lg font-semibold hover:bg-[#013d23] transition-colors text-sm"
+          >
+            {isRoomBased ? 'View Rooms & Rates' : 'View Details'}
+          </button>
         </div>
       </div>
     </Link>

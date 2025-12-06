@@ -16,13 +16,15 @@ const RATE_LIMITS = {
 };
 
 // Redis client (you'll need to configure this)
+// Disabled until Redis is properly configured - using in-memory fallback
 let redis: Redis | null = null;
 
-try {
-  redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-} catch (error) {
-  console.warn('Redis not available, using in-memory rate limiting');
-}
+// Uncomment below to enable Redis when it's set up:
+// try {
+//   redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+// } catch (error) {
+//   console.warn('Redis not available, using in-memory rate limiting');
+// }
 
 // In-memory fallback for rate limiting
 const memoryStore = new Map<string, { count: number; resetTime: number }>();

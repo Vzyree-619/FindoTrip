@@ -18,7 +18,23 @@ export function useFavorites() {
   useEffect(() => {
     const loadFavorites = async () => {
       try {
-        const response = await fetch('/dashboard/favorites');
+        const response = await fetch('/dashboard/favorites', {
+          credentials: 'include'
+        });
+        
+        // Check if response is JSON (not HTML redirect)
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          // Not JSON - likely a redirect or error page, user probably not logged in
+          setFavorites({
+            properties: [],
+            vehicles: [],
+            tours: []
+          });
+          setLoading(false);
+          return;
+        }
+
         if (response.ok) {
           const data = await response.json();
           setFavorites({
@@ -26,9 +42,21 @@ export function useFavorites() {
             vehicles: data.favorites?.vehicles?.map((v: any) => v.id) || [],
             tours: data.favorites?.tours?.map((t: any) => t.id) || []
           });
+        } else {
+          // Response not OK, set empty favorites
+          setFavorites({
+            properties: [],
+            vehicles: [],
+            tours: []
+          });
         }
       } catch (error) {
-        console.error('Error loading favorites:', error);
+        // Silently fail - user might not be logged in
+        setFavorites({
+          properties: [],
+          vehicles: [],
+          tours: []
+        });
       } finally {
         setLoading(false);
       }

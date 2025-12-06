@@ -6,7 +6,7 @@ import {
   type ConversationDetails
 } from "~/lib/chat.server";
 import { prisma } from "~/lib/db/db.server";
-import { checkRateLimit } from "~/lib/middleware/rate-limit.server";
+import { checkRateLimit } from "~/lib/chat-security.server"; // Use stub until Redis is configured
 
 // ========================================
 // TYPESCRIPT INTERFACES

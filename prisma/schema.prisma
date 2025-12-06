@@ -163,6 +163,23 @@ enum CommissionStatus {
   DISPUTED
 }
 
+enum PriceAdjustmentType {
+  PERCENTAGE_INCREASE
+  PERCENTAGE_DECREASE
+  FIXED_INCREASE
+  FIXED_DECREASE
+  FIXED_PRICE
+}
+
+enum DiscountType {
+  EARLY_BIRD
+  LAST_MINUTE
+  LONG_STAY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
 // ========================================
 // CORE USER SYSTEM WITH REAL RELATIONSHIPS
 // ========================================
@@ -304,6 +321,7 @@ model User {
   // Chat settings (JSON strings for flexibility)
   chatSettings    String?
   privacySettings String?
+  appearanceSettings String?
 
   // ========================================
   // SECURITY & PRIVACY RELATIONSHIPS
@@ -779,7 +797,12 @@ model Property {
   floor         Int?
   totalFloors   Int?
   
-  // Pricing
+  // Hotel/Multi-room Property Details
+  starRating    Int? // 1-5 stars for hotel classification
+  totalRooms    Int @default(0) // Total number of room units
+  propertyFacilities String[] // General facilities like restaurant, gym, pool
+  
+  // Pricing (for single-unit properties or base price)
   basePrice     Float
   cleaningFee   Float @default(0)
   serviceFee    Float @default(0)
@@ -790,13 +813,14 @@ model Property {
   weekendPricing    Float? // multiplier for weekends
   monthlyDiscount   Float @default(0) // percentage
   weeklyDiscount    Float @default(0) // percentage
-  seasonalPricing   Json? // complex pricing rules
+  // seasonalPricing moved to SeasonalPricing model
   
   // Media
   images        String[]
   videos        String[]
   virtualTour   String?
   floorPlan     String?
+  mainImage     String? // Primary display image
   
   // Amenities and Features
   amenities     String[]
@@ -811,10 +835,16 @@ model Property {
   maxStay       Int @default(365)
   advanceNotice Int @default(0) // hours
   
-  // Check-in/out
+  // Check-in/out & Policies
   checkInTime   String @default("15:00")
   checkOutTime  String @default("11:00")
   selfCheckIn   Boolean @default(false)
+  cancellationPolicy String? // Flexible, Moderate, Strict
+  
+  // Featured & Display
+  isFeatured    Boolean @default(false)
+  isVerified    Boolean @default(false)
+  slug          String? // URL-friendly identifier
   
   // ========================================
   // REAL RELATIONSHIPS
@@ -847,6 +877,13 @@ model Property {
   // Room types for multi-room properties (e.g., hotels)
   roomTypes     RoomType[]
   
+  // ========================================
+  // RELATIONSHIPS TO PRICING & AVAILABILITY
+  // ========================================
+  seasonalPricing SeasonalPricing[]
+  eventPricing    SpecialEventPricing[]
+  discounts       DiscountRule[]
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -869,23 +906,50 @@ model RoomType {
   property       Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   // Descriptors
-  name           String    // e.g., Deluxe King, Standard Twin
-  description    String?
-
-  // Capacity & Bed config
-  maxGuests      Int
-  beds           Int?
-  bedType        String?   // e.g., King, Twin, Queen
-
-  // Inventory & Pricing
-  basePrice      Float     // price per night for this room type
-  inventory      Int       @default(1) // total rooms of this type
-  available      Boolean   @default(true)
-  amenities      String[]
-
+  name           String    // e.g., "Deluxe King Room", "Standard Twin", "Executive Suite"
+  description    String    // Detailed room description
+  
+  // Capacity
+  maxOccupancy   Int       // Maximum guests allowed
+  adults         Int       // Recommended number of adults
+  children       Int @default(0) // Max children allowed
+  
+  // Bed Configuration
+  bedType        String    // "King", "Queen", "Twin", "Double"
+  numberOfBeds   Int       // How many beds in the room
+  bedConfiguration String  // "1 King Bed" or "2 Twin Beds"
+  
+  // Room Size & Layout
+  roomSize       Float?    // In square meters or feet
+  roomSizeUnit   String @default("sqm") // "sqm" or "sqft"
+  floor          String?   // "3rd Floor", "Ground Floor"
+  view           String?   // "Ocean View", "City View", "Garden View"
+  
   // Media
-  images         String[]
-
+  images         String[]  // Room-specific images
+  mainImage      String?   // Primary room image
+  
+  // Room Amenities (specific to this room type)
+  amenities      String[]  // ["Private Bathroom", "Balcony", "Mini Bar", "Safe"]
+  features       String[]  // ["Air Conditioning", "Flat Screen TV", "Coffee Maker"]
+  
+  // Pricing
+  basePrice      Float     // Price per night
+  currency       String @default("PKR")
+  weekendPrice   Float?    // Different price for weekends
+  
+  // Availability
+  totalUnits     Int       // How many rooms of this type exist (e.g., 10 Deluxe Rooms)
+  available      Boolean   @default(true)
+  
+  // Special Offers
+  discountPercent Float?   // 0-100
+  specialOffer   String?   // "Early Bird Discount", "Long Stay Offer"
+  
+  // Policies (room-specific if different from property)
+  smokingAllowed Boolean @default(false)
+  petsAllowed    Boolean @default(false)
+  
   // Stats
   bookedCount    Int       @default(0)
   rating         Float     @default(0)
@@ -894,6 +958,14 @@ model RoomType {
   // Bookings referencing this room type
   bookings       PropertyBooking[]
   inventories    RoomInventoryDaily[]
+  
+  // ========================================
+  // RELATIONSHIPS TO PRICING & AVAILABILITY
+  // ========================================
+  availability    RoomAvailability[] @relation("RoomAvailability")
+  seasonalPricing SeasonalPricing[] @relation("SeasonalPricing")
+  eventPricing    SpecialEventPricing[] @relation("EventPricing")
+  discounts       DiscountRule[] @relation("DiscountRule")
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -901,6 +973,7 @@ model RoomType {
   @@index([propertyId])
   @@index([available])
   @@index([basePrice])
+  @@index([propertyId, available])
 }
 
 // ========================================
@@ -922,6 +995,156 @@ model RoomInventoryDaily {
   updatedAt   DateTime  @updatedAt
 
   @@index([roomTypeId])
+}
+
+// ========================================
+// ROOM AVAILABILITY & CUSTOM PRICING
+// ========================================
+
+model RoomAvailability {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Room Reference
+  roomTypeId      String   @db.ObjectId
+  roomType        RoomType @relation("RoomAvailability", fields: [roomTypeId], references: [id], onDelete: Cascade)
+  
+  // Date
+  date            DateTime @db.Date // Specific date
+  
+  // Availability
+  isAvailable     Boolean  @default(true)
+  availableUnits  Int      // How many rooms available on this date
+  
+  // Custom Pricing for this date
+  customPrice     Float?   // If set, overrides basePrice
+  
+  // Reason for blocking/price change
+  reason          String?  // "Maintenance", "Holiday Pricing", "Peak Season"
+  notes           String?  // Admin notes
+  
+  // Booking restrictions
+  minStay         Int?     // Minimum nights required if booking this date
+  maxStay         Int?     // Maximum nights allowed
+  
+  // Created by
+  createdBy       String   @db.ObjectId // Property owner or admin
+  
+  @@unique([roomTypeId, date]) // One record per room per date (creates index automatically)
+  @@index([date, isAvailable])
+}
+
+// ========================================
+// SEASONAL PRICING RULES
+// ========================================
+
+model SeasonalPricing {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Room or Property-wide
+  roomTypeId      String?  @db.ObjectId
+  roomType        RoomType? @relation("SeasonalPricing", fields: [roomTypeId], references: [id], onDelete: Cascade)
+  
+  propertyId      String?  @db.ObjectId
+  property        Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  // Season Details
+  name            String   // "Summer Peak", "Holiday Season", "Winter Low"
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Pricing
+  priceAdjustment PriceAdjustmentType
+  adjustmentValue Float    // Percentage or fixed amount
+  
+  // Days of week (if applicable)
+  daysOfWeek      Int[]    // [0,1,2,3,4,5,6] for Sun-Sat, empty = all days
+  
+  // Restrictions
+  minStay         Int?
+  maxStay         Int?
+  
+  // Status
+  isActive        Boolean  @default(true)
+  priority        Int      @default(0) // Higher priority rules apply first
+  
+  @@index([roomTypeId, startDate, endDate])
+  @@index([propertyId, startDate, endDate])
+}
+
+// ========================================
+// SPECIAL EVENT PRICING
+// ========================================
+
+model SpecialEventPricing {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Property-wide or room-specific
+  propertyId      String   @db.ObjectId
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  roomTypeId      String?  @db.ObjectId
+  roomType        RoomType? @relation("EventPricing", fields: [roomTypeId], references: [id], onDelete: Cascade)
+  
+  // Event Details
+  eventName       String   // "New Year's Eve", "Super Bowl Weekend", "Christmas"
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Pricing
+  priceMultiplier Float    // 1.5 = 50% increase, 2.0 = double price
+  
+  // Restrictions
+  minStay         Int?     // Often require minimum stay for events
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  @@index([propertyId, startDate, endDate])
+  @@index([roomTypeId, startDate, endDate])
+}
+
+// ========================================
+// DISCOUNT RULES
+// ========================================
+
+model DiscountRule {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Property or Room
+  propertyId      String   @db.ObjectId
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  roomTypeId      String?  @db.ObjectId
+  roomType        RoomType? @relation("DiscountRule", fields: [roomTypeId], references: [id], onDelete: Cascade)
+  
+  // Discount Type
+  type            DiscountType // EARLY_BIRD, LAST_MINUTE, LONG_STAY, WEEKLY, MONTHLY
+  
+  // Conditions
+  daysInAdvance   Int?     // For early bird (e.g., 30 days)
+  daysBeforeCheckIn Int?   // For last minute (e.g., 3 days)
+  minNights       Int?     // Minimum stay to qualify
+  
+  // Discount Amount
+  discountPercent Float    // 10 = 10% off
+  
+  // Date Range (when this discount is applicable)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  @@index([propertyId, isActive])
+  @@index([roomTypeId, isActive])
 }
 
 model Vehicle {
@@ -1138,18 +1361,23 @@ model PropertyBooking {
   // Booking Details
   checkIn         DateTime
   checkOut        DateTime
+  numberOfNights  Int           // Calculated: checkOut - checkIn
   guests          Int
   adults          Int
   children        Int @default(0)
   infants         Int @default(0)
   
+  // Room Booking Details (for multi-room properties like hotels)
+  numberOfRooms   Int @default(1) // How many rooms of this type
+  roomRate        Float?        // Price per night per room
+  
   // Pricing Breakdown
-  basePrice       Float
+  basePrice       Float         // Total base price (roomRate × nights × rooms)
   cleaningFee     Float @default(0)
   serviceFee      Float @default(0)
   taxes           Float @default(0)
   discounts       Float @default(0)
-  totalPrice      Float
+  totalPrice      Float         // Final total amount
   currency        String @default("PKR")
   
   // Booking Status
@@ -1173,6 +1401,9 @@ model PropertyBooking {
   cancellationReason String?
   refundAmount    Float?
   
+  // Confirmation
+  confirmationCode String?       // Unique booking confirmation code
+  
   // ========================================
   // REAL RELATIONSHIPS
   // ========================================
@@ -1182,7 +1413,7 @@ model PropertyBooking {
   propertyId      String @db.ObjectId
   property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   
-  // Optional: specific room type booked (for multi-room properties)
+  // CRITICAL: specific room type booked (for multi-room properties)
   roomTypeId      String? @db.ObjectId
   roomType        RoomType? @relation(fields: [roomTypeId], references: [id])
   

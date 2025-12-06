@@ -1,5 +1,5 @@
 import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { Form, useLoaderData } from "@remix-run/react";
+import { Form, useLoaderData, Link } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
 
@@ -128,7 +128,7 @@ export default function ProviderRooms() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {(roomsByProperty[p.id] || []).map((rt: any) => (
                 <div key={rt.id} className="border rounded-lg overflow-hidden">
-                  <img src={rt.images?.[0] || '/placeholder-hotel.jpg'} className="w-full h-40 object-cover" />
+                  <img src={rt.images?.[0] || '/landingPageImg.jpg'} className="w-full h-40 object-cover" />
                   <div className="p-4">
                     <div className="flex items-start justify-between">
                       <div>

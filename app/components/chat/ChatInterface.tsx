@@ -102,43 +102,104 @@ export function ChatInterface({
   );
 
   const load = async () => {
-    console.log('ChatInterface load called with:', { conversationId, targetUserId });
+    console.log('🔵 ChatInterface load called with:', { conversationId, targetUserId });
     // Default fetch via API if not provided
     const defaultFetch = async ({ conversationId, targetUserId }: { conversationId?: string; targetUserId?: string }): Promise<FetchConversationResult> => {
       if (conversationId) {
-        console.log('Fetching conversation with ID:', conversationId);
+        console.log('🔵 Fetching conversation with ID:', conversationId);
         // Use the chat conversation API with conversationId
-        const res = await fetch(`/api/chat.conversation?conversationId=${conversationId}`);
-        if (!res.ok) throw new Error('Failed to fetch conversation');
+        const res = await fetch(`/api/chat/conversations/${conversationId}`);
+        if (!res.ok) {
+          console.error('🔴 Failed to fetch conversation:', res.status, res.statusText);
+          throw new Error('Failed to fetch conversation');
+        }
         const json = await res.json();
-        console.log('Conversation API response:', json);
+        console.log('🟢 Conversation API response:', {
+          conversationId: json.data?.id,
+          participants: json.data?.participants,
+          messageCount: json.data?.messages?.length
+        });
         return { 
-          conversation: json.conversation, 
-          messages: json.messages || [] 
+          conversation: json.data ? {
+            id: json.data.id,
+            participants: json.data.participants || [],
+            updatedAt: json.data.lastMessageAt,
+            lastMessage: json.data.messages?.[json.data.messages.length - 1],
+            unreadCount: 0
+          } : undefined, 
+          messages: json.data?.messages || [] 
         } as FetchConversationResult;
       } else if (targetUserId) {
-        console.log('Fetching conversation with targetUserId:', targetUserId);
-        // Use the chat conversation API with targetUserId
-        const res = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
-        if (!res.ok) throw new Error('Failed to fetch conversation');
+        console.log('🔵 Fetching conversation with targetUserId:', targetUserId);
+        // Use the chat conversation API with targetUserId - create or get conversation
+        const res = await fetch(`/api/chat/conversations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetUserId,
+            type: 'CUSTOMER_PROVIDER'
+          })
+        });
+        if (!res.ok) {
+          console.error('🔴 Failed to create/get conversation:', res.status, res.statusText);
+          throw new Error('Failed to create/get conversation');
+        }
         const json = await res.json();
-        console.log('Conversation API response:', json);
-        return { 
-          conversation: json.conversation, 
-          messages: json.messages || [] 
+        console.log('🟢 Conversation created/retrieved:', {
+          conversationId: json.data?.id,
+          participants: json.data?.participants
+        });
+        // Now fetch the conversation details with messages
+        const convId = json.data?.id;
+        if (!convId) throw new Error('No conversation ID returned');
+        const convRes = await fetch(`/api/chat/conversations/${convId}`);
+        const convJson = await convRes.json();
+        console.log('🟢 Conversation details response:', {
+          conversationId: convJson.data?.id,
+          participants: convJson.data?.participants,
+          messageCount: convJson.data?.messages?.length
+        });
+        return {
+          conversation: convJson.data ? {
+            id: convJson.data.id,
+            participants: convJson.data.participants || [],
+            updatedAt: convJson.data.lastMessageAt,
+            lastMessage: convJson.data.messages?.[convJson.data.messages.length - 1],
+            unreadCount: 0
+          } : undefined,
+          messages: convJson.data?.messages || []
         } as FetchConversationResult;
       }
-      return { conversation: null, messages: [] };
+      
+      throw new Error('No conversationId or targetUserId provided');
     };
     setLoading(true);
     try {
       const res = await (fetchConversation || defaultFetch)({ conversationId, targetUserId });
-      console.log('Load result:', res);
+      console.log('🟢 Load result:', {
+        hasConversation: !!res.conversation,
+        conversationId: res.conversation?.id,
+        participantCount: res.conversation?.participants?.length,
+        messageCount: res.messages?.length
+      });
+      
+      if (!res.conversation) {
+        console.error('🔴 No conversation returned from fetch!');
+        setLoading(false);
+        return;
+      }
+      
       setConversation(res.conversation);
       // Merge loaded messages with any optimistic temps to avoid losing them during in-flight load
       setMessages((prev) => {
         const loaded = res.messages || [];
         const temps = prev.filter((m) => typeof m.id === 'string' && m.id.startsWith('temp-'));
+        console.log('🟡 Merging messages:', {
+          loadedCount: loaded.length,
+          tempCount: temps.length,
+          loadedIds: loaded.map(m => m.id).slice(0, 3),
+          loadedConversationIds: [...new Set(loaded.map(m => m.conversationId))]
+        });
         if (!temps.length) return loaded;
         const merged = [...loaded];
         for (const t of temps) {
@@ -146,27 +207,13 @@ export function ChatInterface({
         }
         return merged;
       });
-      if (initialMessage && res.conversation?.id) {
-        try {
-          const sendFn =
-            onSendMessage ||
-            (async ({ text }: { targetUserId?: string; text: string; files?: File[] }) => {
-              if (!res.conversation?.id) return undefined;
-              const payload = { content: text };
-              const sendRes = await fetch(`/api/chat/conversations/${res.conversation.id}/messages`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-              });
-              const json = await sendRes.json();
-              return json?.data as Message;
-            });
-          const sent = await sendFn({ targetUserId, text: initialMessage, files: [] });
-          if (sent) setMessages((prev) => [...prev, sent]);
-        } catch {}
-      }
+      // Removed auto-send of initialMessage - user should type their own message
       setTimeout(scrollToBottom, 0);
+    } catch (error) {
+      console.error('🔴 Error loading conversation:', error);
+      // Still set loading to false on error
     } finally {
+      console.log('🟡 Finished loading, setting loading=false');
       setLoading(false);
     }
   };
@@ -180,15 +227,31 @@ export function ChatInterface({
       });
       
       if (res.ok) {
-        const updatedMessage = await res.json();
-        setMessages(prev => prev.map(m => 
-          m.id === messageId 
-            ? { ...m, content: newContent, isEdited: true, editedAt: new Date() }
-            : m
-        ));
+        const response = await res.json();
+        if (response.success && response.data) {
+          const updatedMessage = response.data;
+          setMessages(prev => prev.map(m => 
+            m.id === messageId 
+              ? { 
+                  ...m, 
+                  content: updatedMessage.content || newContent, 
+                  isEdited: true, 
+                  editedAt: updatedMessage.editedAt || new Date() 
+                }
+              : m
+          ));
+        } else {
+          console.error('Edit failed:', response.error);
+          throw new Error(response.error || 'Failed to edit message');
+        }
+      } else {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Edit failed:', res.status, errorData);
+        throw new Error(errorData.error || 'Failed to edit message');
       }
     } catch (error) {
       console.error('Failed to edit message:', error);
+      throw error; // Re-throw so UI can handle it
     }
   };
 
@@ -201,20 +264,31 @@ export function ChatInterface({
       });
       
       if (res.ok) {
-        setMessages(prev => prev.map(m => 
-          m.id === messageId 
-            ? { 
-                ...m, 
-                isDeleted: true, 
-                deletedAt: new Date(), 
-                deletedBy: currentUserId,
-                content: deleteForEveryone ? "This message was deleted" : "You deleted this message"
-              }
-            : m
-        ));
+        const response = await res.json();
+        if (response.success) {
+          setMessages(prev => prev.map(m => 
+            m.id === messageId 
+              ? { 
+                  ...m, 
+                  isDeleted: true, 
+                  deletedAt: new Date(), 
+                  deletedBy: currentUserId,
+                  content: deleteForEveryone ? "This message was deleted" : "You deleted this message"
+                }
+              : m
+          ));
+        } else {
+          console.error('Delete failed:', response.error);
+          throw new Error(response.error || 'Failed to delete message');
+        }
+      } else {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Delete failed:', res.status, errorData);
+        throw new Error(errorData.error || 'Failed to delete message');
       }
     } catch (error) {
       console.error('Failed to delete message:', error);
+      throw error; // Re-throw so UI can handle it
     }
   };
 
@@ -226,7 +300,7 @@ export function ChatInterface({
     if (typing && now - lastTypingSentRef.current < 2000) return;
     lastTypingSentRef.current = now;
     try {
-      await fetch("/api/chat.typing", {
+      await fetch("/api/chat/typing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId: cid, isTyping: typing }),
@@ -275,16 +349,28 @@ export function ChatInterface({
       // If no conversation yet, create or fetch it using targetUserId
       if (!cid && tuid) {
         try {
-          const resp = await fetch(`/api/chat.conversation?targetUserId=${tuid}`);
+          const resp = await fetch(`/api/chat/conversations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ targetUserId: tuid, type: 'CUSTOMER_PROVIDER' })
+          });
           if (resp.ok) {
             const data = await resp.json();
-            cid = data?.conversation?.id;
+            cid = data?.data?.id;
             if (cid) {
-              setConversation(data.conversation);
-              setMessages((data.messages || []) as any);
+              setConversation({
+                id: cid,
+                participants: data.data?.participants || [],
+                updatedAt: data.data?.lastMessageAt,
+                lastMessage: undefined,
+                unreadCount: 0
+              });
+              setMessages([]);
             }
           }
-        } catch {}
+        } catch (err) {
+          console.error('Failed to create conversation:', err);
+        }
       }
       if (!cid) return undefined;
       const payload: any = { content: text };
@@ -296,20 +382,31 @@ export function ChatInterface({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Failed to send message:', errorData);
+        throw new Error(errorData.error || 'Failed to send message');
+      }
+      
       const json = await res.json();
       const m = json?.data as any;
-      if (!m) return undefined;
+      if (!m) {
+        console.error('No message data in response:', json);
+        return undefined;
+      }
+      
       // Normalize to UI shape
       const normalized: Message = {
         id: m.id,
         conversationId: cid,
         senderId: m.senderId,
-        senderName: m.senderName || m.sender?.name,
-        senderAvatar: m.senderAvatar || m.sender?.avatar,
+        senderName: m.senderName || m.sender?.name || 'Unknown',
+        senderAvatar: m.senderAvatar || m.sender?.avatar || null,
         content: m.content,
         type: (m.type || 'text').toString().toLowerCase(),
         attachments: Array.isArray(m.attachments) ? m.attachments : [],
-        createdAt: m.createdAt,
+        createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : (m.createdAt || new Date().toISOString()),
         status: 'sent',
       };
       return normalized;
@@ -324,21 +421,30 @@ export function ChatInterface({
       createdAt: new Date().toISOString(),
       status: "sending",
     };
+    // Clear input immediately for better UX
+    const messageText = text;
+    setValue("");
+    setAttachments([]);
+    
     setMessages((prev) => [...prev, temp]);
     scrollToBottomSmooth();
     try {
-      const result = await (onSendMessage || defaultSend)({ targetUserId, text, files });
+      const result = await (onSendMessage || defaultSend)({ targetUserId, text: messageText, files });
       if (result) {
-        setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...result, status: "sent" } : m)));
+        // Replace temp with real message, and remove any duplicates
+        setMessages((prev) => {
+          const filtered = prev.filter((m) => m.id !== temp.id && m.id !== result.id);
+          return [...filtered, result];
+        });
       } else {
         setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...m, status: "sent" } : m)));
       }
     } catch (error) {
       console.error("Failed to send message:", error);
       setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...m, status: "failed" } : m)));
+      // Restore message text on error so user can retry
+      setValue(messageText);
     }
-    setValue("");
-    setAttachments([]);
   };
 
   const onScrollTop = async () => {
@@ -370,43 +476,70 @@ export function ChatInterface({
 
   if (variant === 'modal' && !isOpen) return null;
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (variant === 'modal' && isOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [variant, isOpen]);
+
   return (
     <div
       className={clsx(
         variant === 'modal'
-          ? "fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/30"
-          : "w-full h-full",
+          ? "fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/30 p-4 overflow-y-auto"
+          : "w-full h-full min-h-0 overflow-hidden max-w-full box-border",
         className
       )}
       role="dialog"
       aria-modal={variant === 'modal' ? "true" : undefined}
+      onClick={variant === 'modal' ? (e) => {
+        if (e.target === e.currentTarget) onClose();
+      } : undefined}
     >
       <div
         className={clsx(
           variant === 'modal'
-            ? "w-full sm:w-[720px] h-[80vh] sm:h-[600px] bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out]"
-            : "h-full bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-sm flex flex-col overflow-hidden"
+            ? "w-full sm:w-[720px] max-w-full h-[90vh] sm:h-[85vh] max-h-[90vh] bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out] my-auto"
+            : "h-full min-h-0 w-full max-w-full bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-sm flex flex-col overflow-hidden box-border"
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-[#01502E] to-[#013d23] text-white">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-[#01502E] to-[#013d23] text-white flex-shrink-0 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             {(() => {
               // Find the other participant (not the current user)
               const otherParticipant = conversation?.participants?.find(p => p.id !== currentUserId) || conversation?.participants?.[0];
+              console.log('🟡 Rendering header:', { 
+                currentUserId, 
+                participants: conversation?.participants,
+                otherParticipant 
+              });
               return (
                 <>
-                  <img src={otherParticipant?.avatar || "/avatar.png"} className="w-8 h-8 rounded-full border-2 border-white/20" alt="avatar" />
-                  <div>
-                    <div className="font-semibold text-white">{otherParticipant?.name || "Chat"}</div>
+                  <img 
+                    src={otherParticipant?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant?.name || 'User')}&background=01502E&color=fff`} 
+                    className="w-8 h-8 rounded-full border-2 border-white/20 object-cover" 
+                    alt="avatar"
+                    onError={(e) => {
+                      console.warn('Failed to load avatar:', otherParticipant?.avatar);
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant?.name || 'User')}&background=01502E&color=fff`;
+                    }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-white truncate">{otherParticipant?.name || "Chat"}</div>
                     {otherParticipant?.role && ['PROPERTY_OWNER', 'VEHICLE_OWNER', 'TOUR_GUIDE'].includes(otherParticipant.role) && (
-                      <div className="text-xs text-white/90 font-medium">
+                      <div className="text-xs text-white/90 font-medium truncate">
                         {otherParticipant.role === 'PROPERTY_OWNER' ? 'Property Owner' : 
                          otherParticipant.role === 'VEHICLE_OWNER' ? 'Vehicle Owner' : 
                          otherParticipant.role === 'TOUR_GUIDE' ? 'Tour Guide' : ''}
                       </div>
                     )}
-                    <div className="text-xs text-white/70">{isTyping ? "typing…" : otherParticipant?.online ? "online" : "offline"}</div>
+                    <div className="text-xs text-white/70 truncate">{isTyping ? "typing…" : otherParticipant?.online ? "online" : "offline"}</div>
                   </div>
                 </>
               );
@@ -420,7 +553,7 @@ export function ChatInterface({
         </div>
 
         {/* Messages */}
-        <div ref={listRef} onScroll={onScrollTop} className={`flex-1 overflow-y-auto p-3 space-y-2 min-h-0 ${
+        <div ref={listRef} onScroll={onScrollTop} className={`flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-3 space-y-2 min-h-0 w-full max-w-full box-border ${
           resolvedTheme === 'dark' ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
           {loading ? (
@@ -457,7 +590,7 @@ export function ChatInterface({
         </div>
 
         {/* Input */}
-        <div className="border-t">
+        <div className="border-t flex-shrink-0 w-full max-w-full overflow-x-hidden box-border">
           <ChatInput
             value={value}
             onChange={setValue}
@@ -472,3 +605,4 @@ export function ChatInterface({
 }
 
 export default ChatInterface;
+

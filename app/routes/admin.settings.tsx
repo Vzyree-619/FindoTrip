@@ -42,7 +42,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       adminEmail: "admin@findotrip.com",
       supportEmail: "support@findotrip.com",
       phone: "+92 300 1234567",
-      address: "Karachi, Pakistan",
+      address: "Skardu, Pakistan",
       timezone: "Asia/Karachi",
       currency: "PKR",
       language: "en"

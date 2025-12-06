@@ -148,7 +148,7 @@ export default function Terms() {
           </p>
           <ul>
             <li>Email: legal@findotrip.com</li>
-            <li>Address: FindoTrip Legal Department, Pakistan</li>
+            <li>Address: Skardu, Pakistan</li>
           </ul>
 
           <div className="mt-12 p-6 bg-gray-50 rounded-lg">

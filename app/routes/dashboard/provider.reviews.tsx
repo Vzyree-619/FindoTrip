@@ -14,32 +14,47 @@ export async function loader({ request }: LoaderFunctionArgs) {
   let reviews: any[] = [];
 
   if (user.role === "PROPERTY_OWNER") {
-    const properties = await prisma.property.findMany({ where: { owner: { userId } }, select: { id: true, name: true, city: true, country: true } });
+    const properties = await prisma.property.findMany({ 
+      where: { owner: { userId } }, 
+      select: { id: true, name: true, city: true, country: true } 
+    });
     const ids = properties.map(p => p.id);
-    reviews = await prisma.review.findMany({
-      where: { serviceType: "property", serviceId: { in: ids } },
-      include: { user: { select: { name: true, avatar: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    });
+    if (ids.length > 0) {
+      reviews = await prisma.review.findMany({
+        where: { serviceType: "property", serviceId: { in: ids } },
+        include: { user: { select: { name: true, avatar: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+    }
   } else if (user.role === "VEHICLE_OWNER") {
-    const vehicles = await prisma.vehicle.findMany({ where: { owner: { userId } }, select: { id: true, name: true, city: true, country: true } });
+    const vehicles = await prisma.vehicle.findMany({ 
+      where: { owner: { userId } }, 
+      select: { id: true, name: true, city: true, country: true } 
+    });
     const ids = vehicles.map(v => v.id);
-    reviews = await prisma.review.findMany({
-      where: { serviceType: "vehicle", serviceId: { in: ids } },
-      include: { user: { select: { name: true, avatar: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    });
+    if (ids.length > 0) {
+      reviews = await prisma.review.findMany({
+        where: { serviceType: "vehicle", serviceId: { in: ids } },
+        include: { user: { select: { name: true, avatar: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+    }
   } else if (user.role === "TOUR_GUIDE") {
-    const tours = await prisma.tour.findMany({ where: { guide: { userId } }, select: { id: true, title: true, city: true, country: true } });
-    const ids = tours.map(t => t.id);
-    reviews = await prisma.review.findMany({
-      where: { serviceType: "tour", serviceId: { in: ids } },
-      include: { user: { select: { name: true, avatar: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 100,
+    const tours = await prisma.tour.findMany({ 
+      where: { guide: { userId } }, 
+      select: { id: true, title: true, city: true, country: true } 
     });
+    const ids = tours.map(t => t.id);
+    if (ids.length > 0) {
+      reviews = await prisma.review.findMany({
+        where: { serviceType: "tour", serviceId: { in: ids } },
+        include: { user: { select: { name: true, avatar: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+    }
   } else {
     // Not a provider role
     reviews = [];

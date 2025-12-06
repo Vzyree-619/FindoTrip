@@ -1,5 +1,6 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useRevalidator } from "@remix-run/react";
+import { useEffect } from "react";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import ChatContainer from "~/components/chat/ChatContainer";
@@ -23,10 +24,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   // Get conversations where user is a participant
-  const conversations = await prisma.conversation.findMany({
+  // Note: We don't filter by isActive here because we want to show all conversations
+  // including newly created ones that might not have isActive set yet
+  const allConversations = await prisma.conversation.findMany({
     where: {
       participants: { has: userId },
-      isActive: true
     },
     include: {
       messages: {
@@ -40,6 +42,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     orderBy: { lastMessageAt: "desc" },
     take: 50
   });
+
+  // Filter out conversations hidden by this user
+  const conversations = allConversations.filter(
+    (conv) => !(conv.hiddenBy || []).includes(userId)
+  );
 
   // Process conversations and get participant details
   const processedConversations = await Promise.all(
@@ -104,11 +111,38 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function MessagesDashboard() {
   const { user, conversations, chatSettings, peerId } = useLoaderData<typeof loader>();
+  const revalidator = useRevalidator();
+
+  // Convert loader conversations to ChatContainer format
+  const formattedConversations = conversations.map((conv: any) => ({
+    id: conv.id,
+    participants: conv.participants || [],
+    lastMessage: conv.lastMessage ? {
+      id: conv.lastMessage.id,
+      conversationId: conv.id,
+      senderId: conv.lastMessage.senderId,
+      senderName: conv.lastMessage.senderName,
+      content: conv.lastMessage.content,
+      type: "text" as const,
+      attachments: [],
+      createdAt: conv.lastMessage.createdAt,
+    } : undefined,
+    unreadCount: conv.unreadCount || 0,
+    updatedAt: conv.updatedAt,
+  }));
+
+  // Expose revalidator to ChatContainer via window (temporary solution)
+  useEffect(() => {
+    (window as any).__remixRevalidator = revalidator;
+    return () => {
+      delete (window as any).__remixRevalidator;
+    };
+  }, [revalidator]);
 
   return (
     <ThemeProvider initialTheme={chatSettings?.theme || 'light'}>
-      <div className="bg-gray-50 dark:bg-gray-900">
-        <div className="px-4 sm:px-6 lg:px-8">
+      <div className="bg-gray-50 dark:bg-gray-900 w-full overflow-x-hidden max-w-full min-w-0 box-border">
+        <div className="px-2 sm:px-3 lg:px-4 w-full max-w-full box-border overflow-x-hidden min-w-0">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
@@ -124,16 +158,17 @@ export default function MessagesDashboard() {
         </div>
 
         {/* Chat Interface */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 h-[calc(100vh-220px)]">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 h-[calc(100vh-220px)] max-h-[calc(100vh-220px)] overflow-hidden w-full max-w-full box-border min-w-0">
           <ChatContainer 
             currentUserId={user.id}
             theme={chatSettings?.theme || 'light'}
             initialPeerId={peerId}
+            initialConversations={formattedConversations}
           />
         </div>
 
         {/* Quick Actions - responsive layout */}
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
             <div className="flex items-center gap-3 mb-3">
               <Users className="w-6 h-6 text-blue-600" />
@@ -147,32 +182,24 @@ export default function MessagesDashboard() {
             </button>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700 sm:col-span-1 lg:col-span-1">
             <div className="flex items-center gap-3 mb-3">
               <MessageCircle className="w-6 h-6 text-green-600" />
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">Support Chat</h3>
             </div>
             <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-              Get help from our support team
+              Get help from our support team. Manage your chat preferences and notifications.
             </p>
-            <button className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
-              Contact Support
-            </button>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
-            <div className="flex items-center gap-3 mb-3">
-              <Settings className="w-6 h-6 text-purple-600" />
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Chat Settings</h3>
-            </div>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-              Manage your chat preferences and notifications
-            </p>
-            <a href="/dashboard/settings/chat" className="block w-full">
-              <button className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors">
-                Settings
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                Contact Support
               </button>
-            </a>
+              <a href="/dashboard/settings/chat" className="flex-1">
+                <button className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors">
+                  Settings
+                </button>
+              </a>
+            </div>
           </div>
         </div>
         </div>

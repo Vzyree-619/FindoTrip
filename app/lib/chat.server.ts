@@ -56,6 +56,7 @@ export interface ConversationSummary {
 
 export interface MessageWithSender {
   id: string;
+  conversationId: string;
   content: string;
   type: MessageType;
   senderId: string;
@@ -173,6 +174,7 @@ export async function getOrCreateConversation(
         unreadCount: {},
         lastReadAt: {},
         hiddenBy: [],
+        isActive: true, // Ensure new conversations are active
       },
       include: {
         messages: {
@@ -205,7 +207,8 @@ export async function getUserConversations(
       where: {
         participants: { has: userId },
         ...(type ? { type } : {}),
-        hiddenBy: { hasNot: userId },
+        // Filter out conversations hidden by this user
+        // Note: We fetch all and filter in memory since Prisma doesn't support hasNot for arrays
       },
       include: {
         messages: {
@@ -357,18 +360,36 @@ export async function markMessagesAsRead(
     if (!convo) throw new Error("Conversation not found");
     if (!convo.participants.includes(userId)) throw new Error("Access denied");
 
-    const result = await prisma.message.updateMany({
-      where: { conversationId, readBy: { hasNot: userId } },
-      data: {
-        readBy: { push: userId },
-        readAt: { set: { ...(convo.lastReadAt as any), [userId]: new Date() } as any },
+    // Fetch unread messages first (messages where userId is not in readBy array)
+    const unreadMessages = await prisma.message.findMany({
+      where: { 
+        conversationId,
       },
+      select: { id: true, readBy: true, readAt: true }
     });
+
+    // Filter messages where userId is not already in readBy
+    const messagesToUpdate = unreadMessages.filter(
+      (msg) => !(msg.readBy || []).includes(userId)
+    );
+
+    // Update each message individually
+    let updatedCount = 0;
+    for (const msg of messagesToUpdate) {
+      await prisma.message.update({
+        where: { id: msg.id },
+        data: {
+          readBy: { push: userId },
+          readAt: { set: { ...(msg.readAt as any || {}), [userId]: new Date() } as any },
+        },
+      });
+      updatedCount++;
+    }
 
     const updatedUnread = { ...(convo.unreadCount as any) };
     updatedUnread[userId] = 0;
     await prisma.conversation.update({ where: { id: conversationId }, data: { unreadCount: updatedUnread } });
-    return result.count || 0;
+    return updatedCount;
   } catch (error) {
     console.error("Error in markMessagesAsRead:", error);
     throw new Error("Failed to mark messages as read");
@@ -729,6 +750,7 @@ function formatConversationDetails(conversation: any): ConversationDetails {
 function formatMessageWithSender(message: any): MessageWithSender {
   return {
     id: message.id,
+    conversationId: message.conversationId,
     content: message.content,
     type: message.type,
     senderId: message.senderId,

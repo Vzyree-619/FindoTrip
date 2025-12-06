@@ -112,7 +112,7 @@ export function useRealTimeChat(conversationId?: string) {
     // Poll typing users every 2s
     const id = window.setInterval(async () => {
       try {
-        const url = new URL("/api/chat.typing", window.location.origin);
+        const url = new URL("/api/chat/typing", window.location.origin);
         url.searchParams.set("conversationId", conversationId);
         const res = await fetch(url.toString());
         if (res.ok) {
@@ -163,7 +163,7 @@ export function useRealTimeChat(conversationId?: string) {
     if (!conversationId) return;
     if (typingTimerRef.current) window.clearTimeout(typingTimerRef.current);
     try {
-      await fetch("/api/chat.typing", {
+      await fetch("/api/chat/typing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId, isTyping }),
@@ -172,7 +172,7 @@ export function useRealTimeChat(conversationId?: string) {
     // Schedule stop typing after 3s if no updates
     if (isTyping) {
       typingTimerRef.current = window.setTimeout(() => {
-        fetch("/api/chat.typing", {
+        fetch("/api/chat/typing", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ conversationId, isTyping: false }),

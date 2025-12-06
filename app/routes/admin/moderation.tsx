@@ -7,6 +7,9 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
+import { Label } from "~/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Textarea } from "~/components/ui/textarea";
 import { 
   Shield, 
   AlertTriangle, 
@@ -379,13 +382,22 @@ export default function AdminModeration() {
                         className="pl-10 w-64"
                       />
                     </div>
-                    <select className="p-2 border border-gray-300 rounded-md">
-                      <option value="">All Status</option>
-                      <option value="pending">Pending</option>
-                      <option value="reviewed">Reviewed</option>
-                      <option value="resolved">Resolved</option>
-                      <option value="dismissed">Dismissed</option>
-                    </select>
+                    <input type="hidden" name="statusFilter" id="statusFilter-value" defaultValue="all" />
+                    <Select defaultValue="all" onValueChange={(value) => {
+                      const hiddenInput = document.getElementById('statusFilter-value') as HTMLInputElement;
+                      if (hiddenInput) hiddenInput.value = value === "all" ? "" : value;
+                    }}>
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue placeholder="All Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="reviewed">Reviewed</SelectItem>
+                        <SelectItem value="resolved">Resolved</SelectItem>
+                        <SelectItem value="dismissed">Dismissed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardHeader>
@@ -624,15 +636,24 @@ function ReportDetails({ report, onClose }: { report: any; onClose: () => void }
             <Form method="post" className="inline-block w-full">
               <input type="hidden" name="intent" value="updateReportStatus" />
               <input type="hidden" name="reportId" value={report.id} />
-              <select name="status" className="w-full p-2 border border-gray-300 rounded-md">
-                <option value="pending">Pending</option>
-                <option value="reviewed">Reviewed</option>
-                <option value="resolved">Resolved</option>
-                <option value="dismissed">Dismissed</option>
-              </select>
-              <textarea
+              <input type="hidden" name="status" id="status-value" defaultValue="pending" />
+              <Select defaultValue="pending" onValueChange={(value) => {
+                const hiddenInput = document.getElementById('status-value') as HTMLInputElement;
+                if (hiddenInput) hiddenInput.value = value;
+              }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="reviewed">Reviewed</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="dismissed">Dismissed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Textarea
                 name="adminNotes"
-                className="w-full p-2 border border-gray-300 rounded-md mt-2"
+                className="w-full mt-2"
                 rows={3}
                 placeholder="Admin notes..."
               />
@@ -678,19 +699,28 @@ function ReportDetails({ report, onClose }: { report: any; onClose: () => void }
             <input type="hidden" name="targetUserId" value={report.reportedUserId} />
             
             <div>
-              <label className="block text-sm font-medium mb-2">Duration (hours)</label>
-              <select name="duration" className="w-full p-2 border border-gray-300 rounded-md">
-                <option value="24">24 hours</option>
-                <option value="168">1 week</option>
-                <option value="720">1 month</option>
-              </select>
+              <Label className="mb-2">Duration (hours)</Label>
+              <input type="hidden" name="duration" id="duration-value" defaultValue="24" />
+              <Select defaultValue="24" onValueChange={(value) => {
+                const hiddenInput = document.getElementById('duration-value') as HTMLInputElement;
+                if (hiddenInput) hiddenInput.value = value;
+              }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24">24 hours</SelectItem>
+                  <SelectItem value="168">1 week</SelectItem>
+                  <SelectItem value="720">1 month</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Reason</label>
-              <textarea
+              <Label className="mb-2">Reason</Label>
+              <Textarea
                 name="reason"
-                className="w-full p-2 border border-gray-300 rounded-md"
+                className="w-full"
                 rows={3}
                 placeholder="Reason for suspension..."
                 required
@@ -720,10 +750,10 @@ function ReportDetails({ report, onClose }: { report: any; onClose: () => void }
             <input type="hidden" name="targetUserId" value={report.reportedUserId} />
             
             <div>
-              <label className="block text-sm font-medium mb-2">Reason</label>
-              <textarea
+              <Label className="mb-2">Reason</Label>
+              <Textarea
                 name="reason"
-                className="w-full p-2 border border-gray-300 rounded-md"
+                className="w-full"
                 rows={3}
                 placeholder="Reason for ban..."
                 required

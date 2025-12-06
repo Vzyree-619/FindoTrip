@@ -7,6 +7,10 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
+import { Label } from "~/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Textarea } from "~/components/ui/textarea";
+import { Checkbox } from "~/components/ui/checkbox";
 import { 
   Plus, 
   Edit, 
@@ -333,32 +337,36 @@ export default function AdminTemplates() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Category</label>
-                      <select
-                        name="category"
-                        value={formData.category}
-                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        required
-                      >
-                        <option value="ACCOUNT_ISSUES">Account Issues</option>
-                        <option value="APPROVAL_QUESTIONS">Approval Questions</option>
-                        <option value="TECHNICAL_SUPPORT">Technical Support</option>
-                        <option value="PAYMENT_ISSUES">Payment Issues</option>
-                        <option value="POLICY_QUESTIONS">Policy Questions</option>
-                        <option value="FEATURE_REQUEST">Feature Request</option>
-                        <option value="BUG_REPORT">Bug Report</option>
-                        <option value="OTHER">Other</option>
-                      </select>
+                      <Label className="mb-2">Category</Label>
+                      <input type="hidden" name="category" id="category-value" value={formData.category} />
+                      <Select value={formData.category} onValueChange={(value) => {
+                        setFormData(prev => ({ ...prev, category: value }));
+                        const hiddenInput = document.getElementById('category-value') as HTMLInputElement;
+                        if (hiddenInput) hiddenInput.value = value;
+                      }}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ACCOUNT_ISSUES">Account Issues</SelectItem>
+                          <SelectItem value="APPROVAL_QUESTIONS">Approval Questions</SelectItem>
+                          <SelectItem value="TECHNICAL_SUPPORT">Technical Support</SelectItem>
+                          <SelectItem value="PAYMENT_ISSUES">Payment Issues</SelectItem>
+                          <SelectItem value="POLICY_QUESTIONS">Policy Questions</SelectItem>
+                          <SelectItem value="FEATURE_REQUEST">Feature Request</SelectItem>
+                          <SelectItem value="BUG_REPORT">Bug Report</SelectItem>
+                          <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Content</label>
-                      <textarea
+                      <Label className="mb-2">Content</Label>
+                      <Textarea
                         name="content"
                         value={formData.content}
                         onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                        className="w-full p-3 border border-gray-300 rounded-md"
+                        className="w-full"
                         rows={8}
                         placeholder="Enter the template content. You can use variables like {{providerName}}, {{serviceName}}, etc."
                         required
@@ -367,15 +375,14 @@ export default function AdminTemplates() {
 
                     {editingTemplate && (
                       <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           name="isActive"
                           id="isActive"
                           defaultChecked={editingTemplate.isActive}
                         />
-                        <label htmlFor="isActive" className="text-sm">
+                        <Label htmlFor="isActive" className="text-sm">
                           Template is active
-                        </label>
+                        </Label>
                       </div>
                     )}
 

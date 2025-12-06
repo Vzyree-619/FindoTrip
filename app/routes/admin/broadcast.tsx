@@ -7,6 +7,8 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
+import { Label } from "~/components/ui/label";
+import { Textarea } from "~/components/ui/textarea";
 import { 
   Plus, 
   Send, 
@@ -423,12 +425,12 @@ export default function AdminBroadcast() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Message</label>
-                      <textarea
+                      <Label className="mb-2">Message</Label>
+                      <Textarea
                         name="message"
                         value={formData.message}
                         onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
-                        className="w-full p-3 border border-gray-300 rounded-md"
+                        className="w-full"
                         rows={6}
                         placeholder="Enter your announcement message..."
                         required
@@ -436,7 +438,7 @@ export default function AdminBroadcast() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Category (Optional)</label>
+                      <Label className="mb-2">Category (Optional)</Label>
                       <Input
                         name="category"
                         value={formData.category}
@@ -446,7 +448,7 @@ export default function AdminBroadcast() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Target Audience</label>
+                      <Label className="mb-2">Target Audience</Label>
                       <div className="space-y-2">
                         {providerCounts.map((count) => (
                           <label key={count.role} className="flex items-center space-x-2">
@@ -467,7 +469,7 @@ export default function AdminBroadcast() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Schedule (Optional)</label>
+                        <Label className="mb-2">Schedule (Optional)</Label>
                         <Input
                           type="datetime-local"
                           name="scheduledAt"
@@ -477,7 +479,7 @@ export default function AdminBroadcast() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-2">Expires (Optional)</label>
+                        <Label className="mb-2">Expires (Optional)</Label>
                         <Input
                           type="datetime-local"
                           name="expiresAt"

@@ -8,6 +8,10 @@ import { Form, Link, useActionData, useSearchParams, useNavigation, useLoaderDat
 import { useState } from "react";
 import { login, createUserSession, getUserId, getUser } from "~/lib/auth/auth.server";
 import { Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+import { Label } from "~/components/ui/label";
+import { Checkbox } from "~/components/ui/checkbox";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getUser(request);
@@ -119,20 +123,20 @@ export default function Login() {
 
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <Label htmlFor="email" className="mb-2">
                 Email Address
-              </label>
+              </Label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-gray-400" />
                 </div>
-                <input
+                <Input
                   id="email"
                   name="email"
                   type="email"
                   autoComplete="email"
                   required
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                  className="pl-10"
                   placeholder="you@example.com"
                 />
               </div>
@@ -140,49 +144,49 @@ export default function Login() {
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <Label htmlFor="password" className="mb-2">
                 Password
-              </label>
+              </Label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
-                <input
+                <Input
                   id="password"
                   name="password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#01502E] focus:border-transparent transition"
+                  className="pl-10 pr-10"
                   placeholder="••••••••"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
+                  className="absolute inset-y-0 right-0 h-full"
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5" />
                   ) : (
                     <Eye className="h-5 w-5" />
                   )}
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
+              <div className="flex items-center space-x-2">
+                <Checkbox
                   id="remember-me"
                   name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-[#01502E] focus:ring-[#01502E] border-gray-300 rounded"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                <Label htmlFor="remember-me" className="text-sm font-normal cursor-pointer">
                   Remember me
-                </label>
+                </Label>
               </div>
               <Link
                 to="/forgot-password"
@@ -203,20 +207,20 @@ export default function Login() {
             )}
 
             {/* Submit Button */}
-            <button
+            <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg text-white bg-[#01502E] hover:bg-[#013d23] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#01502E] font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#01502E] hover:bg-[#013d23] text-white"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                  <Loader2 className="animate-spin h-5 w-5" />
                   Signing in...
                 </>
               ) : (
                 "Sign In"
               )}
-            </button>
+            </Button>
           </Form>
 
           {/* Divider */}

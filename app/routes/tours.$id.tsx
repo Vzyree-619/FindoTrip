@@ -344,9 +344,14 @@ export default function TourDetailPage() {
     const resolveConversation = async () => {
       try {
         if (!chatOpen || !user?.id || !(tour as any)?.guide?.userId) return;
-        const res = await fetch(`/api/chat.conversation?targetUserId=${(tour as any).guide.userId}`);
+        const res = await fetch(`/api/chat/conversations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetUserId: (tour as any).guide.userId, type: 'CUSTOMER_PROVIDER' })
+        });
+        if (!res.ok) return;
         const json = await res.json();
-        const cid = json?.conversation?.id;
+        const cid = json?.data?.id;
         if (cid) setChatConversationId(cid);
       } catch {}
     };
@@ -829,33 +834,100 @@ export default function TourDetailPage() {
         conversationId={chatConversationId}
         currentUserId={user?.id}
         initialMessage={`Hi ${tour.guide.name}, I'm interested in the ${tour.title}${selectedDate ? ` on ${selectedDate}` : ''}.`}
-        fetchConversation={async ({ targetUserId }) => {
-          const response = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
-          if (!response.ok) throw new Error("Failed to fetch conversation");
-          return response.json();
+        fetchConversation={async ({ targetUserId, conversationId }) => {
+          console.log('🔵 [Tour] Fetching conversation:', { targetUserId, conversationId });
+          
+          // If we have conversationId, fetch it directly
+          if (conversationId) {
+            const response = await fetch(`/api/chat/conversations/${conversationId}`);
+            if (!response.ok) throw new Error("Failed to fetch conversation");
+            const json = await response.json();
+            return {
+              conversation: {
+                id: json.data?.id,
+                participants: json.data?.participants || [],
+                updatedAt: json.data?.lastMessageAt,
+                lastMessage: json.data?.messages?.[json.data.messages.length - 1],
+                unreadCount: 0
+              },
+              messages: json.data?.messages || []
+            };
+          }
+          
+          // Otherwise create/get conversation by targetUserId
+          if (targetUserId) {
+            const createRes = await fetch(`/api/chat/conversations`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ targetUserId, type: 'CUSTOMER_PROVIDER' })
+            });
+            if (!createRes.ok) throw new Error("Failed to create conversation");
+            const createJson = await createRes.json();
+            const convId = createJson.data?.id;
+            
+            console.log('🟢 [Tour] Conversation created:', convId);
+            
+            // Fetch the full conversation details
+            const response = await fetch(`/api/chat/conversations/${convId}`);
+            if (!response.ok) throw new Error("Failed to fetch conversation");
+            const json = await response.json();
+            
+            return {
+              conversation: {
+                id: json.data?.id,
+                participants: json.data?.participants || [],
+                updatedAt: json.data?.lastMessageAt,
+                lastMessage: json.data?.messages?.[json.data.messages.length - 1],
+                unreadCount: 0
+              },
+              messages: json.data?.messages || []
+            };
+          }
+          
+          throw new Error('No conversationId or targetUserId provided');
         }}
         onSendMessage={async ({ conversationId, targetUserId, text }) => {
-          // Prefer using provided conversationId; otherwise, create/fetch by targetUserId
+          console.log('🔵 [Tour] Sending message:', { conversationId, targetUserId, text: text?.substring(0, 20) });
           let cid = conversationId;
+          
+          // Create conversation if needed
           if (!cid && targetUserId) {
-            const convRes = await fetch(`/api/chat.conversation?targetUserId=${targetUserId}`);
+            const convRes = await fetch(`/api/chat/conversations`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ targetUserId, type: 'CUSTOMER_PROVIDER' })
+            });
+            if (!convRes.ok) throw new Error('Failed to create conversation');
             const convJson = await convRes.json();
-            cid = convJson?.conversation?.id;
+            cid = convJson?.data?.id;
+            console.log('🟢 [Tour] Conversation created:', cid);
           }
+          
           if (!cid) throw new Error('Missing conversation ID');
+          
           const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content: text })
           });
+          
+          if (!res.ok) {
+            const errorText = await res.text();
+            console.error('🔴 [Tour] Failed to send message:', res.status, errorText);
+            throw new Error('Failed to send message');
+          }
+          
           const json = await res.json();
-          if (!res.ok || !json?.success) throw new Error('Failed to send message');
+          if (!json?.success) throw new Error('Failed to send message');
+          
           const m = json.data;
+          console.log('🟢 [Tour] Message sent:', m.id);
+          
           return {
             id: m.id,
-            conversationId: cid,
+            conversationId: m.conversationId || cid,
             senderId: m.senderId,
-            senderName: m.senderName || m.sender?.name,
+            senderName: m.senderName || m.sender?.name || 'Unknown',
             senderAvatar: m.senderAvatar || m.sender?.avatar,
             content: m.content,
             type: (m.type || 'text').toString().toLowerCase(),

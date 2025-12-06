@@ -368,7 +368,7 @@ export default function BookingConfirmation() {
       return {
         title: "Your Stay",
         name: booking.property.name,
-        image: booking.property.images?.[0] || "/placeholder-hotel.jpg",
+        image: booking.property.images?.[0] || "/landingPageImg.jpg",
         location: `${booking.property.address}, ${booking.property.city}, ${booking.property.country}`,
         startLabel: "Check-in",
         endLabel: "Check-out",

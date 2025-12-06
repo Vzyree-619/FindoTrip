@@ -10,7 +10,7 @@ import {
   type ConversationDetails
 } from "~/lib/chat.server";
 import { prisma } from "~/lib/db/db.server";
-import { checkRateLimit } from "~/lib/middleware/rate-limit.server";
+import { checkRateLimit } from "~/lib/chat-security.server"; // Use stub version until Redis is configured
 
 // ========================================
 // TYPESCRIPT INTERFACES
@@ -136,11 +136,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
 // ========================================
 
 export async function action({ request }: ActionFunctionArgs) {
+  console.log('🔵 [API] conversations.tsx action called!', { method: request.method });
   try {
     const userId = await getUserId(request);
+    console.log('🔵 [API] User ID:', userId);
     
     // If no user is logged in, return error
     if (!userId) {
+      console.log('🔴 [API] No user ID - returning 401');
       return json(
         { success: false, error: "Authentication required" },
         { status: 401 }
@@ -148,19 +151,24 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     
     if (request.method !== "POST") {
+      console.log('🔴 [API] Method not POST - returning 405');
       return json(
         { success: false, error: "Method not allowed" },
         { status: 405 }
       );
     }
+    
+    console.log('🟢 [API] Processing POST request...');
 
     // Rate limiting for conversation creation
+    console.log('🔵 [API] Checking rate limit...');
     const rateLimitResult = await checkRateLimit(
       userId,
       'chat-create',
       10, // 10 conversations per hour
       60 * 60 * 1000 // 1 hour in milliseconds
     );
+    console.log('🟢 [API] Rate limit check passed');
     
     if (!rateLimitResult.allowed) {
       return json(
@@ -169,7 +177,9 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    console.log('🔵 [API] Parsing request body...');
     const body = await request.json() as CreateConversationRequest;
+    console.log('🟢 [API] Body parsed:', { targetUserId: body.targetUserId, type: body.type });
     
     // Validation
     if (!body.targetUserId || !body.type) {
@@ -180,6 +190,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Get user and target user details
+    console.log('🔵 [API] Fetching user details...');
     const [user, targetUser] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -190,6 +201,7 @@ export async function action({ request }: ActionFunctionArgs) {
         select: { id: true, name: true, role: true }
       })
     ]);
+    console.log('🟢 [API] Users fetched:', { user: user?.name, targetUser: targetUser?.name });
 
     if (!user || !targetUser) {
       return json(
@@ -199,12 +211,14 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Validate chat permissions
+    console.log('🔵 [API] Validating permissions...');
     const permissions = await validateChatPermissions(
       userId,
       user.role,
       body.targetUserId,
       targetUser.role
     );
+    console.log('🟢 [API] Permissions validated:', { canAccess: permissions.canAccess });
 
     if (!permissions.canAccess) {
       return json(
@@ -214,6 +228,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Create conversation
+    console.log('🔵 [API] Creating/getting conversation...');
     const conversation = await getOrCreateConversation(
       userId,
       body.targetUserId,
@@ -221,6 +236,7 @@ export async function action({ request }: ActionFunctionArgs) {
       body.relatedBookingId,
       body.relatedServiceId
     );
+    console.log('🟢 [API] Conversation created/fetched:', conversation.id);
 
     const response: ConversationResponse = {
       success: true,
