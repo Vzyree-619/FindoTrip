@@ -8,6 +8,8 @@ import PropertySearchWidget from "~/components/property/PropertySearchWidget";
 import { useState } from "react";
 import { prisma } from "~/lib/db/db.server";
 import { getUser, getUserId } from "~/lib/auth/auth.server";
+import { calculateStayPrice } from "~/lib/pricing.server";
+import { checkRoomAvailability } from "~/lib/availability.server";
 import {
   MapPin,
   Users,
@@ -147,50 +149,58 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      // For each room, check how many units are available
+      // For each room, check availability and calculate dynamic pricing
       roomsWithAvailability = await Promise.all(
         roomTypes.map(async (room) => {
           try {
-            const bookedUnits = await prisma.propertyBooking.count({
-              where: {
-                roomTypeId: room.id,
-                status: { not: 'CANCELLED' },
-                OR: [
-                  {
-                    checkIn: {
-                      gte: checkInDate,
-                      lt: checkOutDate
-                    }
-                  },
-                  {
-                    checkOut: {
-                      gt: checkInDate,
-                      lte: checkOutDate
-                    }
-                  },
-                  {
-                    AND: [
-                      { checkIn: { lte: checkInDate } },
-                      { checkOut: { gte: checkOutDate } }
-                    ]
-                  }
-                ]
-              }
-            });
+            // Check availability using the availability checker
+            const availability = await checkRoomAvailability(
+              room.id,
+              checkInDate,
+              checkOutDate,
+              1 // Check for 1 room
+            );
 
-            const availableUnits = (room.totalUnits || 1) - bookedUnits;
+            // Calculate dynamic pricing for the stay
+            let dynamicPricing = null;
+            let totalPrice = room.basePrice * numberOfNights;
+            let avgPricePerNight = room.basePrice;
+
+            if (availability.isAvailable) {
+              try {
+                dynamicPricing = await calculateStayPrice(
+                  room.id,
+                  checkInDate,
+                  checkOutDate,
+                  new Date() // Booking date (now)
+                );
+                totalPrice = dynamicPricing.total;
+                avgPricePerNight = dynamicPricing.averagePricePerNight;
+              } catch (error) {
+                console.error(`Error calculating pricing for room ${room.id}:`, error);
+                // Fallback to base price calculation
+                dynamicPricing = null;
+              }
+            }
 
             return {
               ...room,
-              availableUnits,
-              isAvailable: availableUnits > 0
+              availableUnits: availability.availableUnits || 0,
+              isAvailable: availability.isAvailable,
+              dynamicPricing,
+              totalPrice,
+              avgPricePerNight,
+              availabilityDetails: availability.availabilityDetails,
             };
           } catch (error) {
             console.error(`Error checking availability for room ${room.id}:`, error);
             return {
               ...room,
               availableUnits: room.totalUnits || 1,
-              isAvailable: true
+              isAvailable: true,
+              dynamicPricing: null,
+              totalPrice: room.basePrice * numberOfNights,
+              avgPricePerNight: room.basePrice,
             };
           }
         })
@@ -446,20 +456,33 @@ export default function AccommodationDetail() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
               <div className="mb-4">
-                {roomTypeId && accommodation.roomTypes?.find((rt: any) => rt.id === roomTypeId) ? (
-                  <>
-                    <div className="text-xs text-gray-600 mb-1">Selected Room</div>
-                    <div className="text-sm font-semibold text-gray-900 mb-2">
-                      {accommodation.roomTypes.find((rt: any) => rt.id === roomTypeId)?.name}
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold text-[#01502E]">
-                        {accommodation.currency} {accommodation.roomTypes.find((rt: any) => rt.id === roomTypeId)?.basePrice.toLocaleString()}
-                      </span>
-                      <span className="text-gray-600">/ night</span>
-                    </div>
-                  </>
-                ) : (
+                {roomTypeId && accommodation.roomTypes?.find((rt: any) => rt.id === roomTypeId) ? (() => {
+                  const selectedRoom = accommodation.roomTypes.find((rt: any) => rt.id === roomTypeId);
+                  const displayPrice = nights > 0 && selectedRoom?.avgPricePerNight 
+                    ? selectedRoom.avgPricePerNight 
+                    : selectedRoom?.basePrice || 0;
+                  const isDynamicPrice = nights > 0 && selectedRoom?.dynamicPricing;
+                  
+                  return (
+                    <>
+                      <div className="text-xs text-gray-600 mb-1">Selected Room</div>
+                      <div className="text-sm font-semibold text-gray-900 mb-2">
+                        {selectedRoom?.name}
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-[#01502E]">
+                          {accommodation.currency} {displayPrice.toLocaleString()}
+                        </span>
+                        <span className="text-gray-600">/ night</span>
+                      </div>
+                      {isDynamicPrice && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Average price for selected dates
+                        </div>
+                      )}
+                    </>
+                  );
+                })() : (
                   <>
                     <div className="text-xs text-gray-600 mb-1">Starting from</div>
                     <div className="flex items-baseline gap-2">
@@ -472,19 +495,94 @@ export default function AccommodationDetail() {
                 )}
               </div>
 
-              {nights > 0 && roomTypeId && (
-                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-gray-600 mb-2">
-                    {nights} night{nights !== 1 ? 's' : ''}
+              {nights > 0 && roomTypeId && (() => {
+                const selectedRoom = accommodation.roomTypes?.find((rt: any) => rt.id === roomTypeId);
+                const dynamicPricing = selectedRoom?.dynamicPricing;
+                const displayTotal = dynamicPricing?.total || selectedRoom?.totalPrice || totalPrice;
+                const displayAvg = dynamicPricing?.averagePricePerNight || selectedRoom?.avgPricePerNight || pricePerNight;
+                
+                return (
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="text-sm text-gray-600 mb-3">
+                      {nights} night{nights !== 1 ? 's' : ''}: {checkIn && checkOut ? `${new Date(checkIn).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(checkOut).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                    </div>
+                    
+                    {dynamicPricing && dynamicPricing.nights ? (
+                      <>
+                        {/* Per-night breakdown */}
+                        <div className="space-y-1 mb-3 text-sm">
+                          {dynamicPricing.nights.slice(0, 3).map((night: any, idx: number) => (
+                            <div key={idx} className="flex justify-between">
+                              <span className="text-gray-600">
+                                Night {idx + 1} ({new Date(night.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}):
+                              </span>
+                              <span className="font-medium">
+                                {accommodation.currency} {night.finalPrice.toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                          {dynamicPricing.nights.length > 3 && (
+                            <div className="text-xs text-gray-500 italic">
+                              ... and {dynamicPricing.nights.length - 3} more night{dynamicPricing.nights.length - 3 !== 1 ? 's' : ''}
+                            </div>
+                          )}
+                        </div>
+                        <div className="border-t pt-2 mb-2"></div>
+                        
+                        {/* Fees breakdown */}
+                        <div className="space-y-1 mb-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Subtotal:</span>
+                            <span>{accommodation.currency} {dynamicPricing.subtotal.toLocaleString()}</span>
+                          </div>
+                          {dynamicPricing.cleaningFee > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Cleaning fee:</span>
+                              <span>{accommodation.currency} {dynamicPricing.cleaningFee.toLocaleString()}</span>
+                            </div>
+                          )}
+                          {dynamicPricing.serviceFee > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Service fee:</span>
+                              <span>{accommodation.currency} {dynamicPricing.serviceFee.toLocaleString()}</span>
+                            </div>
+                          )}
+                          {dynamicPricing.taxAmount > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Taxes:</span>
+                              <span>{accommodation.currency} {dynamicPricing.taxAmount.toLocaleString()}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="border-t pt-2 mb-2"></div>
+                        
+                        {/* Total and average */}
+                        <div className="flex justify-between text-lg font-bold mb-2">
+                          <span>Total:</span>
+                          <span className="text-[#01502E]">
+                            {accommodation.currency} {displayTotal.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600 text-center">
+                          Avg: {accommodation.currency} {displayAvg.toLocaleString()}/night
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                          <span>Total:</span>
+                          <span className="text-[#01502E]">
+                            {accommodation.currency} {displayTotal.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600 text-center mt-2">
+                          Avg: {accommodation.currency} {displayAvg.toLocaleString()}/night
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                    <span>Total</span>
-                    <span className="text-[#01502E]">
-                      {accommodation.currency} {totalPrice.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               <button
                 onClick={handleBooking}

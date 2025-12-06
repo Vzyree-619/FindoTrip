@@ -163,6 +163,23 @@ enum CommissionStatus {
   DISPUTED
 }
 
+enum PriceAdjustmentType {
+  PERCENTAGE_INCREASE
+  PERCENTAGE_DECREASE
+  FIXED_INCREASE
+  FIXED_DECREASE
+  FIXED_PRICE
+}
+
+enum DiscountType {
+  EARLY_BIRD
+  LAST_MINUTE
+  LONG_STAY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
 // ========================================
 // CORE USER SYSTEM WITH REAL RELATIONSHIPS
 // ========================================
@@ -796,7 +813,7 @@ model Property {
   weekendPricing    Float? // multiplier for weekends
   monthlyDiscount   Float @default(0) // percentage
   weeklyDiscount    Float @default(0) // percentage
-  seasonalPricing   Json? // complex pricing rules
+  // seasonalPricing moved to SeasonalPricing model
   
   // Media
   images        String[]
@@ -859,6 +876,13 @@ model Property {
   
   // Room types for multi-room properties (e.g., hotels)
   roomTypes     RoomType[]
+  
+  // ========================================
+  // RELATIONSHIPS TO PRICING & AVAILABILITY
+  // ========================================
+  seasonalPricing SeasonalPricing[]
+  eventPricing    SpecialEventPricing[]
+  discounts       DiscountRule[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -934,6 +958,14 @@ model RoomType {
   // Bookings referencing this room type
   bookings       PropertyBooking[]
   inventories    RoomInventoryDaily[]
+  
+  // ========================================
+  // RELATIONSHIPS TO PRICING & AVAILABILITY
+  // ========================================
+  availability    RoomAvailability[] @relation("RoomAvailability")
+  seasonalPricing SeasonalPricing[] @relation("SeasonalPricing")
+  eventPricing    SpecialEventPricing[] @relation("EventPricing")
+  discounts       DiscountRule[] @relation("DiscountRule")
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -963,6 +995,156 @@ model RoomInventoryDaily {
   updatedAt   DateTime  @updatedAt
 
   @@index([roomTypeId])
+}
+
+// ========================================
+// ROOM AVAILABILITY & CUSTOM PRICING
+// ========================================
+
+model RoomAvailability {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Room Reference
+  roomTypeId      String   @db.ObjectId
+  roomType        RoomType @relation("RoomAvailability", fields: [roomTypeId], references: [id], onDelete: Cascade)
+  
+  // Date
+  date            DateTime @db.Date // Specific date
+  
+  // Availability
+  isAvailable     Boolean  @default(true)
+  availableUnits  Int      // How many rooms available on this date
+  
+  // Custom Pricing for this date
+  customPrice     Float?   // If set, overrides basePrice
+  
+  // Reason for blocking/price change
+  reason          String?  // "Maintenance", "Holiday Pricing", "Peak Season"
+  notes           String?  // Admin notes
+  
+  // Booking restrictions
+  minStay         Int?     // Minimum nights required if booking this date
+  maxStay         Int?     // Maximum nights allowed
+  
+  // Created by
+  createdBy       String   @db.ObjectId // Property owner or admin
+  
+  @@unique([roomTypeId, date]) // One record per room per date (creates index automatically)
+  @@index([date, isAvailable])
+}
+
+// ========================================
+// SEASONAL PRICING RULES
+// ========================================
+
+model SeasonalPricing {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Room or Property-wide
+  roomTypeId      String?  @db.ObjectId
+  roomType        RoomType? @relation("SeasonalPricing", fields: [roomTypeId], references: [id], onDelete: Cascade)
+  
+  propertyId      String?  @db.ObjectId
+  property        Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  // Season Details
+  name            String   // "Summer Peak", "Holiday Season", "Winter Low"
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Pricing
+  priceAdjustment PriceAdjustmentType
+  adjustmentValue Float    // Percentage or fixed amount
+  
+  // Days of week (if applicable)
+  daysOfWeek      Int[]    // [0,1,2,3,4,5,6] for Sun-Sat, empty = all days
+  
+  // Restrictions
+  minStay         Int?
+  maxStay         Int?
+  
+  // Status
+  isActive        Boolean  @default(true)
+  priority        Int      @default(0) // Higher priority rules apply first
+  
+  @@index([roomTypeId, startDate, endDate])
+  @@index([propertyId, startDate, endDate])
+}
+
+// ========================================
+// SPECIAL EVENT PRICING
+// ========================================
+
+model SpecialEventPricing {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Property-wide or room-specific
+  propertyId      String   @db.ObjectId
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  roomTypeId      String?  @db.ObjectId
+  roomType        RoomType? @relation("EventPricing", fields: [roomTypeId], references: [id], onDelete: Cascade)
+  
+  // Event Details
+  eventName       String   // "New Year's Eve", "Super Bowl Weekend", "Christmas"
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Pricing
+  priceMultiplier Float    // 1.5 = 50% increase, 2.0 = double price
+  
+  // Restrictions
+  minStay         Int?     // Often require minimum stay for events
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  @@index([propertyId, startDate, endDate])
+  @@index([roomTypeId, startDate, endDate])
+}
+
+// ========================================
+// DISCOUNT RULES
+// ========================================
+
+model DiscountRule {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Property or Room
+  propertyId      String   @db.ObjectId
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  roomTypeId      String?  @db.ObjectId
+  roomType        RoomType? @relation("DiscountRule", fields: [roomTypeId], references: [id], onDelete: Cascade)
+  
+  // Discount Type
+  type            DiscountType // EARLY_BIRD, LAST_MINUTE, LONG_STAY, WEEKLY, MONTHLY
+  
+  // Conditions
+  daysInAdvance   Int?     // For early bird (e.g., 30 days)
+  daysBeforeCheckIn Int?   // For last minute (e.g., 3 days)
+  minNights       Int?     // Minimum stay to qualify
+  
+  // Discount Amount
+  discountPercent Float    // 10 = 10% off
+  
+  // Date Range (when this discount is applicable)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  @@index([propertyId, isActive])
+  @@index([roomTypeId, isActive])
 }
 
 model Vehicle {

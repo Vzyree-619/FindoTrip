@@ -13,6 +13,8 @@ import {
   Palette,
   Menu,
   X,
+  DollarSign,
+  TrendingUp,
 } from "lucide-react";
 import { ThemeProvider } from "~/contexts/ThemeContext";
 import { useState } from "react";
@@ -249,38 +251,53 @@ export default function Dashboard() {
                 </div>
                 <Link
                   to={user.role === "TOUR_GUIDE" ? "/dashboard/guide/bookings" : user.role === "PROPERTY_OWNER" ? "/dashboard/provider" : user.role === "VEHICLE_OWNER" ? "/dashboard/vehicle-owner" : "/dashboard/bookings"}
-                  className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  📅 My Bookings
+                  <Calendar className="w-4 h-4" />
+                  My Bookings
                 </Link>
+                {user.role === "PROPERTY_OWNER" && (
+                  <Link
+                    to="/dashboard/provider/revenue"
+                    className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                    Revenue & Commissions
+                  </Link>
+                )}
                 <Link
                   to="/dashboard/messages"
-                  className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  💬 Messages
+                  <MessageCircle className="w-4 h-4" />
+                  Messages
                 </Link>
                 <Link
                   to={user.role === "TOUR_GUIDE" ? "/dashboard/guide/reviews" : user.role === "PROPERTY_OWNER" ? "/dashboard/provider/reviews" : user.role === "VEHICLE_OWNER" ? "/dashboard/vehicle-owner" : "/dashboard/reviews"}
-                  className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  ⭐ Reviews
+                  <Star className="w-4 h-4" />
+                  Reviews
                 </Link>
                 <Link
                   to={user.role === "TOUR_GUIDE" ? "/dashboard/guide/profile" : user.role === "PROPERTY_OWNER" ? "/dashboard/provider" : user.role === "VEHICLE_OWNER" ? "/dashboard/vehicle-owner" : "/dashboard/profile"}
-                  className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  ⚙️ Profile
+                  <Settings className="w-4 h-4" />
+                  Profile
                 </Link>
                 <Link
                   to="/dashboard/settings/appearance"
-                  className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  🎨 Appearance
+                  <Palette className="w-4 h-4" />
+                  Appearance
                 </Link>
               </div>
             )}
@@ -396,7 +413,7 @@ function ProviderSidebar({ user, stats }: any) {
   };
 
   return (
-    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto flex flex-col">
+    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto flex flex-col pt-16">
       <div className="p-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">
           Dashboard
@@ -447,41 +464,47 @@ function ProviderSidebar({ user, stats }: any) {
         <div className="px-6 py-3 space-y-2">
           <Link
             to={getBookingsRoute()}
-            className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
           >
-            📅 My Bookings
+            <Calendar className="w-4 h-4" />
+            My Bookings
           </Link>
           {user.role === "PROPERTY_OWNER" && (
             <Link
               to="/dashboard/provider/revenue"
-              className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+              className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
             >
-              💰 Revenue & Commissions
+              <TrendingUp className="w-4 h-4" />
+              Revenue & Commissions
             </Link>
           )}
           <Link
             to="/dashboard/messages"
-            className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
           >
-            💬 Messages
+            <MessageCircle className="w-4 h-4" />
+            Messages
           </Link>
           <Link
             to={getReviewsRoute()}
-            className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
           >
-            ⭐ Reviews
+            <Star className="w-4 h-4" />
+            Reviews
           </Link>
           <Link
             to={getProfileRoute()}
-            className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
           >
-            ⚙️ Profile
+            <Settings className="w-4 h-4" />
+            Profile
           </Link>
           <Link
             to="/dashboard/settings/appearance"
-            className="block px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
           >
-            🎨 Appearance
+            <Palette className="w-4 h-4" />
+            Appearance
           </Link>
         </div>
       </nav>
@@ -491,7 +514,7 @@ function ProviderSidebar({ user, stats }: any) {
 
 function CustomerSidebar({ user, navigation }: any) {
   return (
-    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto flex flex-col">
+    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto flex flex-col pt-16">
       <div className="flex items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center">
           {user.avatar ? (

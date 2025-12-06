@@ -1,9 +1,15 @@
-import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { Form, useLoaderData, Link } from "@remix-run/react";
+import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData, Link, useFetcher } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
-import { ArrowLeft, Calendar, TrendingUp, DollarSign, Users } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Calendar, TrendingUp, DollarSign, Users, Settings } from "lucide-react";
+import { useState, useMemo } from "react";
+import { format, parseISO, eachDayOfInterval, startOfMonth, endOfMonth, addMonths } from "date-fns";
+import { RoomCalendar, type DateInfo } from "~/components/calendar/RoomCalendar";
+import { DateEditModal } from "~/components/calendar/DateEditModal";
+import { BulkEditModal, type BulkAction } from "~/components/calendar/BulkEditModal";
+import { Button } from "~/components/ui/button";
+import { Card } from "~/components/ui/card";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -52,7 +58,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       }
     },
     orderBy: {
-      checkInDate: 'asc'
+      checkIn: 'asc'
+    }
+  });
+
+  // Get availability records
+  const startDate = startOfMonth(new Date());
+  const endDate = endOfMonth(addMonths(new Date(), 5)); // 6 months ahead
+  const availabilityRecords = await prisma.roomAvailability.findMany({
+    where: {
+      roomTypeId: roomId,
+      date: {
+        gte: startDate,
+        lte: endDate
+      }
     }
   });
 
@@ -62,7 +81,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
   const thisMonthBookings = bookings.filter(b => 
-    b.checkInDate >= startOfMonth && b.checkInDate <= endOfMonth
+    b.checkIn >= startOfMonth && b.checkIn <= endOfMonth
   );
 
   const totalRevenue = bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
@@ -72,6 +91,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     property,
     room,
     bookings,
+    availabilityRecords,
     stats: {
       totalBookings: bookings.length,
       thisMonthBookings: thisMonthBookings.length,
@@ -82,25 +102,168 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export default function RoomAvailability() {
-  const { property, room, bookings, stats } = useLoaderData<typeof loader>();
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const { property, room, bookings, availabilityRecords, stats } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher();
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [isDateEditOpen, setIsDateEditOpen] = useState(false);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [clickedDate, setClickedDate] = useState<Date | null>(null);
+  const [clickedDateInfo, setClickedDateInfo] = useState<DateInfo | null>(null);
 
-  // Group bookings by date for calendar display
-  const bookingsByDate = new Map<string, any[]>();
-  bookings.forEach(booking => {
-    const start = new Date(booking.checkInDate);
-    const end = new Date(booking.checkOutDate);
-    const current = new Date(start);
-    
-    while (current < end) {
-      const key = current.toISOString().split('T')[0];
-      if (!bookingsByDate.has(key)) {
-        bookingsByDate.set(key, []);
+  // Group bookings by date
+  const bookingsByDate = useMemo(() => {
+    const map = new Map<string, typeof bookings>();
+    bookings.forEach(booking => {
+      const start = new Date(booking.checkIn);
+      const end = new Date(booking.checkOut);
+      const current = new Date(start);
+      
+      while (current < end) {
+        const key = format(current, "yyyy-MM-dd");
+        if (!map.has(key)) {
+          map.set(key, []);
+        }
+        map.get(key)!.push(booking);
+        current.setDate(current.getDate() + 1);
       }
-      bookingsByDate.get(key)!.push(booking);
-      current.setDate(current.getDate() + 1);
+    });
+    return map;
+  }, [bookings]);
+
+  // Create availability map
+  const availabilityMap = useMemo(() => {
+    const map = new Map<string, DateInfo>();
+    const totalUnits = room.totalUnits || 1;
+    const basePrice = room.basePrice || 0;
+
+    // Initialize with all dates from availability records
+    availabilityRecords.forEach(record => {
+      const key = format(record.date, "yyyy-MM-dd");
+      const dateBookings = bookingsByDate.get(key) || [];
+      const bookedUnits = dateBookings.reduce((sum, b) => sum + (b.numberOfRooms || 1), 0);
+      const available = Math.max(0, totalUnits - bookedUnits);
+
+      map.set(key, {
+        date: record.date,
+        price: record.customPrice || basePrice,
+        basePrice,
+        available,
+        totalUnits,
+        isBlocked: !record.isAvailable,
+        blockReason: record.reason || undefined,
+        hasBooking: dateBookings.length > 0,
+        bookings: dateBookings.map(b => ({
+          id: b.id,
+          guestName: b.guestName || b.user?.name || "Guest",
+          checkIn: new Date(b.checkIn),
+          checkOut: new Date(b.checkOut),
+        })),
+        minStay: record.minStay || undefined,
+        maxStay: record.maxStay || undefined,
+      });
+    });
+
+    return map;
+  }, [availabilityRecords, bookingsByDate, room.totalUnits, room.basePrice]);
+
+  const handleDateClick = (date: Date, info: DateInfo) => {
+    setClickedDate(date);
+    setClickedDateInfo(info);
+    setSelectedDates([date]);
+    setIsDateEditOpen(true);
+  };
+
+  const handleDateRangeSelect = (startDate: Date, endDate: Date) => {
+    const range = eachDayOfInterval({ start: startDate, end: endDate });
+    setSelectedDates(range);
+    setIsBulkEditOpen(true);
+  };
+
+  const handleDateSave = async (data: {
+    dates: Date[];
+    price?: number;
+    useBasePrice: boolean;
+    isBlocked: boolean;
+    blockReason?: string;
+    notes?: string;
+    minStay?: number;
+    maxStay?: number;
+    applyToPattern?: "only-dates" | "weekdays" | "weekends" | "recurring";
+  }) => {
+    const formData = new FormData();
+    formData.append("intent", "update");
+    formData.append("roomTypeId", room.id);
+    formData.append("dates", JSON.stringify(data.dates.map(d => format(d, "yyyy-MM-dd"))));
+    if (!data.useBasePrice && data.price) {
+      formData.append("price", data.price.toString());
     }
-  });
+    formData.append("isBlocked", data.isBlocked.toString());
+    if (data.blockReason) {
+      formData.append("blockReason", data.blockReason);
+    }
+    if (data.notes) {
+      formData.append("notes", data.notes);
+    }
+    if (data.minStay) {
+      formData.append("minStay", data.minStay.toString());
+    }
+    if (data.maxStay) {
+      formData.append("maxStay", data.maxStay.toString());
+    }
+
+    fetcher.submit(formData, {
+      method: "POST",
+      action: "/api/calendar/availability",
+    });
+  };
+
+  const handleBulkAction = (action: BulkAction) => {
+    // Handle bulk actions
+    console.log("Bulk action:", action, "on dates:", selectedDates);
+    // TODO: Implement bulk action handlers
+  };
+
+  // Build dates map for calendar
+  const datesMap = useMemo(() => {
+    const map = new Map<string, DateInfo>();
+    const totalUnits = room.totalUnits || 1;
+    const basePrice = room.basePrice || 0;
+
+    // Get date range for calendar (current month + 5 months ahead)
+    const start = startOfMonth(new Date());
+    const end = endOfMonth(addMonths(new Date(), 5));
+    const allDays = eachDayOfInterval({ start, end });
+
+    allDays.forEach(day => {
+      const key = format(day, "yyyy-MM-dd");
+      const availability = availabilityMap.get(key);
+      const dateBookings = bookingsByDate.get(key) || [];
+      const bookedUnits = dateBookings.reduce((sum, b) => sum + (b.numberOfRooms || 1), 0);
+      const available = Math.max(0, totalUnits - bookedUnits);
+
+      if (availability) {
+        map.set(key, availability);
+      } else {
+        map.set(key, {
+          date: day,
+          price: basePrice,
+          basePrice,
+          available,
+          totalUnits,
+          isBlocked: false,
+          hasBooking: dateBookings.length > 0,
+          bookings: dateBookings.map(b => ({
+            id: b.id,
+            guestName: b.guestName || b.user?.name || "Guest",
+            checkIn: new Date(b.checkIn),
+            checkOut: new Date(b.checkOut),
+          })),
+        });
+      }
+    });
+
+    return map;
+  }, [availabilityMap, bookingsByDate, room.totalUnits, room.basePrice]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -120,21 +283,21 @@ export default function RoomAvailability() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-4">
+          <Card className="p-4">
             <div className="flex items-center gap-2 text-gray-600 mb-2">
               <Calendar className="w-5 h-5" />
               <span className="text-sm">Total Bookings</span>
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.totalBookings}</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
+          </Card>
+          <Card className="p-4">
             <div className="flex items-center gap-2 text-gray-600 mb-2">
               <TrendingUp className="w-5 h-5" />
               <span className="text-sm">This Month</span>
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.thisMonthBookings}</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
+          </Card>
+          <Card className="p-4">
             <div className="flex items-center gap-2 text-gray-600 mb-2">
               <DollarSign className="w-5 h-5" />
               <span className="text-sm">Total Revenue</span>
@@ -142,8 +305,8 @@ export default function RoomAvailability() {
             <div className="text-2xl font-bold text-[#01502E]">
               {room.currency} {stats.totalRevenue.toLocaleString()}
             </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
+          </Card>
+          <Card className="p-4">
             <div className="flex items-center gap-2 text-gray-600 mb-2">
               <Users className="w-5 h-5" />
               <span className="text-sm">Avg Rate</span>
@@ -151,29 +314,55 @@ export default function RoomAvailability() {
             <div className="text-2xl font-bold text-gray-900">
               {room.currency} {Math.round(stats.avgRate).toLocaleString()}
             </div>
-          </div>
+          </Card>
         </div>
 
-        {/* Calendar View */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Booking Calendar</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            View all bookings for this room type. Dates with bookings are highlighted.
-          </p>
-          
-          {/* Simple month view - in production, use a proper calendar component */}
-          <div className="grid grid-cols-7 gap-2">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="text-center font-semibold text-gray-700 py-2">
-                {day}
+        {/* Bulk Actions */}
+        {selectedDates.length > 0 && (
+          <Card className="mb-6 p-4 bg-blue-50 border-blue-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-semibold text-gray-900">SELECTED: </span>
+                <span className="text-sm text-gray-700">
+                  {selectedDates.length} date{selectedDates.length !== 1 ? "s" : ""} selected
+                </span>
               </div>
-            ))}
-            {/* Calendar days would go here - simplified for now */}
-          </div>
-        </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsBulkEditOpen(true)}
+                >
+                  Bulk Actions
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedDates([])}
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Calendar */}
+        <Card className="p-6 mb-8">
+          <RoomCalendar
+            roomName={room.name}
+            basePrice={room.basePrice || 0}
+            currency={room.currency || "PKR"}
+            totalUnits={room.totalUnits || 1}
+            dates={datesMap}
+            onDateClick={handleDateClick}
+            onDateRangeSelect={handleDateRangeSelect}
+            monthsToShow={3}
+          />
+        </Card>
 
         {/* Bookings List */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <Card className="p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">All Bookings</h2>
           
           {bookings.length === 0 ? (
@@ -191,7 +380,7 @@ export default function RoomAvailability() {
                         {booking.guestName || booking.user?.name || 'Guest'}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {new Date(booking.checkInDate).toLocaleDateString()} - {new Date(booking.checkOutDate).toLocaleDateString()}
+                        {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
                       </div>
                       <div className="text-sm text-gray-600">
                         {booking.numberOfNights} night{booking.numberOfNights !== 1 ? 's' : ''} • {booking.adults} adult{booking.adults !== 1 ? 's' : ''}
@@ -214,39 +403,29 @@ export default function RoomAvailability() {
               ))}
             </div>
           )}
-        </div>
-
-        {/* Block Dates Form */}
-        <div className="bg-white rounded-lg shadow-md p-6 mt-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Block Dates</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Block specific dates for maintenance or other reasons
-          </p>
-          <Form method="post" className="flex gap-4">
-            <input type="hidden" name="intent" value="blockDate" />
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <input
-                type="date"
-                name="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
-                required
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                type="submit"
-                className="px-6 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23]"
-              >
-                Block Date
-              </button>
-            </div>
-          </Form>
-        </div>
+        </Card>
       </div>
+
+      {/* Modals */}
+      {clickedDate && clickedDateInfo && (
+        <DateEditModal
+          open={isDateEditOpen}
+          onOpenChange={setIsDateEditOpen}
+          dates={[clickedDate]}
+          roomName={room.name}
+          basePrice={room.basePrice || 0}
+          currency={room.currency || "PKR"}
+          initialData={new Map([[format(clickedDate, "yyyy-MM-dd"), clickedDateInfo]])}
+          onSave={handleDateSave}
+        />
+      )}
+
+      <BulkEditModal
+        open={isBulkEditOpen}
+        onOpenChange={setIsBulkEditOpen}
+        dates={selectedDates}
+        onActionSelect={handleBulkAction}
+      />
     </div>
   );
 }
-

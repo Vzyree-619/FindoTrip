@@ -57,7 +57,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         where: {
           roomTypeId: room.id,
           status: { not: 'CANCELLED' },
-          checkInDate: {
+          checkIn: {
             gte: startOfMonth,
             lte: endOfMonth
           }
@@ -81,8 +81,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           status: { not: 'CANCELLED' },
           OR: [
             {
-              checkInDate: { lte: today },
-              checkOutDate: { gt: today }
+              checkIn: { lte: today },
+              checkOut: { gt: today }
             }
           ]
         }
