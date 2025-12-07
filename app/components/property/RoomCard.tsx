@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Bed, Users, Maximize2, Check, X } from "lucide-react";
 import { differenceInDays } from "date-fns";
+import { AvailabilityMessage } from "~/components/booking/AvailabilityMessage";
+import { AlternativeDates } from "~/components/booking/AlternativeDates";
 import { calculateBookingPrice } from "~/lib/property.utils";
 
 interface RoomCardProps {
@@ -208,10 +210,19 @@ export default function RoomCard({
                 </div>
               )}
 
-              {/* Availability Status */}
-              {hasValidDates && (
-                <div className={`text-sm mb-3 font-medium ${dateRangeInfo?.isAvailable === false ? 'text-red-600' : 'text-green-600'}`}>
-                  {dateRangeInfo?.isAvailable === false ? '✗ NOT AVAILABLE for these dates' : '✓ AVAILABLE for your dates'}
+              {/* Enhanced Availability Status */}
+              {hasValidDates && dateRangeInfo && (
+                <div className="mb-4">
+                  <AvailabilityMessage
+                    availability={{
+                      isAvailable: dateRangeInfo.isAvailable,
+                      conflicts: dateRangeInfo.conflicts,
+                      reason: dateRangeInfo.reason,
+                      minStay: dateRangeInfo.pricing ? undefined : undefined, // Would need to be passed from availability check
+                      requestedNights: dateRangeInfo.numberOfNights
+                    }}
+                    roomName={room.name}
+                  />
                 </div>
               )}
 
@@ -271,49 +282,18 @@ export default function RoomCard({
                     </div>
                   ))}
 
-                  {/* Alternative Dates */}
+                  {/* Alternative Date Suggestions */}
                   {dateRangeInfo?.suggestions && dateRangeInfo.suggestions.length > 0 && (
                     <div className="mt-4">
-                      <div className="text-sm font-medium text-gray-900 mb-3">TRY THESE ALTERNATIVE DATES:</div>
-                      <div className="space-y-2">
-                        {dateRangeInfo.suggestions.slice(0, 3).map((suggestion, idx) => {
-                          const checkInDate = new Date(suggestion.checkInDate);
-                          const checkOutDate = new Date(suggestion.checkOutDate);
-                          const daysDiff = suggestion.daysDifferent;
-                          const priceDiff = suggestion.totalPrice - (dateRangeInfo?.pricing?.total || 0);
-
-                          return (
-                            <div key={idx} className="border border-gray-200 rounded-lg p-3">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-sm font-medium">
-                                  {checkInDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {checkOutDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ({differenceInDays(checkOutDate, checkInDate)} nights)
-                                </span>
-                                <span className="text-sm font-bold text-[#01502E]">
-                                  {room.currency} {suggestion.totalPrice.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-600 mb-2">
-                                {Math.abs(daysDiff)} day{daysDiff !== 1 ? 's' : ''} {daysDiff < 0 ? 'earlier' : 'later'}, {priceDiff === 0 ? 'same price' : priceDiff < 0 ? `${room.currency} ${Math.abs(priceDiff)} cheaper` : `${room.currency} ${priceDiff} more`}
-                              </div>
-                              <button
-                                onClick={() => {
-                                  // This would trigger date change in parent component
-                                  // For now, just show an alert
-                                  alert(`Selected alternative dates: ${checkInDate.toLocaleDateString()} - ${checkOutDate.toLocaleDateString()}`);
-                                }}
-                                className="w-full py-2 px-3 bg-[#01502E] text-white text-sm rounded hover:bg-[#013d23] transition-colors"
-                              >
-                                SELECT THESE DATES
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {dateRangeInfo.suggestions.length > 3 && (
-                        <button className="w-full py-2 px-3 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 transition-colors mt-2">
-                          VIEW MORE DATES
-                        </button>
-                      )}
+                      <AlternativeDates
+                        suggestions={dateRangeInfo.suggestions}
+                        onSelect={(checkIn, checkOut) => {
+                          // This would trigger date change in parent component
+                          // For now, just show an alert
+                          alert(`Selected alternative dates: ${new Date(checkIn).toLocaleDateString()} - ${new Date(checkOut).toLocaleDateString()}`);
+                        }}
+                        currency={room.currency}
+                      />
                     </div>
                   )}
                 </div>
