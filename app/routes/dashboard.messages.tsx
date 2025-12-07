@@ -192,13 +192,13 @@ export default function MessagesDashboard() {
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <button className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
-                Contact Support
-              </button>
+              Contact Support
+            </button>
               <a href="/dashboard/settings/chat" className="flex-1">
-                <button className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors">
-                  Settings
-                </button>
-              </a>
+              <button className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors">
+                Settings
+              </button>
+            </a>
             </div>
           </div>
         </div>

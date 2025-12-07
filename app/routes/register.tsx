@@ -438,12 +438,12 @@ export default function Register() {
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   className="absolute inset-y-0 right-0 h-full"
-                >
-                  {showPassword ? (
+                  >
+                    {showPassword ? (
                     <EyeOff className="h-5 w-5" />
-                  ) : (
+                    ) : (
                     <Eye className="h-5 w-5" />
-                  )}
+                    )}
                 </Button>
               </div>
               

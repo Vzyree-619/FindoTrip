@@ -9,7 +9,7 @@ import { useState } from "react";
 import { prisma } from "~/lib/db/db.server";
 import { getUser, getUserId } from "~/lib/auth/auth.server";
 import { calculateStayPrice } from "~/lib/pricing.server";
-import { checkRoomAvailability } from "~/lib/availability.server";
+import { checkRoomAvailability, getRoomAvailabilityCalendar, checkDateRangeAvailability, suggestAlternativeDates } from "~/lib/availability.server";
 import {
   MapPin,
   Users,
@@ -120,8 +120,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   // Fetch room types with full details
   let roomTypes: any[] = [];
   try {
-    roomTypes = await prisma.roomType.findMany({ 
-      where: { 
+    roomTypes = await prisma.roomType.findMany({
+      where: {
         propertyId: id,
         available: true
       },
@@ -136,11 +136,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   // If dates provided, check availability for each room
   let roomsWithAvailability = roomTypes;
   let numberOfNights = 0;
-  
+
   if (checkIn && checkOut) {
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
-    
+
     // Validate dates
     if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime()) || checkOutDate <= checkInDate) {
       // Invalid dates, return rooms without availability
@@ -149,58 +149,79 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      // For each room, check availability and calculate dynamic pricing
+      // For each room, get 12 months of availability data and check specific dates
       roomsWithAvailability = await Promise.all(
         roomTypes.map(async (room) => {
           try {
-            // Check availability using the availability checker
-            const availability = await checkRoomAvailability(
+            // Get availability calendar for next 12 months
+            const availabilityCalendar = await getRoomAvailabilityCalendar(
+              room.id,
+              new Date(),
+              12
+            );
+
+            // Check specific date range availability
+            const dateRangeAvailability = await checkDateRangeAvailability(
               room.id,
               checkInDate,
               checkOutDate,
               1 // Check for 1 room
             );
 
-            // Calculate dynamic pricing for the stay
-            let dynamicPricing = null;
-            let totalPrice = room.basePrice * numberOfNights;
-            let avgPricePerNight = room.basePrice;
+            let dateRangeInfo = null;
 
-            if (availability.isAvailable) {
+            if (dateRangeAvailability.isAvailable) {
+              // Calculate dynamic pricing for the stay
               try {
-                dynamicPricing = await calculateStayPrice(
+                const dynamicPricing = await calculateStayPrice(
                   room.id,
                   checkInDate,
-                  checkOutDate,
-                  new Date() // Booking date (now)
+                  checkOutDate
                 );
-                totalPrice = dynamicPricing.total;
-                avgPricePerNight = dynamicPricing.averagePricePerNight;
+
+                dateRangeInfo = {
+                  isAvailable: true,
+                  pricing: dynamicPricing,
+                  numberOfNights: dateRangeAvailability.numberOfNights
+                };
               } catch (error) {
                 console.error(`Error calculating pricing for room ${room.id}:`, error);
-                // Fallback to base price calculation
-                dynamicPricing = null;
+                dateRangeInfo = {
+                  isAvailable: false,
+                  reason: 'Pricing calculation error'
+                };
               }
+            } else {
+              // Get alternative date suggestions
+              const suggestions = await suggestAlternativeDates(
+                room.id,
+                checkInDate,
+                numberOfNights,
+                14
+              );
+
+              dateRangeInfo = {
+                isAvailable: false,
+                conflicts: dateRangeAvailability.conflicts,
+                reason: dateRangeAvailability.reason,
+                suggestions
+              };
             }
 
             return {
               ...room,
-              availableUnits: availability.availableUnits || 0,
-              isAvailable: availability.isAvailable,
-              dynamicPricing,
-              totalPrice,
-              avgPricePerNight,
-              availabilityDetails: availability.availabilityDetails,
+              availabilityCalendar,
+              dateRangeInfo
             };
           } catch (error) {
             console.error(`Error checking availability for room ${room.id}:`, error);
             return {
               ...room,
-              availableUnits: room.totalUnits || 1,
-              isAvailable: true,
-              dynamicPricing: null,
-              totalPrice: room.basePrice * numberOfNights,
-              avgPricePerNight: room.basePrice,
+              availabilityCalendar: [],
+              dateRangeInfo: {
+                isAvailable: false,
+                reason: 'Availability check failed'
+              }
             };
           }
         })

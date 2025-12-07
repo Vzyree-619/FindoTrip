@@ -770,16 +770,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
           
           // Create commission with proper provider relationship
           const commissionData: any = {
-            amount: commissionAmount,
-            percentage: commissionRate * 100,
-            currency: booking.currency,
+              amount: commissionAmount,
+              percentage: commissionRate * 100,
+              currency: booking.currency,
             status: commissionStatus,
-            bookingId,
-            bookingType,
-            serviceId,
-            serviceType: bookingType,
+              bookingId,
+              bookingType,
+              serviceId,
+              serviceType: bookingType,
             userId: providerUserId || providerId,
-            calculatedAt: new Date(),
+              calculatedAt: new Date(),
           };
           
           // Link to specific provider model

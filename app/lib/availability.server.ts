@@ -1,5 +1,5 @@
 import { prisma } from "~/lib/db/db.server";
-import { startOfDay, differenceInDays, addDays } from "date-fns";
+import { startOfDay, differenceInDays, addDays, addMonths, subDays, isBefore } from "date-fns";
 
 /**
  * Check if room is available for specific dates
@@ -238,6 +238,366 @@ export async function getMaximumStay(roomTypeId: string, date: Date): Promise<nu
 }
 
 /**
+ * Get available dates for a room type for next 12 months
+ * Returns detailed availability info for each date
+ */
+export async function getRoomAvailabilityCalendar(
+  roomId: string,
+  startDate: Date = new Date(),
+  months: number = 12
+): Promise<CalendarDateAvailability[]> {
+
+  const room = await prisma.roomType.findUnique({
+    where: { id: roomId },
+    select: { totalUnits: true, available: true }
+  });
+
+  if (!room || !room.available) return [];
+
+  const endDate = addMonths(startDate, months);
+  const availability: CalendarDateAvailability[] = [];
+  let currentDate = startOfDay(startDate);
+
+  while (currentDate <= endDate) {
+    // Get custom availability settings
+    const customAvailability = await prisma.roomAvailability.findUnique({
+      where: {
+        roomTypeId_date: {
+          roomTypeId: roomId,
+          date: currentDate
+        }
+      }
+    });
+
+    // If explicitly blocked
+    if (customAvailability && !customAvailability.isAvailable) {
+      availability.push({
+        date: currentDate.toISOString(),
+        isAvailable: false,
+        availableUnits: 0,
+        totalUnits: room.totalUnits,
+        occupancyPercent: 100,
+        reason: 'BLOCKED',
+        blockReason: customAvailability.reason || 'Unavailable',
+        minStay: customAvailability.minStay,
+        maxStay: customAvailability.maxStay,
+        price: null
+      });
+      currentDate = addDays(currentDate, 1);
+      continue;
+    }
+
+    // Count existing bookings for this date
+    const bookings = await prisma.propertyBooking.aggregate({
+      where: {
+        roomTypeId: roomId,
+        status: { notIn: ['CANCELLED', 'REFUNDED'] },
+        OR: [
+          {
+            checkIn: { lte: currentDate },
+            checkOut: { gt: currentDate }
+          }
+        ]
+      },
+      _sum: {
+        numberOfRooms: true
+      }
+    });
+
+    const bookedUnits = bookings._sum.numberOfRooms || 0;
+    const maxUnits = customAvailability?.availableUnits ?? room.totalUnits;
+    const availableUnits = Math.max(0, maxUnits - bookedUnits);
+    const occupancyPercent = room.totalUnits > 0 ? ((bookedUnits / room.totalUnits) * 100) : 0;
+
+    availability.push({
+      date: currentDate.toISOString(),
+      isAvailable: availableUnits > 0,
+      availableUnits,
+      totalUnits: room.totalUnits,
+      occupancyPercent,
+      reason: availableUnits === 0 ? 'FULLY_BOOKED' : null,
+      minStay: customAvailability?.minStay,
+      maxStay: customAvailability?.maxStay,
+      price: null // Will be calculated by pricing engine
+    });
+
+    currentDate = addDays(currentDate, 1);
+  }
+
+  return availability;
+}
+
+/**
+ * Check if a specific date range is available
+ * Returns detailed conflict information if not available
+ */
+export async function checkDateRangeAvailability(
+  roomId: string,
+  checkInDate: Date,
+  checkOutDate: Date,
+  numberOfRooms: number = 1
+): Promise<DateRangeAvailabilityResult> {
+
+  const room = await prisma.roomType.findUnique({
+    where: { id: roomId },
+    select: { totalUnits: true, available: true }
+  });
+
+  if (!room || !room.available) {
+    return {
+      isAvailable: false,
+      conflicts: [],
+      reason: 'Room type not found or unavailable'
+    };
+  }
+
+  const conflicts: DateConflict[] = [];
+  let currentDate = new Date(checkInDate);
+
+  // Check each date in the range
+  while (currentDate < checkOutDate) {
+    // Check if date is blocked
+    const customAvailability = await prisma.roomAvailability.findUnique({
+      where: {
+        roomTypeId_date: {
+          roomTypeId: roomId,
+          date: startOfDay(currentDate)
+        }
+      }
+    });
+
+    if (customAvailability && !customAvailability.isAvailable) {
+      conflicts.push({
+        date: currentDate.toISOString(),
+        type: 'BLOCKED',
+        reason: customAvailability.reason || 'Date blocked by property',
+        availableUnits: 0
+      });
+      currentDate = addDays(currentDate, 1);
+      continue;
+    }
+
+    // Count bookings for this date
+    const bookings = await prisma.propertyBooking.aggregate({
+      where: {
+        roomTypeId: roomId,
+        status: { notIn: ['CANCELLED', 'REFUNDED'] },
+        OR: [
+          {
+            checkIn: { lte: currentDate },
+            checkOut: { gt: currentDate }
+          }
+        ]
+      },
+      _sum: {
+        numberOfRooms: true
+      }
+    });
+
+    const bookedUnits = bookings._sum.numberOfRooms || 0;
+    const maxUnits = customAvailability?.availableUnits ?? room.totalUnits;
+    const availableUnits = maxUnits - bookedUnits;
+
+    if (availableUnits < numberOfRooms) {
+      conflicts.push({
+        date: currentDate.toISOString(),
+        type: 'FULLY_BOOKED',
+        reason: `Only ${availableUnits} room(s) available, ${numberOfRooms} requested`,
+        availableUnits,
+        requestedUnits: numberOfRooms
+      });
+    }
+
+    currentDate = addDays(currentDate, 1);
+  }
+
+  // Check minimum stay requirement
+  const numberOfNights = differenceInDays(checkOutDate, checkInDate);
+  const minStay = await getMinimumStayForDateRange(roomId, checkInDate, checkOutDate);
+
+  if (minStay && numberOfNights < minStay) {
+    return {
+      isAvailable: false,
+      conflicts: [],
+      reason: `Minimum ${minStay} nights required for these dates`,
+      minStay,
+      requestedNights: numberOfNights
+    };
+  }
+
+  // Check maximum stay if applicable
+  const maxStay = await getMaximumStayForDateRange(roomId, checkInDate, checkOutDate);
+  if (maxStay && numberOfNights > maxStay) {
+    return {
+      isAvailable: false,
+      conflicts: [],
+      reason: `Maximum ${maxStay} nights allowed for these dates`,
+      maxStay,
+      requestedNights: numberOfNights
+    };
+  }
+
+  if (conflicts.length > 0) {
+    return {
+      isAvailable: false,
+      conflicts,
+      reason: `${conflicts.length} date(s) unavailable in your selected range`
+    };
+  }
+
+  return {
+    isAvailable: true,
+    conflicts: [],
+    numberOfNights
+  };
+}
+
+/**
+ * Get minimum stay requirement for a date range
+ */
+async function getMinimumStayForDateRange(
+  roomId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<number | null> {
+
+  let maxMinStay: number | null = null;
+  let currentDate = new Date(startDate);
+
+  while (currentDate < endDate) {
+    const dateMinStay = await getMinimumStay(roomId, currentDate);
+    if (dateMinStay && (!maxMinStay || dateMinStay > maxMinStay)) {
+      maxMinStay = dateMinStay;
+    }
+    currentDate = addDays(currentDate, 1);
+  }
+
+  return maxMinStay;
+}
+
+/**
+ * Get maximum stay restriction
+ */
+async function getMaximumStayForDateRange(
+  roomId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<number | null> {
+
+  let minMaxStay: number | null = null;
+  let currentDate = new Date(startDate);
+
+  while (currentDate < endDate) {
+    const availability = await prisma.roomAvailability.findUnique({
+      where: {
+        roomTypeId_date: {
+          roomTypeId: roomId,
+          date: startOfDay(currentDate)
+        }
+      }
+    });
+
+    if (availability?.maxStay) {
+      if (!minMaxStay || availability.maxStay < minMaxStay) {
+        minMaxStay = availability.maxStay;
+      }
+    }
+
+    currentDate = addDays(currentDate, 1);
+  }
+
+  return minMaxStay;
+}
+
+/**
+ * Suggest alternative available dates near requested dates
+ */
+export async function suggestAlternativeDates(
+  roomId: string,
+  preferredCheckIn: Date,
+  numberOfNights: number,
+  searchRadius: number = 14
+): Promise<DateSuggestion[]> {
+
+  const suggestions: DateSuggestion[] = [];
+
+  // Check dates before preferred date
+  for (let i = 1; i <= searchRadius; i++) {
+    const checkIn = subDays(preferredCheckIn, i);
+    const checkOut = addDays(checkIn, numberOfNights);
+
+    const availability = await checkDateRangeAvailability(roomId, checkIn, checkOut);
+
+    if (availability.isAvailable) {
+      // Get pricing for this date range
+      const pricing = await getPricingForDateRange(roomId, checkIn, checkOut);
+      suggestions.push({
+        checkInDate: checkIn.toISOString(),
+        checkOutDate: checkOut.toISOString(),
+        totalPrice: pricing.total,
+        avgPricePerNight: pricing.averagePricePerNight,
+        daysDifferent: -i
+      });
+    }
+  }
+
+  // Check dates after preferred date
+  for (let i = 1; i <= searchRadius; i++) {
+    const checkIn = addDays(preferredCheckIn, i);
+    const checkOut = addDays(checkIn, numberOfNights);
+
+    const availability = await checkDateRangeAvailability(roomId, checkIn, checkOut);
+
+    if (availability.isAvailable) {
+      // Get pricing for this date range
+      const pricing = await getPricingForDateRange(roomId, checkIn, checkOut);
+      suggestions.push({
+        checkInDate: checkIn.toISOString(),
+        checkOutDate: checkOut.toISOString(),
+        totalPrice: pricing.total,
+        avgPricePerNight: pricing.averagePricePerNight,
+        daysDifferent: i
+      });
+    }
+
+    // Limit to 5 suggestions
+    if (suggestions.length >= 5) break;
+  }
+
+  // Sort by price (cheapest first) and proximity
+  return suggestions.sort((a, b) => {
+    const priceDiff = a.totalPrice - b.totalPrice;
+    if (Math.abs(priceDiff) > 50) return priceDiff;
+    return Math.abs(a.daysDifferent) - Math.abs(b.daysDifferent);
+  });
+}
+
+/**
+ * Simple pricing calculation for date suggestions
+ */
+async function getPricingForDateRange(
+  roomId: string,
+  checkIn: Date,
+  checkOut: Date
+): Promise<{ total: number; averagePricePerNight: number }> {
+
+  const room = await prisma.roomType.findUnique({
+    where: { id: roomId },
+    select: { basePrice: true }
+  });
+
+  if (!room) return { total: 0, averagePricePerNight: 0 };
+
+  const nights = differenceInDays(checkOut, checkIn);
+  const total = room.basePrice * nights;
+
+  return {
+    total,
+    averagePricePerNight: total / nights
+  };
+}
+
+/**
  * Get availability summary for a date range
  */
 export async function getAvailabilitySummary(
@@ -350,5 +710,45 @@ export interface AvailabilitySummary {
   fullyBookedDates: number;
   minAvailableUnits: number;
   maxAvailableUnits: number;
+}
+
+// New comprehensive interfaces for calendar system
+export interface CalendarDateAvailability {
+  date: string;
+  isAvailable: boolean;
+  availableUnits: number;
+  totalUnits: number;
+  occupancyPercent: number;
+  reason?: 'BLOCKED' | 'FULLY_BOOKED' | null;
+  blockReason?: string;
+  minStay?: number | null;
+  maxStay?: number | null;
+  price: number | null;
+}
+
+export interface DateConflict {
+  date: string;
+  type: 'BLOCKED' | 'FULLY_BOOKED' | 'PARTIALLY_AVAILABLE';
+  reason: string;
+  availableUnits: number;
+  requestedUnits?: number;
+}
+
+export interface DateRangeAvailabilityResult {
+  isAvailable: boolean;
+  conflicts: DateConflict[];
+  reason?: string;
+  minStay?: number;
+  maxStay?: number;
+  requestedNights?: number;
+  numberOfNights?: number;
+}
+
+export interface DateSuggestion {
+  checkInDate: string;
+  checkOutDate: string;
+  totalPrice: number;
+  avgPricePerNight: number;
+  daysDifferent: number; // negative = before, positive = after
 }
 

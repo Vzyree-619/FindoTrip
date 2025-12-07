@@ -734,22 +734,6 @@ export default function EditRoomType() {
 
           {/* Form Actions */}
           <div className="flex justify-between gap-4 pt-6 border-t">
-            <Form method="post" className="inline">
-              <input type="hidden" name="intent" value="delete" />
-              <Button
-                type="submit"
-                variant="outline"
-                onClick={(e) => {
-                  if (!confirm("Are you sure you want to delete this room type? This action cannot be undone.")) {
-                    e.preventDefault();
-                  }
-                }}
-                className="border-red-300 text-red-600 hover:bg-red-50"
-              >
-                Delete Room Type
-              </Button>
-            </Form>
-
             <div className="flex gap-4">
               <Button
                 type="button"
@@ -767,6 +751,25 @@ export default function EditRoomType() {
             </div>
           </div>
         </Form>
+        
+        {/* Delete Form - Outside main form to avoid nesting */}
+        <div className="mt-4">
+          <Form method="post" action=".">
+            <input type="hidden" name="intent" value="delete" />
+            <Button
+              type="submit"
+              variant="outline"
+              onClick={(e) => {
+                if (!confirm("Are you sure you want to delete this room type? This action cannot be undone.")) {
+                  e.preventDefault();
+                }
+              }}
+              className="border-red-300 text-red-600 hover:bg-red-50"
+            >
+              Delete Room Type
+            </Button>
+          </Form>
+        </div>
       </div>
     </div>
   );

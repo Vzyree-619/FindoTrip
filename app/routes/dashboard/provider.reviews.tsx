@@ -20,12 +20,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
     const ids = properties.map(p => p.id);
     if (ids.length > 0) {
-      reviews = await prisma.review.findMany({
-        where: { serviceType: "property", serviceId: { in: ids } },
-        include: { user: { select: { name: true, avatar: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 100,
-      });
+    reviews = await prisma.review.findMany({
+      where: { serviceType: "property", serviceId: { in: ids } },
+      include: { user: { select: { name: true, avatar: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
     }
   } else if (user.role === "VEHICLE_OWNER") {
     const vehicles = await prisma.vehicle.findMany({ 
@@ -34,12 +34,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
     const ids = vehicles.map(v => v.id);
     if (ids.length > 0) {
-      reviews = await prisma.review.findMany({
-        where: { serviceType: "vehicle", serviceId: { in: ids } },
-        include: { user: { select: { name: true, avatar: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 100,
-      });
+    reviews = await prisma.review.findMany({
+      where: { serviceType: "vehicle", serviceId: { in: ids } },
+      include: { user: { select: { name: true, avatar: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
     }
   } else if (user.role === "TOUR_GUIDE") {
     const tours = await prisma.tour.findMany({ 
@@ -48,12 +48,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
     const ids = tours.map(t => t.id);
     if (ids.length > 0) {
-      reviews = await prisma.review.findMany({
-        where: { serviceType: "tour", serviceId: { in: ids } },
-        include: { user: { select: { name: true, avatar: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 100,
-      });
+    reviews = await prisma.review.findMany({
+      where: { serviceType: "tour", serviceId: { in: ids } },
+      include: { user: { select: { name: true, avatar: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
     }
   } else {
     // Not a provider role
