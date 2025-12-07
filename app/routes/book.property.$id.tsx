@@ -18,7 +18,15 @@ import { createAndDispatchNotification } from "~/lib/notifications.server";
 import { publishToUser } from "~/lib/realtime.server";
 import { sendEmail } from "~/lib/email/email.server";
 import { calculateCommission, createCommission } from "~/lib/utils/commission.server";
+import { checkDateRangeAvailability } from "~/lib/availability.server";
 import type { PaymentMethod } from "@prisma/client";
+
+// Helper function to generate confirmation code
+function generateConfirmationCode(): string {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substr(2, 6);
+  return `CONF${timestamp}${random}`.toUpperCase();
+}
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -232,7 +240,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
-    const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
 
     // Verify room exists and belongs to property
     const room = await prisma.roomType.findUnique({
@@ -243,73 +250,91 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return json({ error: "Room not found or invalid" }, { status: 404 });
     }
 
-    // Re-check availability
-    const bookedUnits = await prisma.propertyBooking.count({
-      where: {
-        roomTypeId: room.id,
-        status: { not: 'CANCELLED' },
-        OR: [
-          { checkIn: { gte: checkInDate, lt: checkOutDate } },
-          { checkOut: { gt: checkInDate, lte: checkOutDate } },
-          { AND: [{ checkIn: { lte: checkInDate } }, { checkOut: { gte: checkOutDate } }] }
-        ]
-      }
-    });
+    // CRITICAL: Final availability check before creating booking
+    const finalAvailabilityCheck = await checkDateRangeAvailability(
+      roomId,
+      checkInDate,
+      checkOutDate,
+      1 // Check for 1 room
+    );
 
-    const availableUnits = (room.totalUnits || 1) - bookedUnits;
-    if (availableUnits < 1) {
-      return json({ error: "Room no longer available for selected dates" }, { status: 400 });
+    if (!finalAvailabilityCheck.isAvailable) {
+      // Someone booked it while user was filling form - return detailed conflict info
+      return json({
+        error: 'BOOKING_CONFLICT',
+        message: 'Sorry, this room was just booked by another guest. Please select different dates.',
+        conflicts: finalAvailabilityCheck.conflicts,
+        reason: finalAvailabilityCheck.reason
+      }, { status: 409 }); // 409 Conflict status
     }
 
-    // Generate booking number
+    // Generate booking identifiers
     const bookingNumber = `PB${Date.now()}${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-    
-    // Generate confirmation code
-    const confirmationCode = `CONF${Date.now()}${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+    const confirmationCode = generateConfirmationCode();
+
+    const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
 
     try {
-      const booking = await prisma.propertyBooking.create({
-        data: {
-          bookingNumber,
-          checkIn: checkInDate,
-          checkOut: checkOutDate,
-          numberOfNights,
-          adults,
-          children,
-          roomRate,
-          totalRoomCost,
-          cleaningFee,
-          serviceFee,
-          taxAmount,
-          totalAmount,
-          currency: room.currency || 'PKR',
-          status: "PENDING_PAYMENT",
-          paymentStatus: "PENDING",
-          guestName,
-          guestEmail,
-          guestPhone,
-          specialRequests,
-          userId,
-          propertyId,
-          roomTypeId: roomId,
-        },
-        include: {
-          property: {
-            select: {
-              name: true,
-              address: true,
-              city: true,
-              country: true,
-              ownerId: true,
-              owner: {
-                include: {
-                  user: { select: { id: true, name: true, email: true } },
+      // Use database transaction to prevent race conditions
+      const booking = await prisma.$transaction(async (tx) => {
+        // Double-check availability within transaction to prevent race conditions
+        const transactionAvailabilityCheck = await checkDateRangeAvailability(
+          roomId,
+          checkInDate,
+          checkOutDate,
+          1
+        );
+
+        if (!transactionAvailabilityCheck.isAvailable) {
+          throw new Error('ROOM_FULLY_BOOKED');
+        }
+
+        // Create booking within transaction
+        return await tx.propertyBooking.create({
+          data: {
+            bookingNumber,
+            checkIn: checkInDate,
+            checkOut: checkOutDate,
+            numberOfNights,
+            adults,
+            children,
+            roomRate,
+            totalRoomCost,
+            cleaningFee,
+            serviceFee,
+            taxAmount,
+            totalAmount,
+            currency: room.currency || 'PKR',
+            status: "PENDING_PAYMENT",
+            paymentStatus: "PENDING",
+            guestName,
+            guestEmail,
+            guestPhone,
+            specialRequests,
+            userId,
+            propertyId,
+            roomTypeId: roomId,
+          },
+          include: {
+            property: {
+              select: {
+                name: true,
+                address: true,
+                city: true,
+                country: true,
+                ownerId: true,
+                owner: {
+                  include: {
+                    user: { select: { id: true, name: true, email: true } },
+                  },
                 },
               },
             },
+            roomType: true,
           },
-          roomType: true,
-        },
+        });
+      }, {
+        timeout: 10000 // 10 second timeout
       });
 
       // 1) Create a pending payment record (will be updated on payment step)
@@ -438,8 +463,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
       } catch {}
 
       return redirect(`/book/payment/${booking.id}?type=property`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating booking:", error);
+
+      // Handle specific booking conflict errors
+      if (error.message === 'ROOM_FULLY_BOOKED') {
+        return json({
+          error: 'BOOKING_CONFLICT',
+          message: 'This room was just booked by another guest. Please select different dates.',
+          conflicts: [],
+          reason: 'Room became unavailable during booking process'
+        }, { status: 409 });
+      }
+
       return json({ error: "Failed to create booking. Please try again." }, { status: 500 });
     }
   }
@@ -849,7 +885,19 @@ export default function PropertyBooking() {
                   {/* Error Messages */}
                   {actionData && 'error' in actionData && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                      <p className="text-red-800">{actionData.error}</p>
+                      <p className="text-red-800 font-medium">{actionData.message || actionData.error}</p>
+                      {actionData.error === 'BOOKING_CONFLICT' && actionData.conflicts && actionData.conflicts.length > 0 && (
+                        <div className="mt-2 text-sm">
+                          <p className="font-medium">Unavailable dates:</p>
+                          <ul className="list-disc list-inside mt-1">
+                            {actionData.conflicts.slice(0, 3).map((conflict: any, idx: number) => (
+                              <li key={idx}>
+                                {new Date(conflict.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {conflict.reason}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
 
