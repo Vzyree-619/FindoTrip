@@ -287,8 +287,8 @@ export default function AccommodationDetail() {
     }
     
     const params = new URLSearchParams({
-      checkIn,
-      checkOut,
+      checkIn: searchParams?.checkIn || '',
+      checkOut: searchParams?.checkOut || '',
       guests: guests.toString(),
     });
     if (roomTypeId) params.set('roomTypeId', roomTypeId);
@@ -296,9 +296,9 @@ export default function AccommodationDetail() {
   };
 
   const calculateNights = () => {
-    if (!checkIn || !checkOut) return 0;
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
+    if (!searchParams?.checkIn || !searchParams?.checkOut) return 0;
+    const start = new Date(searchParams.checkIn);
+    const end = new Date(searchParams.checkOut);
     const diff = end.getTime() - start.getTime();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
@@ -516,7 +516,7 @@ export default function AccommodationDetail() {
                 return (
                   <div className="mb-4 p-4 bg-gray-50 rounded-lg">
                     <div className="text-sm text-gray-600 mb-3">
-                      {nights} night{nights !== 1 ? 's' : ''}: {checkIn && checkOut ? `${new Date(checkIn).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(checkOut).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                      {nights} night{nights !== 1 ? 's' : ''}: {searchParams?.checkIn && searchParams?.checkOut ? `${new Date(searchParams.checkIn).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(searchParams.checkOut).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
                     </div>
                     
                     {dynamicPricing && dynamicPricing.nights ? (
@@ -598,7 +598,7 @@ export default function AccommodationDetail() {
 
               <button
                 onClick={handleBooking}
-                disabled={!checkIn || !checkOut || guests < 1 || !roomTypeId}
+                disabled={!searchParams?.checkIn || !searchParams?.checkOut || guests < 1 || !roomTypeId}
                 className="w-full py-3 bg-[#01502E] text-white rounded-lg font-semibold hover:bg-[#013d23] disabled:bg-gray-300 disabled:cursor-not-allowed transition"
               >
                 {!roomTypeId ? "Select a Room First" : user ? "Reserve Now" : "Sign in to book"}
