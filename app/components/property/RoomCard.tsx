@@ -211,18 +211,31 @@ export default function RoomCard({
               )}
 
               {/* Enhanced Availability Status - Only show when dates are selected */}
-              {hasValidDates && dateRangeInfo && (
+              {hasValidDates && (
                 <div className="mb-4">
-                  <AvailabilityMessage
-                    availability={{
-                      isAvailable: dateRangeInfo.isAvailable,
-                      conflicts: dateRangeInfo.conflicts,
-                      reason: dateRangeInfo.reason,
-                      minStay: dateRangeInfo.pricing ? undefined : undefined, // Would need to be passed from availability check
-                      requestedNights: dateRangeInfo.numberOfNights
-                    }}
-                    roomName={room.name}
-                  />
+                  {dateRangeInfo ? (
+                    <AvailabilityMessage
+                      availability={{
+                        isAvailable: dateRangeInfo.isAvailable,
+                        conflicts: dateRangeInfo.conflicts,
+                        reason: dateRangeInfo.reason,
+                        minStay: dateRangeInfo.pricing ? undefined : undefined,
+                        requestedNights: dateRangeInfo.numberOfNights
+                      }}
+                      roomName={room.name}
+                    />
+                  ) : (
+                    <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-gray-800 mb-1">
+                          Checking availability...
+                        </h4>
+                        <p className="text-sm text-gray-700">
+                          Please wait while we check room availability for your selected dates.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

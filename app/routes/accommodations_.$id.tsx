@@ -255,14 +255,12 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 }
 
 export default function AccommodationDetail() {
-  const { accommodation, user, isWishlisted, reviews, ratingBreakdown, similarProperties } = useLoaderData<typeof loader>();
+  const { accommodation, user, isWishlisted, reviews, ratingBreakdown, similarProperties, searchParams } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const revalidator = useRevalidator();
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
-  const [guests, setGuests] = useState(1);
   const [wishlisted, setWishlisted] = useState(isWishlisted);
   const [chatOpen, setChatOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -457,19 +455,12 @@ export default function AccommodationDetail() {
               }}
               roomTypes={accommodation.roomTypes || []}
               reviews={reviews}
-              checkIn={checkIn ? new Date(checkIn) : null}
-              checkOut={checkOut ? new Date(checkOut) : null}
-              numberOfNights={nights}
+              checkIn={searchParams?.checkIn ? new Date(searchParams.checkIn) : null}
+              checkOut={searchParams?.checkOut ? new Date(searchParams.checkOut) : null}
+              numberOfNights={searchParams?.numberOfNights || 1}
               numberOfRooms={numberOfRooms}
               selectedRoomId={roomTypeId || null}
               onRoomSelect={(roomId) => setRoomTypeId(roomId)}
-              onDateChange={(newCheckIn, newCheckOut) => {
-                setCheckIn(newCheckIn ? newCheckIn.toISOString().split('T')[0] : '');
-                setCheckOut(newCheckOut ? newCheckOut.toISOString().split('T')[0] : '');
-              }}
-              onGuestsChange={(adults, children) => {
-                setGuests(adults + children);
-              }}
             />
           </div>
 
