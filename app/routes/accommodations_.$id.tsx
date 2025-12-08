@@ -216,12 +216,13 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
             };
           } catch (error) {
             console.error(`Error checking availability for room ${room.id}:`, error);
+            console.error('Error details:', error.stack);
             return {
               ...room,
               availabilityCalendar: [],
               dateRangeInfo: {
                 isAvailable: false,
-                reason: 'Availability check failed'
+                reason: `Availability check failed: ${error.message}`
               }
             };
           }
@@ -290,7 +291,7 @@ export default function AccommodationDetail() {
     const params = new URLSearchParams({
       checkIn: searchParams?.checkIn || '',
       checkOut: searchParams?.checkOut || '',
-      guests: guests.toString(),
+      guests: (searchParams ? (searchParams.adults || 0) + (searchParams.children || 0) : 1).toString(),
     });
     if (roomTypeId) params.set('roomTypeId', roomTypeId);
     navigate(`/book/property/${accommodation.id}?${params.toString()}`);
@@ -599,7 +600,7 @@ export default function AccommodationDetail() {
 
               <button
                 onClick={handleBooking}
-                disabled={!searchParams?.checkIn || !searchParams?.checkOut || guests < 1 || !roomTypeId}
+                disabled={!searchParams?.checkIn || !searchParams?.checkOut || (searchParams ? (searchParams.adults || 0) + (searchParams.children || 0) : 0) < 1 || !roomTypeId}
                 className="w-full py-3 bg-[#01502E] text-white rounded-lg font-semibold hover:bg-[#013d23] disabled:bg-gray-300 disabled:cursor-not-allowed transition"
               >
                 {!roomTypeId ? "Select a Room First" : user ? "Reserve Now" : "Sign in to book"}
