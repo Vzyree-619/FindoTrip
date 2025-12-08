@@ -166,8 +166,8 @@ export async function getMinimumStay(roomTypeId: string, date: Date): Promise<nu
   const seasonalRule = await prisma.seasonalPricing.findFirst({
     where: {
       OR: [
-        { roomTypeId: roomTypeId },
-        { propertyId: { not: null } } // Property-wide rules
+        { roomTypeId: roomTypeId }, // Room-specific rules
+        { roomTypeId: null } // Property-wide rules
       ],
       startDate: { lte: normalizedDate },
       endDate: { gte: normalizedDate },
@@ -186,8 +186,8 @@ export async function getMinimumStay(roomTypeId: string, date: Date): Promise<nu
   const eventRule = await prisma.specialEventPricing.findFirst({
     where: {
       OR: [
-        { roomTypeId: roomTypeId },
-        { propertyId: { not: null } } // Property-wide events
+        { roomTypeId: roomTypeId }, // Room-specific events
+        { roomTypeId: null } // Property-wide events
       ],
       startDate: { lte: normalizedDate },
       endDate: { gte: normalizedDate },
@@ -222,8 +222,8 @@ export async function getMaximumStay(roomTypeId: string, date: Date): Promise<nu
   const seasonalRule = await prisma.seasonalPricing.findFirst({
     where: {
       OR: [
-        { roomTypeId: roomTypeId },
-        { propertyId: { not: null } } // Property-wide rules
+        { roomTypeId: roomTypeId }, // Room-specific rules
+        { roomTypeId: null } // Property-wide rules
       ],
       startDate: { lte: normalizedDate },
       endDate: { gte: normalizedDate },
