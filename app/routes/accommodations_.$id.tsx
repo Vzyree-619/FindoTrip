@@ -170,9 +170,9 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
             let dateRangeInfo = null;
 
-            if (dateRangeAvailability.isAvailable) {
-              // Calculate dynamic pricing for the stay
-              try {
+            try {
+              if (dateRangeAvailability.isAvailable) {
+                // Calculate dynamic pricing for the stay
                 const dynamicPricing = await calculateStayPrice(
                   room.id,
                   checkInDate,
@@ -184,27 +184,28 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
                   pricing: dynamicPricing,
                   numberOfNights: dateRangeAvailability.numberOfNights
                 };
-              } catch (error) {
-                console.error(`Error calculating pricing for room ${room.id}:`, error);
+              } else {
+                // Get alternative date suggestions
+                const suggestions = await suggestAlternativeDates(
+                  room.id,
+                  checkInDate,
+                  numberOfNights,
+                  5 // Limit suggestions for performance
+                );
+
                 dateRangeInfo = {
                   isAvailable: false,
-                  reason: 'Pricing calculation error'
+                  conflicts: dateRangeAvailability.conflicts,
+                  reason: dateRangeAvailability.reason,
+                  suggestions
                 };
               }
-            } else {
-              // Get alternative date suggestions
-              const suggestions = await suggestAlternativeDates(
-                room.id,
-                checkInDate,
-                numberOfNights,
-                14
-              );
-
+            } catch (error) {
+              console.error(`Error processing availability for room ${room.id}:`, error);
+              // Always provide some dateRangeInfo so the UI knows dates were processed
               dateRangeInfo = {
                 isAvailable: false,
-                conflicts: dateRangeAvailability.conflicts,
-                reason: dateRangeAvailability.reason,
-                suggestions
+                reason: 'Unable to check availability'
               };
             }
 
@@ -230,11 +231,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
 
   // Map property -> accommodation shape used by UI
-  const accommodation = { 
-    ...property, 
-    roomTypes: roomsWithAvailability, 
-    pricePerNight: property.basePrice, 
-    currency: (property as any).currency || 'PKR' 
+  const accommodation = {
+    ...property,
+    roomTypes: roomsWithAvailability,
+    pricePerNight: property.basePrice,
+    currency: (property as any).currency || 'PKR'
   } as any;
 
   return json({ 

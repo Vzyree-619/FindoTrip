@@ -76,6 +76,16 @@ export default function RoomCard({
 }: RoomCardProps) {
   const [showFullDescription, setShowFullDescription] = useState(false);
 
+  // Debug logging
+  console.log('RoomCard Debug:', {
+    roomId: room.id,
+    roomName: room.name,
+    checkIn,
+    checkOut,
+    hasDateRangeInfo: !!room.dateRangeInfo,
+    dateRangeInfo: room.dateRangeInfo
+  });
+
   // Use the availability data from the loader instead of API calls
   const dateRangeInfo = room.dateRangeInfo;
   const isAvailable = dateRangeInfo?.isAvailable ?? null;
@@ -96,6 +106,8 @@ export default function RoomCard({
 
   const mainImage = room.mainImage || room.images[0] || "/landingPageImg.jpg";
   const hasValidDates = checkIn && checkOut && checkIn instanceof Date && checkOut instanceof Date && checkIn < checkOut;
+
+  console.log('RoomCard hasValidDates:', hasValidDates, 'dateRangeInfo:', !!dateRangeInfo);
 
   return (
     <div className={`bg-white rounded-xl border-2 ${isSelected ? 'border-[#01502E] shadow-lg' : 'border-gray-200'} overflow-hidden transition-all duration-300 hover:shadow-md`}>
