@@ -76,6 +76,15 @@ export default function RoomCard({
 }: RoomCardProps) {
   const [showFullDescription, setShowFullDescription] = useState(false);
 
+  // Debug logging
+  console.log('RoomCard received:', {
+    roomId: room.id,
+    checkIn,
+    checkOut,
+    hasDateRangeInfo: !!room.dateRangeInfo,
+    dateRangeInfo: room.dateRangeInfo
+  });
+
   // Use the availability data from the loader instead of API calls
   const dateRangeInfo = room.dateRangeInfo;
   const isAvailable = dateRangeInfo?.isAvailable ?? null;

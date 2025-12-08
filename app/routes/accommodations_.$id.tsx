@@ -42,6 +42,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const adults = parseInt(url.searchParams.get('adults') || '2');
   const children = parseInt(url.searchParams.get('children') || '0');
 
+
   const property = await prisma.property.findUnique({
     where: { id },
     include: {
@@ -181,7 +182,15 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
                 dateRangeInfo = {
                   isAvailable: true,
-                  pricing: dynamicPricing,
+                  pricing: {
+                    nights: [],
+                    subtotal: room.basePrice * numberOfNights,
+                    cleaningFee: 0,
+                    serviceFee: 0,
+                    taxAmount: 0,
+                    total: room.basePrice * numberOfNights,
+                    averagePricePerNight: room.basePrice
+                  },
                   numberOfNights: dateRangeAvailability.numberOfNights
                 };
               } else {
