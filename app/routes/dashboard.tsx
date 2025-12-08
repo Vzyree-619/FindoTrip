@@ -546,6 +546,7 @@ function CustomerSidebar({ user, navigation }: any) {
           <NavLink
             key={item.name}
             to={item.href}
+            console.log("The data has been received here")
             end={item.exact}
             className={({ isActive }) =>
               `group flex items-center px-4 py-3 text-base font-medium rounded-lg transition ${

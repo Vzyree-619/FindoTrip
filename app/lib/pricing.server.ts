@@ -99,6 +99,7 @@ export async function calculateRoomPrice(
 
   // 5. Apply discounts (if booking X nights or X days in advance)
   if (numberOfNights && bookingDate) {
+    try {
     const daysInAdvance = differenceInDays(normalizedDate, startOfDay(bookingDate));
     
     // Get property ID for property-wide discounts
@@ -107,80 +108,53 @@ export async function calculateRoomPrice(
       select: { propertyId: true }
     });
 
-    const discounts = await prisma.discountRule.findMany({
+    // Get applicable discounts with simpler query
+    const allDiscounts = await prisma.discountRule.findMany({
       where: {
-        AND: [
-          {
-            OR: [
-              { roomTypeId: roomTypeId },
-              ...(roomWithProperty ? [{ propertyId: roomWithProperty.propertyId }] : [])
-            ]
-          },
-          { isActive: true },
-          {
-            OR: [
-              // Long stay discount
-              {
-                AND: [
-                  { type: 'LONG_STAY' },
-                  { minNights: { lte: numberOfNights } }
-                ]
-              },
-              // Early bird discount
-              {
-                AND: [
-                  { type: 'EARLY_BIRD' },
-                  { daysInAdvance: { lte: daysInAdvance } }
-                ]
-              },
-              // Last minute discount
-              {
-                AND: [
-                  { type: 'LAST_MINUTE' },
-                  { daysBeforeCheckIn: { gte: daysInAdvance } }
-                ]
-              },
-              // Weekly discount
-              {
-                AND: [
-                  { type: 'WEEKLY' },
-                  { minNights: { lte: numberOfNights } }
-                ]
-              },
-              // Monthly discount
-              {
-                AND: [
-                  { type: 'MONTHLY' },
-                  { minNights: { lte: numberOfNights } }
-                ]
-              }
-            ]
-          },
-          // Check validity dates
-          {
-            OR: [
-              { validFrom: null, validUntil: null },
-              {
-                AND: [
-                  { validFrom: { lte: normalizedDate } },
-                  { validUntil: { gte: normalizedDate } }
-                ]
-              }
-            ]
-          }
-        ]
+        OR: [
+          { roomTypeId: roomTypeId },
+          ...(roomWithProperty ? [{ propertyId: roomWithProperty.propertyId }] : [])
+        ],
+        isActive: true
       }
     });
 
-    // Apply best discount (highest percentage)
-    if (discounts.length > 0) {
-      const bestDiscount = discounts.reduce((prev, current) =>
-        current.discountPercent > prev.discountPercent ? current : prev
-      );
+    // Filter discounts manually to avoid complex Prisma queries
+    const discounts = allDiscounts.filter(discount => {
+      // Check validity dates
+      if (discount.validFrom && discount.validFrom > normalizedDate) return false;
+      if (discount.validUntil && discount.validUntil < normalizedDate) return false;
 
-      const discountAmount = finalPrice * (bestDiscount.discountPercent / 100);
-      finalPrice = finalPrice - discountAmount;
-      appliedRules.push(`${bestDiscount.type} discount: -${bestDiscount.discountPercent}%`);
+      // Check discount conditions
+      switch (discount.type) {
+        case 'LONG_STAY':
+          return discount.minNights ? numberOfNights >= discount.minNights : false;
+        case 'EARLY_BIRD':
+          return discount.daysInAdvance ? daysInAdvance >= discount.daysInAdvance : false;
+        case 'LAST_MINUTE':
+          return discount.daysBeforeCheckIn ? daysInAdvance <= discount.daysBeforeCheckIn : false;
+        case 'WEEKLY':
+          return discount.minNights ? numberOfNights >= discount.minNights : false;
+        case 'MONTHLY':
+          return discount.minNights ? numberOfNights >= discount.minNights : false;
+        default:
+          return false;
+      }
+    });
+
+      // Apply best discount (highest percentage)
+      if (discounts.length > 0) {
+        const bestDiscount = discounts.reduce((prev, current) =>
+          current.discountPercent > prev.discountPercent ? current : prev
+        );
+
+        const discountAmount = finalPrice * (bestDiscount.discountPercent / 100);
+        finalPrice = finalPrice - discountAmount;
+        appliedRules.push(`${bestDiscount.type} discount: -${bestDiscount.discountPercent}%`);
+      }
+    } catch (error) {
+      console.error('Error calculating discounts:', error);
+      // Continue without discounts if there's an error
     }
   }
 

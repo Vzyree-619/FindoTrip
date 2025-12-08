@@ -216,13 +216,18 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
             };
           } catch (error) {
             console.error(`Error checking availability for room ${room.id}:`, error);
-            console.error('Error details:', error.stack);
+            console.error('Error stack:', error.stack);
+            console.error('Error details:', {
+              message: error.message,
+              name: error.name,
+              code: error.code
+            });
             return {
               ...room,
               availabilityCalendar: [],
               dateRangeInfo: {
                 isAvailable: false,
-                reason: `Availability check failed: ${error.message}`
+                reason: `Unable to check availability`
               }
             };
           }
