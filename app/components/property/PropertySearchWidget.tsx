@@ -98,7 +98,7 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
 
   return (
     <div
-      className={`bg-white border-b border-gray-200 shadow-sm ${sticky ? 'sticky top-0 z-50' : ''}`}
+      className={`bg-white border-b border-gray-200 shadow-sm ${sticky ? 'sticky top-16 z-40' : ''}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">

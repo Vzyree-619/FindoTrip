@@ -12,8 +12,6 @@ export async function calculateRoomPrice(
   numberOfNights?: number,
   bookingDate?: Date // Date when booking is made (for early bird/last minute discounts)
 ): Promise<PriceBreakdown> {
-  console.log(`Calculating price for room ${roomTypeId} on date ${date}`);
-
   // 1. Get base price from room
   const room = await prisma.roomType.findUnique({
     where: { id: roomTypeId },
@@ -22,8 +20,6 @@ export async function calculateRoomPrice(
       currency: true,
     }
   });
-
-  console.log(`Room lookup result for ${roomTypeId}:`, room);
 
   if (!room) {
     throw new Error(`Room type ${roomTypeId} not found`);
