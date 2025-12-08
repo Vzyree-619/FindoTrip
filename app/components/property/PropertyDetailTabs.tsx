@@ -124,8 +124,8 @@ export default function PropertyDetailTabs({
                     <RoomCard
                       key={room.id}
                       room={room}
-                      checkIn={checkIn || new Date()}
-                      checkOut={checkOut || new Date(Date.now() + 24 * 60 * 60 * 1000)}
+                      checkIn={checkIn}
+                      checkOut={checkOut}
                       numberOfNights={numberOfNights || 1}
                       numberOfRooms={numberOfRooms}
                       propertyCleaningFee={property.cleaningFee}

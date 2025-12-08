@@ -95,7 +95,7 @@ export default function RoomCard({
   );
 
   const mainImage = room.mainImage || room.images[0] || "/landingPageImg.jpg";
-  const hasValidDates = checkIn && checkOut && checkIn instanceof Date && checkOut instanceof Date;
+  const hasValidDates = checkIn && checkOut && checkIn instanceof Date && checkOut instanceof Date && checkIn < checkOut;
 
   return (
     <div className={`bg-white rounded-xl border-2 ${isSelected ? 'border-[#01502E] shadow-lg' : 'border-gray-200'} overflow-hidden transition-all duration-300 hover:shadow-md`}>
@@ -203,14 +203,14 @@ export default function RoomCard({
           {/* Enhanced Pricing and Availability Section */}
           <div className="mt-auto border-t border-gray-200 pt-4">
             <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
-              {/* Date Header */}
+              {/* Date Header - Only show when we have valid dates */}
               {hasValidDates && (
                 <div className="text-sm text-gray-600 mb-3 font-medium">
                   YOUR DATES: {checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {checkOut.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, {numberOfNights} night{numberOfNights !== 1 ? 's' : ''}
                 </div>
               )}
 
-              {/* Enhanced Availability Status */}
+              {/* Enhanced Availability Status - Only show when dates are selected */}
               {hasValidDates && dateRangeInfo && (
                 <div className="mb-4">
                   <AvailabilityMessage
@@ -226,7 +226,7 @@ export default function RoomCard({
                 </div>
               )}
 
-              {/* Price Breakdown */}
+              {/* Price Breakdown - Only show when dates are selected AND we have pricing info */}
               {hasValidDates && dateRangeInfo?.pricing ? (
                 <div className="space-y-2">
                   <div className="text-sm font-medium text-gray-900 mb-2">Price Breakdown:</div>
@@ -282,20 +282,20 @@ export default function RoomCard({
                     </div>
                   ))}
 
-                  {/* Alternative Date Suggestions */}
-                  {dateRangeInfo?.suggestions && dateRangeInfo.suggestions.length > 0 && (
-                    <div className="mt-4">
-                      <AlternativeDates
-                        suggestions={dateRangeInfo.suggestions}
-                        onSelect={(checkIn, checkOut) => {
-                          // This would trigger date change in parent component
-                          // For now, just show an alert
-                          alert(`Selected alternative dates: ${new Date(checkIn).toLocaleDateString()} - ${new Date(checkOut).toLocaleDateString()}`);
-                        }}
-                        currency={room.currency}
-                      />
-                    </div>
-                  )}
+                  {/* Alternative Date Suggestions - Only show when dates are selected and unavailable */}
+              {hasValidDates && dateRangeInfo?.isAvailable === false && dateRangeInfo?.suggestions && dateRangeInfo.suggestions.length > 0 && (
+                <div className="mt-4">
+                  <AlternativeDates
+                    suggestions={dateRangeInfo.suggestions}
+                    onSelect={(checkIn, checkOut) => {
+                      // This would trigger date change in parent component
+                      // For now, just show an alert
+                      alert(`Selected alternative dates: ${new Date(checkIn).toLocaleDateString()} - ${new Date(checkOut).toLocaleDateString()}`);
+                    }}
+                    currency={room.currency}
+                  />
+                </div>
+              )}
                 </div>
               ) : (
                 <div className="text-center py-4">
