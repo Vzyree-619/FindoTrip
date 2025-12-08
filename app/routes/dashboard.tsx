@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { ThemeProvider } from "~/contexts/ThemeContext";
 import { useState } from "react";
-
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
   const url = new URL(request.url);
@@ -33,7 +32,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       appearanceSettings: true,
     },
   });
-
   // Redirect based on role only when visiting the root dashboard path
   if (url.pathname === "/dashboard") {
     if (user?.role === "PROPERTY_OWNER") {
@@ -46,12 +44,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       throw redirect("/dashboard/guide");
     }
   }
-
   // Redirect tour guides from generic bookings to their specific bookings page
   if (url.pathname === "/dashboard/bookings" && user?.role === "TOUR_GUIDE") {
     throw redirect("/dashboard/guide/bookings");
   }
-
   // Allow tour guide specific routes to pass through
   if (
     user?.role === "TOUR_GUIDE" &&
@@ -65,7 +61,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       sidebarCollapsed: false,
       animationsEnabled: true,
     };
-
     if (user?.appearanceSettings) {
       try {
         appearanceSettings = JSON.parse(user.appearanceSettings);
@@ -73,7 +68,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
         console.error("Failed to parse appearance settings:", e);
       }
     }
-
     return json({
       user,
       stats: {
@@ -85,7 +79,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       appearanceSettings,
     });
   }
-
   // Get dashboard stats - only for customers
   const [
     propertyBookings,
@@ -113,10 +106,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       where: { userId },
     }),
   ]);
-
   const bookingsCount =
     propertyBookings.length + vehicleBookings.length + tourBookings.length;
-
   const now = new Date();
   const upcomingPropertyBookings = propertyBookings.filter(
     (b) => b.status === "CONFIRMED" && b.checkIn >= now
@@ -129,7 +120,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   ).length;
   const upcomingBookings =
     upcomingPropertyBookings + upcomingVehicleBookings + upcomingTourBookings;
-
   const favoritesCount = wishlists.reduce((total, wishlist) => {
     return (
       total +
@@ -138,7 +128,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       wishlist.tourIds.length
     );
   }, 0);
-
   let appearanceSettings = {
     theme: "light",
     fontSize: "medium",
@@ -146,7 +135,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     sidebarCollapsed: false,
     animationsEnabled: true,
   };
-
   if (user?.appearanceSettings) {
     try {
       appearanceSettings = JSON.parse(user.appearanceSettings);
@@ -154,7 +142,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       console.error("Failed to parse appearance settings:", e);
     }
   }
-
   return json({
     user: await prisma.user.findUnique({
       where: { id: userId },
@@ -177,11 +164,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     appearanceSettings,
   });
 }
-
 export default function Dashboard() {
   const { user, stats, appearanceSettings } = useLoaderData<typeof loader>();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -191,12 +176,10 @@ export default function Dashboard() {
       </div>
     );
   }
-
   const isProviderRole =
     user.role === "PROPERTY_OWNER" ||
     user.role === "VEHICLE_OWNER" ||
     user.role === "TOUR_GUIDE";
-
   if (isProviderRole) {
     return (
       <ThemeProvider
@@ -207,7 +190,6 @@ export default function Dashboard() {
           <div className="hidden md:flex md:fixed md:top-0 md:left-0 md:h-screen md:w-64 md:flex-col md:z-40">
             <ProviderSidebar user={user} stats={stats} />
           </div>
-
           {/* Mobile Header */}
           <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
             <div className="flex items-center justify-between p-4">
@@ -227,7 +209,6 @@ export default function Dashboard() {
                 )}
               </button>
             </div>
-
             {/* Mobile Menu Dropdown */}
             {mobileMenuOpen && (
               <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-2">
@@ -302,7 +283,6 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-
           {/* Main Content */}
           <main className="flex-1 w-full md:ml-64 md:w-[calc(100vw-256px)] md:max-w-[calc(100vw-256px)] overflow-auto overflow-x-hidden">
             <div className="w-full max-w-full min-w-0 overflow-x-hidden box-border">
@@ -313,9 +293,7 @@ export default function Dashboard() {
       </ThemeProvider>
     );
   }
-
   const safeUser = user as NonNullable<typeof user>;
-
   const navigation = [
     { name: "Overview", href: "/dashboard", icon: Home, exact: true },
     { name: "My Bookings", href: "/dashboard/bookings", icon: Calendar },
@@ -329,7 +307,6 @@ export default function Dashboard() {
     },
     { name: "Profile", href: "/dashboard/profile", icon: Settings },
   ];
-
   return (
     <ThemeProvider
       initialTheme={appearanceSettings.theme as "light" | "dark" | "auto"}
@@ -339,7 +316,6 @@ export default function Dashboard() {
         <div className="hidden md:flex md:fixed md:top-0 md:left-0 md:h-screen md:w-64 md:flex-col md:z-40 md:bg-white dark:md:bg-gray-800">
           <CustomerSidebar user={safeUser} navigation={navigation} />
         </div>
-
         {/* Mobile Header */}
         <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
           <div className="flex items-center justify-between p-4">
@@ -359,7 +335,6 @@ export default function Dashboard() {
               )}
             </button>
           </div>
-
           {/* Mobile Menu */}
           {mobileMenuOpen && (
             <nav className="border-t border-gray-200 dark:border-gray-700 p-2 space-y-1">
@@ -377,7 +352,6 @@ export default function Dashboard() {
             </nav>
           )}
         </div>
-
         {/* Main Content */}
         <main className="flex-1 w-full md:ml-64 md:w-[calc(100vw-256px)] md:max-w-[calc(100vw-256px)] overflow-auto overflow-x-hidden">
           <div className="w-full max-w-full min-w-0 overflow-x-hidden box-border">
@@ -388,7 +362,6 @@ export default function Dashboard() {
     </ThemeProvider>
   );
 }
-
 function ProviderSidebar({ user, stats }: any) {
   // Determine routes based on user role
   const getBookingsRoute = () => {
@@ -397,21 +370,18 @@ function ProviderSidebar({ user, stats }: any) {
     if (user.role === "VEHICLE_OWNER") return "/dashboard/vehicle-owner";
     return "/dashboard/bookings";
   };
-
   const getReviewsRoute = () => {
     if (user.role === "TOUR_GUIDE") return "/dashboard/guide/reviews";
     if (user.role === "PROPERTY_OWNER") return "/dashboard/provider/reviews";
     if (user.role === "VEHICLE_OWNER") return "/dashboard/vehicle-owner";
     return "/dashboard/reviews";
   };
-
   const getProfileRoute = () => {
     if (user.role === "TOUR_GUIDE") return "/dashboard/guide/profile";
     if (user.role === "PROPERTY_OWNER") return "/dashboard/provider";
     if (user.role === "VEHICLE_OWNER") return "/dashboard/vehicle-owner";
     return "/dashboard/profile";
   };
-
   return (
     <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto flex flex-col pt-16">
       <div className="p-6">
@@ -422,7 +392,6 @@ function ProviderSidebar({ user, stats }: any) {
           Welcome back, {user.name}
         </p>
       </div>
-
       <nav className="flex-1 overflow-y-auto">
         <div className="px-6 py-3">
           <div className="grid grid-cols-2 gap-4 text-sm">
@@ -460,7 +429,6 @@ function ProviderSidebar({ user, stats }: any) {
             </div>
           </div>
         </div>
-
         <div className="px-6 py-3 space-y-2">
           <Link
             to={getBookingsRoute()}
@@ -511,7 +479,6 @@ function ProviderSidebar({ user, stats }: any) {
     </div>
   );
 }
-
 function CustomerSidebar({ user, navigation }: any) {
   return (
     <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto flex flex-col pt-16">
@@ -540,14 +507,12 @@ function CustomerSidebar({ user, navigation }: any) {
           </div>
         </div>
       </div>
-
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
         {navigation.map((item: any) => (
           <NavLink
             key={item.name}
             to={item.href}
-            console.log("The data has been received here")
-            end={item.exact}
+            
             className={({ isActive }) =>
               `group flex items-center px-4 py-3 text-base font-medium rounded-lg transition ${
                 isActive
