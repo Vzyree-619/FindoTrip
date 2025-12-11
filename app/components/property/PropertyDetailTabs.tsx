@@ -43,6 +43,7 @@ export default function PropertyDetailTabs({
   onDateChange,
   onGuestsChange
 }: PropertyDetailTabsProps) {
+  console.log('PropertyDetailTabs received dates:', { checkIn, checkOut });
   const [activeTab, setActiveTab] = useState<'overview' | 'rooms' | 'location' | 'amenities' | 'reviews'>('rooms');
 
   return (

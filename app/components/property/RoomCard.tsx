@@ -79,12 +79,13 @@ export default function RoomCard({
   // Use the availability data from the loader instead of API calls
   const dateRangeInfo = room.dateRangeInfo;
   const isAvailable = dateRangeInfo?.isAvailable ?? null;
-  const pricing = dateRangeInfo?.pricing ? {
-    basePrice: dateRangeInfo.pricing.subtotal,
-    cleaningFee: dateRangeInfo.pricing.cleaningFee,
-    serviceFee: dateRangeInfo.pricing.serviceFee,
-    taxes: dateRangeInfo.pricing.taxAmount,
-    total: dateRangeInfo.pricing.total
+  const pricingInfo = dateRangeInfo?.pricing;
+  const pricing = pricingInfo ? {
+    basePrice: pricingInfo.subtotal,
+    cleaningFee: pricingInfo.cleaningFee,
+    serviceFee: pricingInfo.serviceFee,
+    taxes: pricingInfo.taxAmount,
+    total: pricingInfo.total
   } : calculateBookingPrice(
     room.basePrice,
     numberOfNights,
@@ -96,6 +97,9 @@ export default function RoomCard({
 
   const mainImage = room.mainImage || room.images[0] || "/landingPageImg.jpg";
   const hasValidDates = checkIn && checkOut && checkIn instanceof Date && checkOut instanceof Date && checkIn < checkOut;
+  const hasDateRangeInfo = Boolean(dateRangeInfo);
+  const canShowPricing = Boolean(pricingInfo) && (hasValidDates || hasDateRangeInfo);
+  const canShowUnavailable = (hasValidDates || hasDateRangeInfo) && dateRangeInfo?.isAvailable === false;
 
   return (
     <div className={`bg-white rounded-xl border-2 ${isSelected ? 'border-[#01502E] shadow-lg' : 'border-gray-200'} overflow-hidden transition-all duration-300 hover:shadow-md`}>
@@ -203,15 +207,15 @@ export default function RoomCard({
           {/* Enhanced Pricing and Availability Section */}
           <div className="mt-auto border-t border-gray-200 pt-4">
             <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
-              {/* Date Header - Only show when we have valid dates */}
-              {hasValidDates && (
+              {/* Date Header - show when dates exist from URL or loader */}
+              {(hasValidDates || canShowPricing || canShowUnavailable) && checkIn && checkOut && checkIn instanceof Date && checkOut instanceof Date && !isNaN(checkIn.getTime()) && !isNaN(checkOut.getTime()) && checkIn < checkOut && (
                 <div className="text-sm text-gray-600 mb-3 font-medium">
                   YOUR DATES: {checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {checkOut.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, {numberOfNights} night{numberOfNights !== 1 ? 's' : ''}
                 </div>
               )}
 
-              {/* Enhanced Availability Status - Only show when dates are selected */}
-              {hasValidDates && (
+              {/* Enhanced Availability Status - show when dates or loader availability exist */}
+              {(hasValidDates || hasDateRangeInfo) && (
                 <div className="mb-4">
                   {dateRangeInfo ? (
                     <AvailabilityMessage
@@ -239,13 +243,13 @@ export default function RoomCard({
                 </div>
               )}
 
-              {/* Price Breakdown - Only show when dates are selected AND we have pricing info */}
-              {hasValidDates && dateRangeInfo?.pricing ? (
+              {/* Price Breakdown - Show when we have pricing (from loader) even if client Date objects fail validation */}
+              {canShowPricing ? (
                 <div className="space-y-2">
                   <div className="text-sm font-medium text-gray-900 mb-2">Price Breakdown:</div>
 
                   {/* Per-night pricing */}
-                  {dateRangeInfo.pricing.nights.map((night, idx) => (
+                  {(pricingInfo?.nights || []).map((night, idx) => (
                     <div key={idx} className="flex justify-between text-sm text-gray-600">
                       <span>{new Date(night.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ({new Date(night.date).toLocaleDateString('en-US', { weekday: 'short' })})</span>
                       <span>{room.currency} {night.finalPrice.toLocaleString()}/night</span>
@@ -255,38 +259,38 @@ export default function RoomCard({
                   <div className="border-t border-gray-200 pt-2 mt-3">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Subtotal</span>
-                      <span className="font-medium">{room.currency} {dateRangeInfo.pricing.subtotal.toLocaleString()}</span>
+                      <span className="font-medium">{room.currency} {pricingInfo?.subtotal?.toLocaleString()}</span>
                     </div>
-                    {dateRangeInfo.pricing.cleaningFee > 0 && (
+                    {pricingInfo && pricingInfo.cleaningFee > 0 && (
                       <div className="flex justify-between text-sm text-gray-600">
                         <span>Cleaning fee</span>
-                        <span>{room.currency} {dateRangeInfo.pricing.cleaningFee.toLocaleString()}</span>
+                        <span>{room.currency} {pricingInfo.cleaningFee.toLocaleString()}</span>
                       </div>
                     )}
-                    {dateRangeInfo.pricing.serviceFee > 0 && (
+                    {pricingInfo && pricingInfo.serviceFee > 0 && (
                       <div className="flex justify-between text-sm text-gray-600">
                         <span>Service fee</span>
-                        <span>{room.currency} {dateRangeInfo.pricing.serviceFee.toLocaleString()}</span>
+                        <span>{room.currency} {pricingInfo.serviceFee.toLocaleString()}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm text-gray-600">
                       <span>Taxes (8%)</span>
-                      <span>{room.currency} {dateRangeInfo.pricing.taxAmount.toLocaleString()}</span>
+                      <span>{room.currency} {pricingInfo?.taxAmount?.toLocaleString()}</span>
                     </div>
                     <div className="border-t border-gray-300 pt-2 mt-2">
                       <div className="flex justify-between items-center">
                         <span className="font-semibold text-gray-900">TOTAL</span>
                         <span className="text-xl font-bold text-[#01502E]">
-                          {room.currency} {dateRangeInfo.pricing.total.toLocaleString()}
+                          {room.currency} {pricingInfo?.total?.toLocaleString()}
                         </span>
                       </div>
                       <div className="text-xs text-gray-600 text-right">
-                        Avg: {room.currency} {dateRangeInfo.pricing.averagePricePerNight.toLocaleString()}/night
+                        Avg: {room.currency} {pricingInfo?.averagePricePerNight?.toLocaleString()}/night
                       </div>
                     </div>
                   </div>
                 </div>
-              ) : hasValidDates && dateRangeInfo?.isAvailable === false ? (
+              ) : canShowUnavailable ? (
                 <div className="space-y-3">
                   <div className="text-sm font-medium text-gray-900">Unavailable Dates:</div>
                   {dateRangeInfo.conflicts?.map((conflict, idx) => (

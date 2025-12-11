@@ -1,11 +1,11 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link, useRevalidator, useNavigate } from "@remix-run/react";
+import { useLoaderData, Link, useRevalidator, useNavigate, useSearchParams } from "@remix-run/react";
 import { ChatInterface } from "~/components/chat";
 import ShareModal from "~/components/common/ShareModal";
 import FloatingShareButton from "~/components/common/FloatingShareButton";
 import PropertyDetailTabs from "~/components/property/PropertyDetailTabs";
 import PropertySearchWidget from "~/components/property/PropertySearchWidget";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { prisma } from "~/lib/db/db.server";
 import { getUser, getUserId } from "~/lib/auth/auth.server";
 import { calculateStayPrice } from "~/lib/pricing.server";
@@ -274,6 +274,7 @@ export default function AccommodationDetail() {
   const { accommodation, user, isWishlisted, reviews, ratingBreakdown, similarProperties, searchParams } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const revalidator = useRevalidator();
+  const [urlSearchParams] = useSearchParams();
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
@@ -283,6 +284,39 @@ export default function AccommodationDetail() {
   const [roomTypeId, setRoomTypeId] = useState<string | undefined>(undefined);
   const [numberOfRooms, setNumberOfRooms] = useState(1);
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
+
+  // Derive the most up-to-date dates/guests from the URL (fallback to loader data)
+  const urlCheckIn = urlSearchParams.get("checkIn");
+  const urlCheckOut = urlSearchParams.get("checkOut");
+  const urlAdults = urlSearchParams.get("adults");
+  const urlChildren = urlSearchParams.get("children");
+
+  const checkInDate = urlCheckIn
+    ? new Date(urlCheckIn)
+    : searchParams?.checkIn
+      ? new Date(searchParams.checkIn)
+      : null;
+  const checkOutDate = urlCheckOut
+    ? new Date(urlCheckOut)
+    : searchParams?.checkOut
+      ? new Date(searchParams.checkOut)
+      : null;
+
+  const parsedAdults = Number.isNaN(parseInt(urlAdults || "", 10)) ? undefined : parseInt(urlAdults || "0", 10);
+  const parsedChildren = Number.isNaN(parseInt(urlChildren || "", 10)) ? undefined : parseInt(urlChildren || "0", 10);
+  const totalGuests =
+    (searchParams?.adults ?? parsedAdults ?? 0) +
+    (searchParams?.children ?? parsedChildren ?? 0);
+
+  // Force a revalidation when URL dates change so availability/pricing refreshes
+  useEffect(() => {
+    const loaderCheckIn = searchParams?.checkIn || null;
+    const loaderCheckOut = searchParams?.checkOut || null;
+
+    if (urlCheckIn !== loaderCheckIn || urlCheckOut !== loaderCheckOut) {
+      revalidator.revalidate();
+    }
+  }, [urlCheckIn, urlCheckOut, searchParams?.checkIn, searchParams?.checkOut, revalidator]);
 
   const images = accommodation.images.length > 0 
     ? accommodation.images 
@@ -302,19 +336,27 @@ export default function AccommodationDetail() {
       return;
     }
     
+    const checkInValue = checkInDate
+      ? checkInDate.toISOString().split("T")[0]
+      : urlCheckIn || searchParams?.checkIn || "";
+    const checkOutValue = checkOutDate
+      ? checkOutDate.toISOString().split("T")[0]
+      : urlCheckOut || searchParams?.checkOut || "";
+
     const params = new URLSearchParams({
-      checkIn: searchParams?.checkIn || '',
-      checkOut: searchParams?.checkOut || '',
-      guests: (searchParams ? (searchParams.adults || 0) + (searchParams.children || 0) : 1).toString(),
+      checkIn: checkInValue,
+      checkOut: checkOutValue,
+      guests: Math.max(totalGuests, 1).toString(),
     });
     if (roomTypeId) params.set('roomTypeId', roomTypeId);
     navigate(`/book/property/${accommodation.id}?${params.toString()}`);
   };
 
   const calculateNights = () => {
-    if (!searchParams?.checkIn || !searchParams?.checkOut) return 0;
-    const start = new Date(searchParams.checkIn);
-    const end = new Date(searchParams.checkOut);
+    if (!checkInDate || !checkOutDate) return 0;
+    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime()) || checkOutDate <= checkInDate) return 0;
+    const start = checkInDate;
+    const end = checkOutDate;
     const diff = end.getTime() - start.getTime();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
@@ -471,9 +513,9 @@ export default function AccommodationDetail() {
               }}
               roomTypes={accommodation.roomTypes || []}
               reviews={reviews}
-              checkIn={searchParams?.checkIn ? new Date(searchParams.checkIn) : null}
-              checkOut={searchParams?.checkOut ? new Date(searchParams.checkOut) : null}
-              numberOfNights={searchParams?.numberOfNights || 1}
+            checkIn={checkInDate}
+            checkOut={checkOutDate}
+            numberOfNights={nights || 1}
               numberOfRooms={numberOfRooms}
               selectedRoomId={roomTypeId || null}
               onRoomSelect={(roomId) => setRoomTypeId(roomId)}
@@ -532,7 +574,7 @@ export default function AccommodationDetail() {
                 return (
                   <div className="mb-4 p-4 bg-gray-50 rounded-lg">
                     <div className="text-sm text-gray-600 mb-3">
-                      {nights} night{nights !== 1 ? 's' : ''}: {searchParams?.checkIn && searchParams?.checkOut ? `${new Date(searchParams.checkIn).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(searchParams.checkOut).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                      {nights} night{nights !== 1 ? 's' : ''}: {checkInDate && checkOutDate ? `${checkInDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${checkOutDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
                     </div>
                     
                     {dynamicPricing && dynamicPricing.nights ? (
@@ -614,7 +656,7 @@ export default function AccommodationDetail() {
 
               <button
                 onClick={handleBooking}
-                disabled={!searchParams?.checkIn || !searchParams?.checkOut || (searchParams ? (searchParams.adults || 0) + (searchParams.children || 0) : 0) < 1 || !roomTypeId}
+                disabled={!checkInDate || !checkOutDate || totalGuests < 1 || !roomTypeId}
                 className="w-full py-3 bg-[#01502E] text-white rounded-lg font-semibold hover:bg-[#013d23] disabled:bg-gray-300 disabled:cursor-not-allowed transition"
               >
                 {!roomTypeId ? "Select a Room First" : user ? "Reserve Now" : "Sign in to book"}

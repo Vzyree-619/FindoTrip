@@ -50,8 +50,8 @@ export async function calculateRoomPrice(
     const eventPricing = await prisma.specialEventPricing.findFirst({
       where: {
         OR: [
-          { roomTypeId: roomTypeId },
-          { propertyId: { not: null } } // Property-wide events
+          { roomTypeId: roomTypeId }, // Room-specific events
+          { roomTypeId: null } // Property-wide events
         ],
         isActive: true,
         startDate: { lte: normalizedDate },
@@ -69,16 +69,22 @@ export async function calculateRoomPrice(
       // 4. Check for seasonal pricing
       const seasonalPricing = await prisma.seasonalPricing.findFirst({
         where: {
-          OR: [
-            { roomTypeId: roomTypeId },
-            { propertyId: { not: null } } // Property-wide seasonal pricing
-          ],
-          isActive: true,
-          startDate: { lte: normalizedDate },
-          endDate: { gte: normalizedDate },
-          OR: [
-            { daysOfWeek: { isEmpty: true } }, // Applies to all days
-            { daysOfWeek: { has: dayOfWeek } } // Applies to this day of week
+          AND: [
+            {
+              OR: [
+                { roomTypeId: roomTypeId }, // Room-specific seasonal pricing
+                { roomTypeId: null } // Property-wide seasonal pricing
+              ]
+            },
+            { isActive: true },
+            { startDate: { lte: normalizedDate } },
+            { endDate: { gte: normalizedDate } },
+            {
+              OR: [
+                { daysOfWeek: { isEmpty: true } }, // Applies to all days
+                { daysOfWeek: { has: dayOfWeek } } // Applies to this day of week
+              ]
+            }
           ]
         },
         orderBy: {
@@ -109,36 +115,47 @@ export async function calculateRoomPrice(
     });
 
     // Get applicable discounts with simpler query
-    const allDiscounts = await prisma.discountRule.findMany({
-      where: {
-        OR: [
-          { roomTypeId: roomTypeId },
-          ...(roomWithProperty ? [{ propertyId: roomWithProperty.propertyId }] : [])
-        ],
-        isActive: true
-      }
-    });
+    let allDiscounts: any[] = [];
+    try {
+      allDiscounts = await prisma.discountRule.findMany({
+        where: {
+          OR: [
+            { roomTypeId: roomTypeId },
+            ...(roomWithProperty ? [{ propertyId: roomWithProperty.propertyId }] : [])
+          ],
+          isActive: true
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching discounts:', error);
+      // Continue without discounts if query fails
+    }
 
     // Filter discounts manually to avoid complex Prisma queries
     const discounts = allDiscounts.filter(discount => {
-      // Check validity dates
-      if (discount.validFrom && discount.validFrom > normalizedDate) return false;
-      if (discount.validUntil && discount.validUntil < normalizedDate) return false;
+      try {
+        // Check validity dates
+        if (discount.validFrom && discount.validFrom > normalizedDate) return false;
+        if (discount.validUntil && discount.validUntil < normalizedDate) return false;
 
-      // Check discount conditions
-      switch (discount.type) {
-        case 'LONG_STAY':
-          return discount.minNights ? numberOfNights >= discount.minNights : false;
-        case 'EARLY_BIRD':
-          return discount.daysInAdvance ? daysInAdvance >= discount.daysInAdvance : false;
-        case 'LAST_MINUTE':
-          return discount.daysBeforeCheckIn ? daysInAdvance <= discount.daysBeforeCheckIn : false;
-        case 'WEEKLY':
-          return discount.minNights ? numberOfNights >= discount.minNights : false;
-        case 'MONTHLY':
-          return discount.minNights ? numberOfNights >= discount.minNights : false;
-        default:
-          return false;
+        // Check discount conditions
+        switch (discount.type) {
+          case 'LONG_STAY':
+            return discount.minNights ? numberOfNights >= discount.minNights : false;
+          case 'EARLY_BIRD':
+            return discount.daysInAdvance ? daysInAdvance >= discount.daysInAdvance : false;
+          case 'LAST_MINUTE':
+            return discount.daysBeforeCheckIn ? daysInAdvance <= discount.daysBeforeCheckIn : false;
+          case 'WEEKLY':
+            return discount.minNights ? numberOfNights >= discount.minNights : false;
+          case 'MONTHLY':
+            return discount.minNights ? numberOfNights >= discount.minNights : false;
+          default:
+            return false;
+        }
+      } catch (error) {
+        console.error('Error filtering discount:', discount, error);
+        return false; // Skip problematic discounts
       }
     });
 
