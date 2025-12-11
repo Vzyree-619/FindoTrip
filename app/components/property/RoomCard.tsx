@@ -60,6 +60,8 @@ interface RoomCardProps {
   propertyTaxRate: number;
   onSelect: (roomId: string) => void;
   isSelected?: boolean;
+  onBook?: (roomId: string) => void;
+  onViewDetails?: (roomId: string) => void;
 }
 
 export default function RoomCard({
@@ -72,9 +74,12 @@ export default function RoomCard({
   propertyServiceFee,
   propertyTaxRate,
   onSelect,
-  isSelected = false
+  isSelected = false,
+  onBook,
+  onViewDetails
 }: RoomCardProps) {
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   // Use the availability data from the loader instead of API calls
   const dateRangeInfo = room.dateRangeInfo;
@@ -98,14 +103,18 @@ export default function RoomCard({
   const mainImage = room.mainImage || room.images[0] || "/landingPageImg.jpg";
   const hasValidDates = checkIn && checkOut && checkIn instanceof Date && checkOut instanceof Date && checkIn < checkOut;
   const hasDateRangeInfo = Boolean(dateRangeInfo);
-  const canShowPricing = Boolean(pricingInfo) && (hasValidDates || hasDateRangeInfo);
+  const canShowPricing = Boolean(pricingInfo);
   const canShowUnavailable = (hasValidDates || hasDateRangeInfo) && dateRangeInfo?.isAvailable === false;
+  const canShowPricingDisplay = hasValidDates || canShowPricing;
+  const breakdownNights = pricingInfo?.nights || [];
+  const limitedNights = showBreakdown ? breakdownNights : breakdownNights.slice(0, 3);
+  const hasMoreNights = breakdownNights.length > 3;
 
   return (
-    <div className={`bg-white rounded-xl border-2 ${isSelected ? 'border-[#01502E] shadow-lg' : 'border-gray-200'} overflow-hidden transition-all duration-300 hover:shadow-md`}>
-      <div className="grid md:grid-cols-[300px_1fr] gap-6 p-6">
+    <div className={`bg-white rounded-xl border-2 ${isSelected ? 'border-[#01502E] shadow-lg' : 'border-gray-200'} overflow-hidden transition-all duration-300 hover:shadow-md min-h-[440px]`}>
+      <div className="grid grid-cols-1 md:grid-cols-[300px_minmax(0,1fr)] gap-6 p-6">
         {/* Room Image */}
-        <div className="relative h-64 md:h-full rounded-lg overflow-hidden bg-gray-200">
+        <div className="relative h-64 md:h-72 rounded-lg overflow-hidden bg-gray-200">
           <img
             src={mainImage}
             alt={room.name}
@@ -124,9 +133,9 @@ export default function RoomCard({
         </div>
 
         {/* Room Details */}
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-4">
           {/* Room Name and Basic Info */}
-          <div className="mb-4">
+          <div>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">{room.name}</h3>
             
             {/* Room Specs */}
@@ -167,8 +176,123 @@ export default function RoomCard({
             )}
           </div>
 
+          {/* Compact price & action inside the card */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3 shadow-sm">
+            <div className="text-xs text-gray-600">Starting from</div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-[#01502E]">
+                {room.currency} {room.basePrice.toLocaleString()}
+              </span>
+              <span className="text-gray-600 text-sm">/ night</span>
+            </div>
+
+            {hasValidDates || hasDateRangeInfo ? (
+              pricingInfo ? (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-700">Total for stay</span>
+                  <span className="font-semibold text-[#01502E]">
+                    {room.currency} {pricingInfo.total.toLocaleString()}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600">
+                  Calculating total… (select dates)
+                </div>
+              )
+            ) : (
+              <div className="text-sm text-gray-600">Select dates to check price</div>
+            )}
+
+            {hasDateRangeInfo && (
+              <div className="text-xs font-semibold">
+                {dateRangeInfo?.isAvailable
+                  ? <span className="text-green-700">Available for selected dates</span>
+                  : <span className="text-red-600">Not available for selected dates</span>}
+              </div>
+            )}
+
+            {pricingInfo && (
+              <div className="border-t border-gray-200 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowBreakdown(!showBreakdown)}
+                  className="w-full flex items-center justify-between text-sm font-semibold text-gray-800"
+                >
+                  <span>Price details</span>
+                  <span className="text-xs text-gray-500">{showBreakdown ? 'Hide' : 'Show'}</span>
+                </button>
+                {showBreakdown && (
+                  <div className="mt-2 space-y-2 text-sm text-gray-700">
+                    {limitedNights.map((night, idx) => (
+                      <div key={idx} className="flex justify-between">
+                        <span>{new Date(night.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                        <span>{room.currency} {night.finalPrice.toLocaleString()}</span>
+                      </div>
+                    ))}
+                    {hasMoreNights && !showBreakdown && (
+                      <div className="text-xs text-gray-500">+{breakdownNights.length - limitedNights.length} more nights</div>
+                    )}
+                    <div className="border-t border-gray-200 pt-2 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Subtotal</span>
+                        <span>{room.currency} {pricingInfo.subtotal.toLocaleString()}</span>
+                      </div>
+                      {pricingInfo.cleaningFee > 0 && (
+                        <div className="flex justify-between">
+                          <span>Cleaning fee</span>
+                          <span>{room.currency} {pricingInfo.cleaningFee.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {pricingInfo.serviceFee > 0 && (
+                        <div className="flex justify-between">
+                          <span>Service fee</span>
+                          <span>{room.currency} {pricingInfo.serviceFee.toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span>Taxes</span>
+                        <span>{room.currency} {pricingInfo.taxAmount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold text-[#01502E] pt-1">
+                        <span>Total</span>
+                        <span>{room.currency} {pricingInfo.total.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              {onBook && (
+                <button
+                  onClick={() => onBook(room.id)}
+                  disabled={!hasValidDates || dateRangeInfo?.isAvailable === false}
+                  className="w-full max-w-xs mx-auto py-3 bg-[#01502E] text-white rounded-lg font-semibold hover:bg-[#013d23] disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                >
+                  {dateRangeInfo?.isAvailable === false ? 'Not Available' : 'Book now'}
+                </button>
+              )}
+              {onViewDetails && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('RoomCard: View details clicked, roomId:', room.id);
+                    console.log('RoomCard: onViewDetails function:', onViewDetails);
+                    onViewDetails(room.id);
+                  }}
+                  className="w-full max-w-xs mx-auto py-2 text-sm border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 transition"
+                >
+                  View details & photos
+                </button>
+              )}
+              <p className="text-center text-xs text-gray-600">You won't be charged yet</p>
+            </div>
+          </div>
+
           {/* Room Features */}
-          <div className="mb-4">
+          <div>
             <h4 className="text-sm font-semibold text-gray-900 mb-2">Room Features:</h4>
             <div className="flex flex-wrap gap-2">
               {room.features.slice(0, 6).map((feature, idx) => (
@@ -189,7 +313,7 @@ export default function RoomCard({
           </div>
 
           {/* Policies */}
-          <div className="flex gap-4 text-xs text-gray-600 mb-4">
+          <div className="flex gap-4 text-xs text-gray-600">
             {room.smokingAllowed && (
               <span className="flex items-center gap-1">
                 <X className="w-3 h-3 text-red-500" />
@@ -203,157 +327,8 @@ export default function RoomCard({
               </span>
             )}
           </div>
-
-          {/* Enhanced Pricing and Availability Section */}
-          <div className="mt-auto border-t border-gray-200 pt-4">
-            <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
-              {/* Date Header - show when dates exist from URL or loader */}
-              {(hasValidDates || canShowPricing || canShowUnavailable) && checkIn && checkOut && checkIn instanceof Date && checkOut instanceof Date && !isNaN(checkIn.getTime()) && !isNaN(checkOut.getTime()) && checkIn < checkOut && (
-                <div className="text-sm text-gray-600 mb-3 font-medium">
-                  YOUR DATES: {checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {checkOut.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, {numberOfNights} night{numberOfNights !== 1 ? 's' : ''}
-                </div>
-              )}
-
-              {/* Enhanced Availability Status - show when dates or loader availability exist */}
-              {(hasValidDates || hasDateRangeInfo) && (
-                <div className="mb-4">
-                  {dateRangeInfo ? (
-                    <AvailabilityMessage
-                      availability={{
-                        isAvailable: dateRangeInfo.isAvailable,
-                        conflicts: dateRangeInfo.conflicts,
-                        reason: dateRangeInfo.reason,
-                        minStay: dateRangeInfo.pricing ? undefined : undefined,
-                        requestedNights: dateRangeInfo.numberOfNights
-                      }}
-                      roomName={room.name}
-                    />
-                  ) : (
-                    <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                      <div className="flex-1">
-                        <h4 className="text-sm font-semibold text-gray-800 mb-1">
-                          Checking availability...
-                        </h4>
-                        <p className="text-sm text-gray-700">
-                          Please wait while we check room availability for your selected dates.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Price Breakdown - Show when we have pricing (from loader) even if client Date objects fail validation */}
-              {canShowPricing ? (
-                <div className="space-y-2">
-                  <div className="text-sm font-medium text-gray-900 mb-2">Price Breakdown:</div>
-
-                  {/* Per-night pricing */}
-                  {(pricingInfo?.nights || []).map((night, idx) => (
-                    <div key={idx} className="flex justify-between text-sm text-gray-600">
-                      <span>{new Date(night.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ({new Date(night.date).toLocaleDateString('en-US', { weekday: 'short' })})</span>
-                      <span>{room.currency} {night.finalPrice.toLocaleString()}/night</span>
-                    </div>
-                  ))}
-
-                  <div className="border-t border-gray-200 pt-2 mt-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Subtotal</span>
-                      <span className="font-medium">{room.currency} {pricingInfo?.subtotal?.toLocaleString()}</span>
-                    </div>
-                    {pricingInfo && pricingInfo.cleaningFee > 0 && (
-                      <div className="flex justify-between text-sm text-gray-600">
-                        <span>Cleaning fee</span>
-                        <span>{room.currency} {pricingInfo.cleaningFee.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {pricingInfo && pricingInfo.serviceFee > 0 && (
-                      <div className="flex justify-between text-sm text-gray-600">
-                        <span>Service fee</span>
-                        <span>{room.currency} {pricingInfo.serviceFee.toLocaleString()}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>Taxes (8%)</span>
-                      <span>{room.currency} {pricingInfo?.taxAmount?.toLocaleString()}</span>
-                    </div>
-                    <div className="border-t border-gray-300 pt-2 mt-2">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-gray-900">TOTAL</span>
-                        <span className="text-xl font-bold text-[#01502E]">
-                          {room.currency} {pricingInfo?.total?.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-600 text-right">
-                        Avg: {room.currency} {pricingInfo?.averagePricePerNight?.toLocaleString()}/night
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : canShowUnavailable ? (
-                <div className="space-y-3">
-                  <div className="text-sm font-medium text-gray-900">Unavailable Dates:</div>
-                  {dateRangeInfo.conflicts?.map((conflict, idx) => (
-                    <div key={idx} className="text-sm text-gray-600">
-                      • {new Date(conflict.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {conflict.reason}
-                    </div>
-                  ))}
-
-                  {/* Alternative Date Suggestions - Only show when dates are selected and unavailable */}
-              {hasValidDates && dateRangeInfo?.isAvailable === false && dateRangeInfo?.suggestions && dateRangeInfo.suggestions.length > 0 && (
-                <div className="mt-4">
-                  <AlternativeDates
-                    suggestions={dateRangeInfo.suggestions}
-                    onSelect={(checkIn, checkOut) => {
-                      // This would trigger date change in parent component
-                      // For now, just show an alert
-                      alert(`Selected alternative dates: ${new Date(checkIn).toLocaleDateString()} - ${new Date(checkOut).toLocaleDateString()}`);
-                    }}
-                    currency={room.currency}
-                  />
-                </div>
-              )}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-600 mb-2">Select dates to see total price</p>
-                  <p className="text-lg font-semibold text-[#01502E]">
-                    {room.currency} {room.basePrice.toLocaleString()}/night
-                  </p>
-                </div>
-              )}
-
-              {/* Policies */}
-              {hasValidDates && dateRangeInfo?.isAvailable !== false && (
-                <div className="space-y-1 text-xs text-gray-600 mt-4 pt-3 border-t border-gray-200">
-                  <div className="flex items-center gap-1">
-                    <Check className="w-3 h-3 text-green-600" />
-                    <span>Free cancellation until {new Date(checkIn.getTime() - 2 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Check className="w-3 h-3 text-green-600" />
-                    <span>No prepayment needed</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Select Button */}
-              <button
-                onClick={() => onSelect(room.id)}
-                disabled={dateRangeInfo?.isAvailable === false}
-                className={`w-full py-3 px-4 rounded-lg font-semibold transition-colors mt-4 ${
-                  isSelected
-                    ? 'bg-[#013d23] text-white'
-                    : dateRangeInfo?.isAvailable === false
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-[#01502E] text-white hover:bg-[#013d23]'
-                }`}
-              >
-                {isSelected ? 'Selected' : dateRangeInfo?.isAvailable === false ? 'Not Available' : 'SELECT THIS ROOM'}
-              </button>
-            </div>
-          </div>
         </div>
+
       </div>
     </div>
   );

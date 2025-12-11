@@ -6,6 +6,7 @@ import FloatingShareButton from "~/components/common/FloatingShareButton";
 import PropertyDetailTabs from "~/components/property/PropertyDetailTabs";
 import PropertySearchWidget from "~/components/property/PropertySearchWidget";
 import { useEffect, useState } from "react";
+import { useNavigate } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { getUser, getUserId } from "~/lib/auth/auth.server";
 import { calculateStayPrice } from "~/lib/pricing.server";
@@ -154,13 +155,6 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       roomsWithAvailability = await Promise.all(
         roomTypes.map(async (room) => {
           try {
-            // Get availability calendar for next 12 months
-            const availabilityCalendar = await getRoomAvailabilityCalendar(
-              room.id,
-              new Date(),
-              12
-            );
-
             // Check specific date range availability
             const dateRangeAvailability = await checkDateRangeAvailability(
               room.id,
@@ -194,19 +188,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
                   numberOfNights: dateRangeAvailability.numberOfNights
                 };
               } else {
-                // Get alternative date suggestions
-                const suggestions = await suggestAlternativeDates(
-                  room.id,
-                  checkInDate,
-                  numberOfNights,
-                  5 // Limit suggestions for performance
-                );
-
                 dateRangeInfo = {
                   isAvailable: false,
                   conflicts: dateRangeAvailability.conflicts,
                   reason: dateRangeAvailability.reason,
-                  suggestions
+                  suggestions: []
                 };
               }
             } catch (error) {
@@ -220,7 +206,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
             return {
               ...room,
-              availabilityCalendar,
+              availabilityCalendar: [],
               dateRangeInfo
             };
           } catch (error) {
@@ -281,9 +267,12 @@ export default function AccommodationDetail() {
   const [wishlisted, setWishlisted] = useState(isWishlisted);
   const [chatOpen, setChatOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [roomTypeId, setRoomTypeId] = useState<string | undefined>(undefined);
   const [numberOfRooms, setNumberOfRooms] = useState(1);
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
+  
+  // Read roomTypeId from URL
+  const urlRoomTypeId = urlSearchParams.get("roomTypeId");
+  const [roomTypeId, setRoomTypeId] = useState<string | undefined>(urlRoomTypeId || undefined);
 
   // Derive the most up-to-date dates/guests from the URL (fallback to loader data)
   const urlCheckIn = urlSearchParams.get("checkIn");
@@ -317,6 +306,22 @@ export default function AccommodationDetail() {
       revalidator.revalidate();
     }
   }, [urlCheckIn, urlCheckOut, searchParams?.checkIn, searchParams?.checkOut, revalidator]);
+
+  // Sync roomTypeId from URL and scroll to rooms section
+  useEffect(() => {
+    if (urlRoomTypeId && urlRoomTypeId !== roomTypeId) {
+      setRoomTypeId(urlRoomTypeId);
+      // Scroll to rooms section after a brief delay to ensure rendering
+      setTimeout(() => {
+        if (typeof window !== "undefined") {
+          const roomsSection = document.getElementById("rooms-section");
+          if (roomsSection) {
+            roomsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+      }, 300);
+    }
+  }, [urlRoomTypeId]);
 
   const images = accommodation.images.length > 0 
     ? accommodation.images 
@@ -365,6 +370,39 @@ export default function AccommodationDetail() {
   const selectedRoomType = (accommodation.roomTypes || []).find((rt: any) => rt.id === roomTypeId);
   const pricePerNight = selectedRoomType?.basePrice || accommodation.pricePerNight;
   const totalPrice = nights * pricePerNight;
+
+  const handleBookRoom = (roomId: string) => {
+    if (!checkInDate || !checkOutDate) return;
+    const params = new URLSearchParams({
+      roomTypeId: roomId,
+      checkIn: checkInDate.toISOString().split("T")[0],
+      checkOut: checkOutDate.toISOString().split("T")[0],
+      guests: Math.max(totalGuests, 1).toString(),
+    });
+    navigate(`/book/property/${accommodation.id}?${params.toString()}`);
+  };
+
+  const handleViewRoomDetails = (roomId: string) => {
+    console.log('handleViewRoomDetails called with roomId:', roomId);
+    
+    const checkInValue = checkInDate
+      ? checkInDate.toISOString().split("T")[0]
+      : urlCheckIn || "";
+    const checkOutValue = checkOutDate
+      ? checkOutDate.toISOString().split("T")[0]
+      : urlCheckOut || "";
+
+    const params = new URLSearchParams();
+    if (checkInValue) params.set('checkIn', checkInValue);
+    if (checkOutValue) params.set('checkOut', checkOutValue);
+    params.set('adults', urlAdults || searchParams?.adults?.toString() || '2');
+    params.set('children', urlChildren || searchParams?.children?.toString() || '0');
+    
+    const targetUrl = `/accommodations/${accommodation.id}/rooms/${roomId}?${params.toString()}`;
+    console.log('Navigating to:', targetUrl);
+    
+    navigate(targetUrl);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -479,8 +517,9 @@ export default function AccommodationDetail() {
               Save
             </button>
             <button
-              onClick={() => setChatOpen(true)}
-              className="flex items-center gap-2 px-6 py-3 border-2 border-[#01502E] rounded-lg bg-[#01502E] text-white hover:bg-[#013d23] hover:border-[#013d23] transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+              onClick={() => accommodation?.owner?.user?.id && setChatOpen(true)}
+              disabled={!accommodation?.owner?.user?.id}
+              className="flex items-center gap-2 px-6 py-3 border-2 border-[#01502E] rounded-lg bg-[#01502E] text-white hover:bg-[#013d23] hover:border-[#013d23] transition-all duration-200 shadow-lg hover:shadow-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <MessageCircle className="w-5 h-5" />
               Contact Host
@@ -492,9 +531,9 @@ export default function AccommodationDetail() {
         <PropertySearchWidget propertyId={accommodation.id} />
 
         {/* Main Content with Tabs */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-8 mb-8">
           {/* Tabs Content */}
-          <div className="lg:col-span-2" data-rooms-tab>
+          <div id="rooms-section" data-rooms-tab>
             <PropertyDetailTabs
               property={{
                 id: accommodation.id,
@@ -519,158 +558,14 @@ export default function AccommodationDetail() {
               numberOfRooms={numberOfRooms}
               selectedRoomId={roomTypeId || null}
               onRoomSelect={(roomId) => setRoomTypeId(roomId)}
+            onBook={handleBookRoom}
+            onViewDetails={handleViewRoomDetails}
             />
-          </div>
-
-          {/* Quick Booking Card (Sidebar) */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
-              <div className="mb-4">
-                {roomTypeId && accommodation.roomTypes?.find((rt: any) => rt.id === roomTypeId) ? (() => {
-                  const selectedRoom = accommodation.roomTypes.find((rt: any) => rt.id === roomTypeId);
-                  const displayPrice = nights > 0 && selectedRoom?.avgPricePerNight 
-                    ? selectedRoom.avgPricePerNight 
-                    : selectedRoom?.basePrice || 0;
-                  const isDynamicPrice = nights > 0 && selectedRoom?.dynamicPricing;
-                  
-                  return (
-                    <>
-                      <div className="text-xs text-gray-600 mb-1">Selected Room</div>
-                      <div className="text-sm font-semibold text-gray-900 mb-2">
-                        {selectedRoom?.name}
-                      </div>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold text-[#01502E]">
-                          {accommodation.currency} {displayPrice.toLocaleString()}
-                        </span>
-                        <span className="text-gray-600">/ night</span>
-                      </div>
-                      {isDynamicPrice && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Average price for selected dates
-                        </div>
-                      )}
-                    </>
-                  );
-                })() : (
-                  <>
-                    <div className="text-xs text-gray-600 mb-1">Starting from</div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold text-[#01502E]">
-                        {accommodation.currency} {accommodation.basePrice.toLocaleString()}
-                      </span>
-                      <span className="text-gray-600">/ night</span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {nights > 0 && roomTypeId && (() => {
-                const selectedRoom = accommodation.roomTypes?.find((rt: any) => rt.id === roomTypeId);
-                const dynamicPricing = selectedRoom?.dynamicPricing;
-                const displayTotal = dynamicPricing?.total || selectedRoom?.totalPrice || totalPrice;
-                const displayAvg = dynamicPricing?.averagePricePerNight || selectedRoom?.avgPricePerNight || pricePerNight;
-                
-                return (
-                  <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-600 mb-3">
-                      {nights} night{nights !== 1 ? 's' : ''}: {checkInDate && checkOutDate ? `${checkInDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${checkOutDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
-                    </div>
-                    
-                    {dynamicPricing && dynamicPricing.nights ? (
-                      <>
-                        {/* Per-night breakdown */}
-                        <div className="space-y-1 mb-3 text-sm">
-                          {dynamicPricing.nights.slice(0, 3).map((night: any, idx: number) => (
-                            <div key={idx} className="flex justify-between">
-                              <span className="text-gray-600">
-                                Night {idx + 1} ({new Date(night.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}):
-                              </span>
-                              <span className="font-medium">
-                                {accommodation.currency} {night.finalPrice.toLocaleString()}
-                              </span>
-                            </div>
-                          ))}
-                          {dynamicPricing.nights.length > 3 && (
-                            <div className="text-xs text-gray-500 italic">
-                              ... and {dynamicPricing.nights.length - 3} more night{dynamicPricing.nights.length - 3 !== 1 ? 's' : ''}
-                            </div>
-                          )}
-                        </div>
-                        <div className="border-t pt-2 mb-2"></div>
-                        
-                        {/* Fees breakdown */}
-                        <div className="space-y-1 mb-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Subtotal:</span>
-                            <span>{accommodation.currency} {dynamicPricing.subtotal.toLocaleString()}</span>
-                          </div>
-                          {dynamicPricing.cleaningFee > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Cleaning fee:</span>
-                              <span>{accommodation.currency} {dynamicPricing.cleaningFee.toLocaleString()}</span>
-                            </div>
-                          )}
-                          {dynamicPricing.serviceFee > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Service fee:</span>
-                              <span>{accommodation.currency} {dynamicPricing.serviceFee.toLocaleString()}</span>
-                            </div>
-                          )}
-                          {dynamicPricing.taxAmount > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Taxes:</span>
-                              <span>{accommodation.currency} {dynamicPricing.taxAmount.toLocaleString()}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="border-t pt-2 mb-2"></div>
-                        
-                        {/* Total and average */}
-                        <div className="flex justify-between text-lg font-bold mb-2">
-                          <span>Total:</span>
-                          <span className="text-[#01502E]">
-                            {accommodation.currency} {displayTotal.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600 text-center">
-                          Avg: {accommodation.currency} {displayAvg.toLocaleString()}/night
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                          <span>Total:</span>
-                          <span className="text-[#01502E]">
-                            {accommodation.currency} {displayTotal.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600 text-center mt-2">
-                          Avg: {accommodation.currency} {displayAvg.toLocaleString()}/night
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })()}
-
-              <button
-                onClick={handleBooking}
-                disabled={!checkInDate || !checkOutDate || totalGuests < 1 || !roomTypeId}
-                className="w-full py-3 bg-[#01502E] text-white rounded-lg font-semibold hover:bg-[#013d23] disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-              >
-                {!roomTypeId ? "Select a Room First" : user ? "Reserve Now" : "Sign in to book"}
-              </button>
-
-              <p className="text-center text-sm text-gray-600 mt-3">
-                You won't be charged yet
-              </p>
-            </div>
           </div>
         </div>
 
         {/* Image Gallery */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-8 h-[300px] md:h-[400px]">
+        <div id="accommodation-gallery" className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-8 h-[300px] md:h-[400px]" data-gallery-top>
           <div
             className="col-span-2 row-span-2 cursor-pointer overflow-hidden rounded-l-lg"
             onClick={() => {

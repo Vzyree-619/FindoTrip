@@ -28,6 +28,9 @@ interface PropertyDetailTabsProps {
   onRoomSelect: (roomId: string) => void;
   onDateChange: (checkIn: Date | null, checkOut: Date | null) => void;
   onGuestsChange: (adults: number, children: number) => void;
+  onBook?: (roomId: string) => void;
+  onViewDetails?: (roomId: string) => void;
+  defaultTab?: 'overview' | 'rooms' | 'location' | 'amenities' | 'reviews';
 }
 
 export default function PropertyDetailTabs({
@@ -41,10 +44,12 @@ export default function PropertyDetailTabs({
   selectedRoomId,
   onRoomSelect,
   onDateChange,
-  onGuestsChange
+  onGuestsChange,
+  onBook,
+  onViewDetails,
+  defaultTab = 'rooms'
 }: PropertyDetailTabsProps) {
-  console.log('PropertyDetailTabs received dates:', { checkIn, checkOut });
-  const [activeTab, setActiveTab] = useState<'overview' | 'rooms' | 'location' | 'amenities' | 'reviews'>('rooms');
+  const [activeTab, setActiveTab] = useState<'overview' | 'rooms' | 'location' | 'amenities' | 'reviews'>(defaultTab);
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -122,19 +127,21 @@ export default function PropertyDetailTabs({
               ) : (
                 <div className="space-y-6">
                   {roomTypes.map((room) => (
-                    <RoomCard
-                      key={room.id}
-                      room={room}
-                      checkIn={checkIn}
-                      checkOut={checkOut}
-                      numberOfNights={numberOfNights || 1}
-                      numberOfRooms={numberOfRooms}
-                      propertyCleaningFee={property.cleaningFee}
-                      propertyServiceFee={property.serviceFee}
-                      propertyTaxRate={property.taxRate}
-                      onSelect={onRoomSelect}
-                      isSelected={selectedRoomId === room.id}
-                    />
+                  <RoomCard
+                    key={room.id}
+                    room={room}
+                    checkIn={checkIn}
+                    checkOut={checkOut}
+                    numberOfNights={numberOfNights || 1}
+                    numberOfRooms={numberOfRooms}
+                    propertyCleaningFee={property.cleaningFee}
+                    propertyServiceFee={property.serviceFee}
+                    propertyTaxRate={property.taxRate}
+                    onSelect={onRoomSelect}
+                    isSelected={selectedRoomId === room.id}
+                    onBook={onBook}
+                    onViewDetails={onViewDetails}
+                  />
                   ))}
                 </div>
               )}
