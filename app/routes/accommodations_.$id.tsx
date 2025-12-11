@@ -1,6 +1,5 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link, useRevalidator, useNavigate, useSearchParams, useOutlet } from "@remix-run/react";
-import { ChatInterface } from "~/components/chat";
 import ShareModal from "~/components/common/ShareModal";
 import FloatingShareButton from "~/components/common/FloatingShareButton";
 import PropertyDetailTabs from "~/components/property/PropertyDetailTabs";
@@ -520,12 +519,12 @@ export default function AccommodationDetail() {
               Save
             </button>
             <button
-              onClick={() => accommodation?.owner?.user?.id && setChatOpen(true)}
-              disabled={!accommodation?.owner?.user?.id}
+              onClick={() => accommodation?.owner?.user?.id && user?.id && setChatOpen(true)}
+              disabled={!accommodation?.owner?.user?.id || !user?.id}
               className="flex items-center gap-2 px-6 py-3 border-2 border-[#01502E] rounded-lg bg-[#01502E] text-white hover:bg-[#013d23] hover:border-[#013d23] transition-all duration-200 shadow-lg hover:shadow-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <MessageCircle className="w-5 h-5" />
-              Contact Host
+              {user?.id ? "Contact Host" : "Login to message"}
             </button>
           </div>
         </div>
@@ -676,13 +675,56 @@ export default function AccommodationDetail() {
           </div>
         )}
       </div>
-      {/* Chat Interface Modal */}
+      {/* Chat fallback (ChatInterface temporarily disabled to avoid crash) */}
       {accommodation?.owner?.user?.id && (
-        <ChatInterface
-          isOpen={chatOpen}
-          onClose={() => setChatOpen(false)}
-          targetUserId={accommodation.owner.user.id}
-          currentUserId={user?.id}
+        <div
+          className={`fixed inset-0 z-[60] bg-black/40 flex items-center justify-center px-4 ${chatOpen ? "" : "hidden"}`}
+          onClick={() => setChatOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Contact Host</h3>
+                <p className="text-sm text-gray-600">Send a message or email the host.</p>
+              </div>
+              <button
+                className="text-gray-500 hover:text-gray-700"
+                onClick={() => setChatOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-3 text-sm text-gray-700">
+              {user?.id ? (
+                <p>
+                  In-app chat is temporarily disabled here. Please use your dashboard’s chat, or email the host below.
+                </p>
+              ) : (
+                <p>Please log in to message the host, or email them directly.</p>
+              )}
+              {accommodation.owner.user.email && (
+                <p>
+                  Email:{" "}
+                  <a className="text-[#01502E] font-semibold" href={`mailto:${accommodation.owner.user.email}`}>
+                    {accommodation.owner.user.email}
+                  </a>
+                </p>
+              )}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                className="px-4 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23]"
+                onClick={() => setChatOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
           fetchConversation={async ({ targetUserId, conversationId }) => {
             console.log('🔵 [Accommodation] Fetching conversation:', { targetUserId, conversationId });
             
