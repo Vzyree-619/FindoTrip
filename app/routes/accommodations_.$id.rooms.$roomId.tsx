@@ -100,14 +100,15 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       dateRangeInfo = await checkDateRangeAvailability(roomId, checkInDate, checkOutDate, 1);
 
       if (dateRangeInfo.isAvailable) {
-        pricingInfo = await calculateStayPrice({
-          roomTypeId: roomId,
-          propertyId,
+        pricingInfo = await calculateStayPrice(
+          roomId,
           checkInDate,
           checkOutDate,
-          numberOfRooms: 1,
-          guests,
-        });
+          undefined,
+          property.cleaningFee ?? undefined,
+          property.serviceFee ?? undefined,
+          property.taxRate ?? undefined
+        );
       }
     }
   }
