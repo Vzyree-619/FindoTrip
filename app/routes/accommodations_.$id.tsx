@@ -1,12 +1,11 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link, useRevalidator, useNavigate, useSearchParams } from "@remix-run/react";
+import { useLoaderData, Link, useRevalidator, useNavigate, useSearchParams, useOutlet } from "@remix-run/react";
 import { ChatInterface } from "~/components/chat";
 import ShareModal from "~/components/common/ShareModal";
 import FloatingShareButton from "~/components/common/FloatingShareButton";
 import PropertyDetailTabs from "~/components/property/PropertyDetailTabs";
 import PropertySearchWidget from "~/components/property/PropertySearchWidget";
 import { useEffect, useState } from "react";
-import { useNavigate } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { getUser, getUserId } from "~/lib/auth/auth.server";
 import { calculateStayPrice } from "~/lib/pricing.server";
@@ -258,6 +257,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
 export default function AccommodationDetail() {
   const { accommodation, user, isWishlisted, reviews, ratingBreakdown, similarProperties, searchParams } = useLoaderData<typeof loader>();
+  const outlet = useOutlet();
   const navigate = useNavigate();
   const revalidator = useRevalidator();
   const [urlSearchParams] = useSearchParams();
@@ -403,6 +403,9 @@ export default function AccommodationDetail() {
     
     navigate(targetUrl);
   };
+
+  // If a nested route is active (e.g., room details), render it instead of the parent page
+  if (outlet) return outlet;
 
   return (
     <div className="min-h-screen bg-gray-50">
