@@ -725,131 +725,53 @@ export default function AccommodationDetail() {
           </div>
         </div>
       )}
-          fetchConversation={async ({ targetUserId, conversationId }) => {
-            console.log('🔵 [Accommodation] Fetching conversation:', { targetUserId, conversationId });
-            
-            // Get owner name from accommodation data as fallback
-            const ownerName = accommodation?.owner?.user?.name;
-            const ownerAvatar = accommodation?.owner?.user?.avatar;
-            const ownerId = accommodation?.owner?.user?.id;
-            
-            // If we have conversationId, fetch it directly
-            if (conversationId) {
-              const response = await fetch(`/api/chat/conversations/${conversationId}`);
-              if (!response.ok) throw new Error("Failed to fetch conversation");
-              const json = await response.json();
-              
-              // Ensure owner name is correct in participants
-              const participants = (json.data?.participants || []).map((p: any) => {
-                if (p.id === ownerId && ownerName) {
-                  return { ...p, name: ownerName, avatar: ownerAvatar || p.avatar };
-                }
-                return p;
-              });
-              
-              return {
-                conversation: {
-                  id: json.data?.id,
-                  participants: participants,
-                  updatedAt: json.data?.lastMessageAt,
-                  lastMessage: json.data?.messages?.[json.data.messages.length - 1],
-                  unreadCount: 0
-                },
-                messages: json.data?.messages || []
-              };
-            }
-            
-            // Otherwise create/get conversation by targetUserId
-            if (targetUserId) {
-              const createRes = await fetch(`/api/chat/conversations`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ targetUserId, type: 'CUSTOMER_PROVIDER' })
-              });
-              if (!createRes.ok) throw new Error("Failed to create conversation");
-              const createJson = await createRes.json();
-              const convId = createJson.data?.id;
-              
-              console.log('🟢 [Accommodation] Conversation created:', convId);
-              
-              // Fetch the full conversation details
-              const response = await fetch(`/api/chat/conversations/${convId}`);
-              if (!response.ok) throw new Error("Failed to fetch conversation");
-              const json = await response.json();
-              
-              // Ensure owner name is correct in participants
-              const participants = (json.data?.participants || []).map((p: any) => {
-                if (p.id === ownerId && ownerName) {
-                  return { ...p, name: ownerName, avatar: ownerAvatar || p.avatar };
-                }
-                return p;
-              });
-              
-              return {
-                conversation: {
-                  id: json.data?.id,
-                  participants: participants,
-                  updatedAt: json.data?.lastMessageAt,
-                  lastMessage: json.data?.messages?.[json.data.messages.length - 1],
-                  unreadCount: 0
-                },
-                messages: json.data?.messages || []
-              };
-            }
-            
-            throw new Error('No conversationId or targetUserId provided');
-          }}
-          onSendMessage={async ({ conversationId, targetUserId, text }) => {
-            console.log('🔵 [Accommodation] Sending message:', { conversationId, targetUserId, text: text?.substring(0, 20) });
-            let cid = conversationId;
-            
-            // Create conversation if needed
-            if (!cid && targetUserId) {
-              const convRes = await fetch(`/api/chat/conversations`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ targetUserId, type: 'CUSTOMER_PROVIDER' })
-              });
-              if (!convRes.ok) throw new Error('Failed to create conversation');
-              const convJson = await convRes.json();
-              cid = convJson?.data?.id;
-              console.log('🟢 [Accommodation] Conversation created:', cid);
-            }
-            
-            if (!cid) throw new Error('Missing conversation ID');
-            
-            const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ content: text })
-            });
-            
-            if (!res.ok) {
-              const errorText = await res.text();
-              console.error('🔴 [Accommodation] Failed to send message:', res.status, errorText);
-              throw new Error('Failed to send message');
-            }
-            
-            const json = await res.json();
-            if (!json?.success) throw new Error('Failed to send message');
-            
-            const m = json.data;
-            console.log('🟢 [Accommodation] Message sent:', m.id);
-            
-            return {
-              id: m.id,
-              conversationId: m.conversationId || cid,
-              senderId: m.senderId,
-              senderName: m.senderName || m.sender?.name || 'Unknown',
-              senderAvatar: m.senderAvatar || m.sender?.avatar,
-              content: m.content,
-              type: (m.type || 'text').toString().toLowerCase(),
-              attachments: Array.isArray(m.attachments) ? m.attachments : [],
-              createdAt: m.createdAt,
-              status: 'sent',
-            };
-          }}
-        />
+      {/* Chat temporarily disabled to avoid crash */}
+      {accommodation?.owner?.user?.id && chatOpen && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center px-4"
+          onClick={() => setChatOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Contact Host</h3>
+                <p className="text-sm text-gray-600">Send a message or email the host.</p>
+              </div>
+              <button
+                className="text-gray-500 hover:text-gray-700"
+                onClick={() => setChatOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-3 text-sm text-gray-700">
+              {user?.id ? (
+                <p>In-app chat is temporarily disabled here. Please use your dashboard’s chat, or email the host below.</p>
+              ) : (
+                <p>Please log in to message the host, or email them directly.</p>
+              )}
+              {accommodation.owner.user.email && (
+                <p>
+                  Email:{" "}
+                  <a className="text-[#01502E] font-semibold" href={`mailto:${accommodation.owner.user.email}`}>
+                    {accommodation.owner.user.email}
+                  </a>
+                </p>
+              )}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                className="px-4 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23]"
+                onClick={() => setChatOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Share Modal */}
