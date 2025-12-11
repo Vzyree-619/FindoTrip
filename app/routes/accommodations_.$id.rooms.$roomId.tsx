@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
+import { DatePicker } from "~/components/ui/date-picker";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const { id: propertyId, roomId } = params;
@@ -139,16 +140,32 @@ export default function RoomDetail() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
+  const [checkInInput, setCheckInInput] = useState<Date | undefined>(
+    searchParams.checkIn ? new Date(searchParams.checkIn) : undefined
+  );
+  const [checkOutInput, setCheckOutInput] = useState<Date | undefined>(
+    searchParams.checkOut ? new Date(searchParams.checkOut) : undefined
+  );
+  const today = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
 
-  const images =
+  const baseImages =
     room.images && room.images.length > 0
       ? room.images
       : property.images && property.images.length > 0
       ? property.images
       : ["/landingPageImg.jpg"];
+  // Ensure at least 3 images for gallery UX
+  const images =
+    baseImages.length >= 3
+      ? baseImages
+      : [...baseImages, ...Array(Math.max(0, 3 - baseImages.length)).fill("/landingPageImg.jpg")];
 
-  const checkInDate = searchParams.checkIn ? new Date(searchParams.checkIn) : null;
-  const checkOutDate = searchParams.checkOut ? new Date(searchParams.checkOut) : null;
+  const checkInDate = checkInInput ? new Date(checkInInput) : (searchParams.checkIn ? new Date(searchParams.checkIn) : null);
+  const checkOutDate = checkOutInput ? new Date(checkOutInput) : (searchParams.checkOut ? new Date(searchParams.checkOut) : null);
   const totalGuests = searchParams.adults + searchParams.children;
 
   const nextImage = () => {
@@ -160,7 +177,7 @@ export default function RoomDetail() {
   };
 
   const handleBookNow = () => {
-    if (!checkInDate || !checkOutDate) {
+    if (!checkInInput || !checkOutInput) {
       alert("Please select check-in and check-out dates");
       return;
     }
@@ -174,12 +191,21 @@ export default function RoomDetail() {
 
     const params = new URLSearchParams({
       roomTypeId: room.id,
-      checkIn: checkInDate.toISOString().split("T")[0],
-      checkOut: checkOutDate.toISOString().split("T")[0],
+      checkIn: checkInInput.toISOString().split("T")[0],
+      checkOut: checkOutInput.toISOString().split("T")[0],
       guests: Math.max(totalGuests, 1).toString(),
     });
 
     navigate(`/book/property/${property.id}?${params.toString()}`);
+  };
+
+  const handleUpdateDates = () => {
+    const params = new URLSearchParams(urlSearchParams);
+    if (checkInInput) params.set("checkIn", checkInInput.toISOString().split("T")[0]);
+    if (checkOutInput) params.set("checkOut", checkOutInput.toISOString().split("T")[0]);
+    params.set("adults", searchParams.adults.toString());
+    params.set("children", searchParams.children.toString());
+    navigate(`/accommodations/${property.id}/rooms/${room.id}?${params.toString()}`);
   };
 
   const handleImageError = (index: number) => {
@@ -191,20 +217,20 @@ export default function RoomDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Image Gallery Modal */}
+      {/* Image Gallery Modal with thumbnails */}
       {showGallery && (
-        <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center">
-          <button
-            onClick={() => setShowGallery(false)}
-            className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
-          >
-            <X className="w-8 h-8" />
-          </button>
+        <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col">
+          <div className="relative flex-1 flex items-center justify-center p-6">
+            <button
+              onClick={() => setShowGallery(false)}
+              className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+            >
+              <X className="w-8 h-8" />
+            </button>
 
-          <div className="relative w-full h-full flex items-center justify-center p-8">
             <button
               onClick={prevImage}
-              className="absolute left-4 text-white hover:text-gray-300 bg-black/50 rounded-full p-2"
+              className="absolute left-6 text-white hover:text-gray-300 bg-black/50 rounded-full p-2"
             >
               <ChevronLeft className="w-8 h-8" />
             </button>
@@ -218,7 +244,7 @@ export default function RoomDetail() {
 
             <button
               onClick={nextImage}
-              className="absolute right-4 text-white hover:text-gray-300 bg-black/50 rounded-full p-2"
+              className="absolute right-6 text-white hover:text-gray-300 bg-black/50 rounded-full p-2"
             >
               <ChevronRight className="w-8 h-8" />
             </button>
@@ -227,6 +253,28 @@ export default function RoomDetail() {
               {currentImageIndex + 1} / {images.length}
             </div>
           </div>
+
+          {images.length > 1 && (
+            <div className="bg-black/80 p-4">
+              <div className="flex gap-2 overflow-x-auto">
+                {images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setCurrentImageIndex(idx)}
+                    className={`h-16 w-24 rounded-md overflow-hidden border ${idx === currentImageIndex ? "border-[#4ade80] ring-2 ring-[#4ade80]/50" : "border-gray-600"}`}
+                  >
+                    <img
+                      src={imageErrors[idx] ? "/landingPageImg.jpg" : img}
+                      alt={`${room.name} thumbnail ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                      onError={() => handleImageError(idx)}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -278,7 +326,7 @@ export default function RoomDetail() {
                   className="w-full h-full object-cover"
                   onError={() => handleImageError(currentImageIndex)}
                 />
-
+                
                 {images.length > 1 && (
                   <>
                     <button
@@ -295,18 +343,40 @@ export default function RoomDetail() {
                     </button>
                   </>
                 )}
-
+                
                 <button
                   onClick={() => setShowGallery(true)}
                   className="absolute bottom-4 right-4 bg-white px-4 py-2 rounded-lg shadow-lg hover:bg-gray-50 font-medium"
                 >
                   View all {images.length} photos
                 </button>
-
+                
                 <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
                   {currentImageIndex + 1} / {images.length}
                 </div>
               </div>
+
+              {images.length > 1 && (
+                <div className="px-4 pb-4 pt-3 bg-white">
+                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-7 gap-2">
+                    {images.slice(0, 7).map((img, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setCurrentImageIndex(idx)}
+                        className={`h-16 rounded-md overflow-hidden border ${idx === currentImageIndex ? "border-[#01502E] ring-2 ring-[#01502E]/40" : "border-gray-200"} bg-gray-100`}
+                      >
+                        <img
+                          src={imageErrors[idx] ? "/landingPageImg.jpg" : img}
+                          alt={`${room.name} thumbnail ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={() => handleImageError(idx)}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Room Description */}
@@ -356,10 +426,10 @@ export default function RoomDetail() {
 
           {/* Right Column - Booking Card */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
+            <div className="bg-white rounded-xl shadow-lg p-5 sticky top-24 space-y-5">
               {/* Price */}
-              <div className="mb-6">
-                <div className="flex items-baseline gap-2 mb-2">
+              <div className="space-y-1">
+                <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-[#01502E]">
                     {room.currency} {room.basePrice.toLocaleString()}
                   </span>
@@ -372,37 +442,47 @@ export default function RoomDetail() {
                 )}
               </div>
 
-              {/* Dates Summary */}
-              {checkInDate && checkOutDate ? (
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
-                    <Calendar className="w-4 h-4" />
-                    <span className="font-medium">Your dates</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
+              {/* Dates Picker / Summary */}
+              <div className="p-3 bg-gray-50 rounded-lg space-y-3">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <Calendar className="w-4 h-4" />
+                  <span className="font-medium">Select your dates</span>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
                       <div className="text-xs text-gray-600">Check-in</div>
-                      <div className="font-medium">{checkInDate.toLocaleDateString()}</div>
+                      <DatePicker
+                        date={checkInInput}
+                        onSelect={setCheckInInput}
+                        className="w-full text-sm truncate"
+                        minDate={today}
+                      />
                     </div>
-                    <div>
+                    <div className="space-y-1">
                       <div className="text-xs text-gray-600">Check-out</div>
-                      <div className="font-medium">{checkOutDate.toLocaleDateString()}</div>
+                      <DatePicker
+                        date={checkOutInput}
+                        onSelect={setCheckOutInput}
+                        className="w-full text-sm truncate"
+                        minDate={checkInInput || today}
+                      />
                     </div>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
                     <div className="text-xs text-gray-600">Guests</div>
-                    <div className="font-medium">
-                      {totalGuests} guest{totalGuests > 1 ? "s" : ""}
-                    </div>
+                    <div className="font-medium">{totalGuests} guest{totalGuests > 1 ? "s" : ""}</div>
                   </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleUpdateDates}
+                    disabled={!checkInInput || !checkOutInput}
+                  >
+                    Update dates
+                  </Button>
                 </div>
-              ) : (
-                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    Select dates on the property page to see availability and total price
-                  </p>
-                </div>
-              )}
+              </div>
 
               {/* Availability Status */}
               {dateRangeInfo && (
@@ -437,7 +517,7 @@ export default function RoomDetail() {
                       {searchParams.numberOfNights > 1 ? "s" : ""}
                     </span>
                     <span className="font-medium">
-                      {room.currency} {pricingInfo.basePrice.toLocaleString()}
+                      {room.currency} {pricingInfo.subtotal?.toLocaleString() ?? "—"}
                     </span>
                   </div>
                   {pricingInfo.cleaningFee > 0 && (
@@ -456,18 +536,18 @@ export default function RoomDetail() {
                       </span>
                     </div>
                   )}
-                  {pricingInfo.taxes > 0 && (
+                  {pricingInfo.taxAmount > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">Taxes</span>
                       <span className="font-medium">
-                        {room.currency} {pricingInfo.taxes.toLocaleString()}
+                        {room.currency} {pricingInfo.taxAmount.toLocaleString()}
                       </span>
                     </div>
                   )}
                   <div className="pt-3 mt-3 border-t border-gray-200 flex justify-between">
                     <span className="font-semibold text-gray-900">Total</span>
                     <span className="font-bold text-lg text-[#01502E]">
-                      {room.currency} {pricingInfo.total.toLocaleString()}
+                      {room.currency} {pricingInfo.total?.toLocaleString() ?? "—"}
                     </span>
                   </div>
                 </div>
@@ -477,7 +557,7 @@ export default function RoomDetail() {
               <Button
                 onClick={handleBookNow}
                 disabled={!dateRangeInfo?.isAvailable}
-                className="w-full py-6 text-lg bg-[#01502E] hover:bg-[#013d23] disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="w-full py-5 text-lg bg-[#01502E] text-white hover:bg-[#013d23] disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed"
               >
                 {dateRangeInfo?.isAvailable ? "Book Now" : "Select Available Dates"}
               </Button>

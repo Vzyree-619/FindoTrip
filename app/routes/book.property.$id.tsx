@@ -9,6 +9,7 @@ import { Label } from "~/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { Calendar } from "~/components/ui/calendar";
+import { DatePicker } from "~/components/ui/date-picker";
 // import { Separator } from "~/components/ui/separator";
 // import { Checkbox } from "~/components/ui/checkbox";
 // import { Alert, AlertDescription } from "~/components/ui/alert";
@@ -507,6 +508,17 @@ export default function PropertyBooking() {
   const [roomTypeId, setRoomTypeId] = useState<string | undefined>(searchParams.roomTypeId);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [rangeWarning, setRangeWarning] = useState<string | null>(null);
+  const today = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+  const [checkInDate, setCheckInDate] = useState<Date | undefined>(
+    searchParams.checkIn ? new Date(searchParams.checkIn) : undefined
+  );
+  const [checkOutDate, setCheckOutDate] = useState<Date | undefined>(
+    searchParams.checkOut ? new Date(searchParams.checkOut) : undefined
+  );
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -529,8 +541,18 @@ export default function PropertyBooking() {
     }
     setRangeWarning(ok ? null : 'Selected dates include fully booked nights. Please adjust or use the suggested range.');
   }, [roomTypeId, selectedDates, availabilityPreview]);
-  const handleDateChange = (field: string, value: string) => {
-    setSelectedDates(prev => ({ ...prev, [field]: value }));
+  const handleDateSelect = (field: "checkIn" | "checkOut", date: Date | undefined) => {
+    const iso = date ? date.toISOString().split("T")[0] : "";
+    setSelectedDates(prev => ({ ...prev, [field]: iso }));
+    if (field === "checkIn") {
+      setCheckInDate(date || undefined);
+      if (date && checkOutDate && date >= checkOutDate) {
+        setCheckOutDate(undefined);
+        setSelectedDates(prev => ({ ...prev, checkOut: "" }));
+      }
+    } else {
+      setCheckOutDate(date || undefined);
+    }
   };
 
   const handleGuestChange = (field: string, value: number) => {
@@ -687,6 +709,7 @@ export default function PropertyBooking() {
                         numberOfMonths={2}
                         selected={selectedDate}
                         onSelect={(d: Date | undefined) => setSelectedDate(d)}
+                        disabled={(date: Date) => date < today}
                         footer={<div className="text-sm text-gray-600">Choose dates with better availability.</div>}
                         components={{
                           DayButton: ({ className, day, modifiers, ...props }: any) => {
@@ -714,31 +737,28 @@ export default function PropertyBooking() {
                     <div className="p-3 border border-red-200 bg-red-50 text-red-700 rounded text-sm">{rangeWarning}</div>
                   )}
                   {/* Date Selection */}
-                  <div>
-                    <Label htmlFor="checkIn">Check-in Date</Label>
-                    <Input
-                      id="checkIn"
-                      name="checkIn"
-                      type="date"
-                      value={selectedDates.checkIn}
-                      onChange={(e) => handleDateChange("checkIn", e.target.value)}
-                      min={new Date().toISOString().split("T")[0]}
-                      required
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="checkIn">Check-in Date</Label>
+                      <DatePicker
+                        date={checkInDate}
+                        onSelect={(d) => handleDateSelect("checkIn", d)}
+                        className="w-full"
+                        minDate={today}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="checkOut">Check-out Date</Label>
+                      <DatePicker
+                        date={checkOutDate}
+                        onSelect={(d) => handleDateSelect("checkOut", d)}
+                        className="w-full"
+                        minDate={checkInDate || today}
+                      />
+                    </div>
                   </div>
-
-                  <div>
-                    <Label htmlFor="checkOut">Check-out Date</Label>
-                    <Input
-                      id="checkOut"
-                      name="checkOut"
-                      type="date"
-                      value={selectedDates.checkOut}
-                      onChange={(e) => handleDateChange("checkOut", e.target.value)}
-                      min={selectedDates.checkIn || new Date().toISOString().split("T")[0]}
-                      required
-                    />
-                  </div>
+                  <input type="hidden" name="checkIn" value={selectedDates.checkIn} />
+                  <input type="hidden" name="checkOut" value={selectedDates.checkOut} />
 
                   {/* Guest Selection */}
                   <div>
@@ -852,8 +872,8 @@ export default function PropertyBooking() {
                       <h3 className="font-semibold mb-2">Price Breakdown</h3>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span>{property.currency} {property.basePrice.toFixed(2)} × {nights} nights</span>
-                          <span>{property.currency} {pricingBreakdown.basePrice.toFixed(2)}</span>
+                          <span>{property.currency} {pricingBreakdown.roomRate.toFixed(2)} × {pricingBreakdown.numberOfNights} nights</span>
+                          <span>{property.currency} {pricingBreakdown.totalRoomCost.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Cleaning fee</span>
@@ -871,12 +891,12 @@ export default function PropertyBooking() {
                         )}
                         <div className="flex justify-between">
                           <span>Taxes</span>
-                          <span>{property.currency} {pricingBreakdown.taxes.toFixed(2)}</span>
+                          <span>{property.currency} {pricingBreakdown.taxAmount.toFixed(2)}</span>
                         </div>
                         <hr className="my-2" />
                         <div className="flex justify-between font-semibold">
                           <span>Total</span>
-                          <span>{property.currency} {(pricingBreakdown.total + (insurance ? 50 : 0)).toFixed(2)}</span>
+                          <span>{property.currency} {(pricingBreakdown.totalAmount + (insurance ? 50 : 0)).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
