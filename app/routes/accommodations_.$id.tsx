@@ -898,7 +898,12 @@ export default function AccommodationDetail() {
 
               if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || "Failed to send message");
+                console.error('❌ [Accommodation] Failed to send message:', { 
+                  status: response.status, 
+                  statusText: response.statusText,
+                  error: errorData 
+                });
+                throw new Error(errorData.error || `Failed to send message (${response.status})`);
               }
 
               jsonData = await response.json();
@@ -928,7 +933,8 @@ export default function AccommodationDetail() {
               
               return normalizedMessage;
             } catch (error) {
-              console.error("Error sending message:", error);
+              console.error("❌ [Accommodation] Error sending message:", error);
+              console.error("❌ [Accommodation] Context:", { conversationId, targetUserId, textLength: text?.length });
               throw error;
             }
           }}
