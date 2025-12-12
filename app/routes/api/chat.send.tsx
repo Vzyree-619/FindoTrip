@@ -7,15 +7,19 @@ import { getOrCreateConversation } from "~/lib/chat.server";
 import type { UserRole, MessageType } from "@prisma/client";
 
 export async function action({ request }: ActionFunctionArgs) {
-  const userId = await requireUserId(request);
-  const form = await request.formData();
-  const conversationId = (form.get("conversationId") as string) || undefined;
-  const targetUserId = (form.get("targetUserId") as string) || undefined;
-  const text = (form.get("text") as string) || "";
+  try {
+    const userId = await requireUserId(request);
+    const form = await request.formData();
+    const conversationId = (form.get("conversationId") as string) || undefined;
+    const targetUserId = (form.get("targetUserId") as string) || undefined;
+    const text = (form.get("text") as string) || "";
 
-  if (!text.trim() && !form.getAll("files").length) {
-    return json({ error: "Message content is required" }, { status: 400 });
-  }
+    console.log('🔵 [API /chat/send] Request:', { userId, conversationId, targetUserId, textLength: text.length });
+
+    if (!text.trim() && !form.getAll("files").length) {
+      console.log('❌ [API /chat/send] No message content');
+      return json({ error: "Message content is required" }, { status: 400 });
+    }
 
   try {
     // Determine peer (receiver)
@@ -126,9 +130,18 @@ export async function action({ request }: ActionFunctionArgs) {
       console.error("Failed to create notification:", error);
     }
 
+    console.log('🟢 [API /chat/send] Message sent successfully:', { messageId: msg.id, conversationId: conversation.id });
     return json({ ok: true, data: wireMessage });
   } catch (e) {
-    console.error("chat.send error", e);
-    return json({ error: "Failed to send message" }, { status: 500 });
+    console.error("❌ [API /chat/send] Error:", e);
+    console.error("❌ [API /chat/send] Error details:", {
+      message: (e as Error).message,
+      stack: (e as Error).stack?.split('\n').slice(0, 3).join('\n')
+    });
+    return json({ error: "Failed to send message", details: (e as Error).message }, { status: 500 });
+  }
+  } catch (outerError) {
+    console.error("❌ [API /chat/send] Outer error:", outerError);
+    return json({ error: "Server error", details: (outerError as Error).message }, { status: 500 });
   }
 }
