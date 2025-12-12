@@ -37,7 +37,9 @@ import {
   Server,
   AlertCircle,
   ChevronDown,
-  Clock
+  Clock,
+  Briefcase,
+  Plus
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 
@@ -144,6 +146,15 @@ export default function AdminLayout() {
         { name: 'Email Templates', href: '/admin/settings/emails', icon: MessageSquare },
         { name: 'Notification Settings', href: '/admin/settings/notifications', icon: Bell },
         { name: 'Security Settings', href: '/admin/settings/security', icon: Shield }
+      ]
+    },
+    {
+      name: 'Job Postings',
+      icon: Briefcase,
+      current: false,
+      children: [
+        { name: 'All Jobs', href: '/admin/jobs', icon: Briefcase },
+        { name: 'Add New Job', href: '/admin/jobs/new', icon: Plus }
       ]
     },
     {
