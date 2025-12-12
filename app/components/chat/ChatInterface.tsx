@@ -355,12 +355,6 @@ export function ChatInterface({
     };
   }, [conversationId, conversation?.id]);
 
-  // Load conversation when conversationId changes
-  useEffect(() => {
-    if (conversationId && (isOpen || variant === 'inline')) {
-      load();
-    }
-  }, [conversationId]);
 
   const onSend = async (text: string, files?: File[]) => {
     const defaultSend = async ({ text, files, targetUserId: tuid }: { targetUserId?: string; text: string; files?: File[] }) => {
