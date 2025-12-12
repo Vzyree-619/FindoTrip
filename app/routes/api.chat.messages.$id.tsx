@@ -127,6 +127,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }
 
       // Edit message
+      console.log('🔵 [API /chat/messages/$id] Editing message:', { messageId, userId, contentLength: sanitizedContent.length });
       const updatedMessage = await editMessage(messageId, userId, sanitizedContent);
 
       const response: MessageResponse = {
@@ -134,7 +135,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         data: updatedMessage
       };
 
-      console.log('✅ Message edited successfully:', messageId);
+      console.log('🟢 [API /chat/messages/$id] Message edited successfully:', messageId);
       return json(response);
     } 
     else if (method === "DELETE") {
@@ -211,9 +212,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
   } catch (error) {
-    console.error("Error in message action:", error);
+    console.error("❌ [API /chat/messages/$id] Error in message action:", error);
+    console.error("❌ [API /chat/messages/$id] Error details:", {
+      message: (error as Error).message,
+      stack: (error as Error).stack?.split('\n').slice(0, 5).join('\n')
+    });
     return json(
-      { success: false, error: "Failed to process message" },
+      { success: false, error: "Failed to process message", details: (error as Error).message },
       { status: 500 }
     );
   }
