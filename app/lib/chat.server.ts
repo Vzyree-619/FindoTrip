@@ -245,12 +245,15 @@ export async function getConversationById(
       where: { id: conversationId },
       include: {
         messages: {
+          where: {
+            isDeleted: false, // Only fetch non-deleted messages
+          },
           include: {
             sender: { select: { id: true, name: true, role: true, avatar: true } },
             replyTo: { include: { sender: { select: { id: true, name: true } } } },
           },
-          orderBy: { createdAt: "desc" },
-          take: 50,
+          orderBy: { createdAt: "asc" }, // Order ascending for proper chat display
+          take: 100, // Increased limit to show more messages
         },
       },
     });

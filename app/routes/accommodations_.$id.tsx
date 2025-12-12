@@ -4,6 +4,7 @@ import ShareModal from "~/components/common/ShareModal";
 import FloatingShareButton from "~/components/common/FloatingShareButton";
 import PropertyDetailTabs from "~/components/property/PropertyDetailTabs";
 import PropertySearchWidget from "~/components/property/PropertySearchWidget";
+import { ChatInterface } from "~/components/chat/ChatInterface";
 import { useEffect, useState } from "react";
 import { prisma } from "~/lib/db/db.server";
 import { getUser, getUserId } from "~/lib/auth/auth.server";
@@ -675,58 +676,260 @@ export default function AccommodationDetail() {
           </div>
         )}
       </div>
-      {/* Chat fallback (ChatInterface temporarily disabled to avoid crash) */}
-      {accommodation?.owner?.user?.id && (
-        <div
-          className={`fixed inset-0 z-[60] bg-black/40 flex items-center justify-center px-4 ${chatOpen ? "" : "hidden"}`}
-          onClick={() => setChatOpen(false)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Contact Host</h3>
-                <p className="text-sm text-gray-600">Send a message or email the host.</p>
-              </div>
-              <button
-                className="text-gray-500 hover:text-gray-700"
-                onClick={() => setChatOpen(false)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-3 text-sm text-gray-700">
-              {user?.id ? (
-                <p>
-                  In-app chat is temporarily disabled here. Please use your dashboard’s chat, or email the host below.
-                </p>
-              ) : (
-                <p>Please log in to message the host, or email them directly.</p>
-              )}
-              {accommodation.owner.user.email && (
-                <p>
-                  Email:{" "}
-                  <a className="text-[#01502E] font-semibold" href={`mailto:${accommodation.owner.user.email}`}>
-                    {accommodation.owner.user.email}
-                  </a>
-                </p>
-              )}
-            </div>
-            <div className="mt-4 flex justify-end">
-              <button
-                className="px-4 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23]"
-                onClick={() => setChatOpen(false)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Chat Interface */}
+      {accommodation?.owner?.user?.id && user?.id && chatOpen && (
+        <ChatInterface
+          isOpen={chatOpen}
+          onClose={() => setChatOpen(false)}
+          targetUserId={accommodation.owner.user.id}
+          targetUserName={accommodation.owner.user.name || "Property Owner"}
+          targetUserAvatar={accommodation.owner.user.avatar || undefined}
+          currentUserId={user.id}
+          variant="modal"
+          fetchConversation={async ({ conversationId, targetUserId }) => {
+            try {
+              // If we have a conversationId, fetch it directly
+              if (conversationId) {
+                const response = await fetch(`/api/chat/conversations/${conversationId}`);
+                if (!response.ok) throw new Error("Failed to fetch conversation");
+                const data = await response.json();
+                const conversationData = data.data;
+                
+                if (!conversationData) {
+                  return { conversation: null, messages: [] };
+                }
+                
+                // Format messages properly
+                const messages = conversationData.messages || [];
+                const formattedMessages = messages.map((m: any) => {
+                  const senderName = m.senderName || m.sender?.name || "Unknown";
+                  const senderAvatar = m.senderAvatar || m.sender?.avatar || null;
+                  const messageType = m.type ? (typeof m.type === 'string' ? m.type.toLowerCase() : m.type.toString().toLowerCase()) : "text";
+                  const createdAt = m.createdAt instanceof Date 
+                    ? m.createdAt.toISOString() 
+                    : (typeof m.createdAt === 'string' ? m.createdAt : new Date().toISOString());
+                  
+                  return {
+                    id: m.id,
+                    conversationId: conversationId,
+                    senderId: m.senderId,
+                    senderName,
+                    senderAvatar,
+                    content: m.content || "",
+                    type: messageType,
+                    attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                    createdAt,
+                    status: "sent" as const,
+                  };
+                });
+                
+                return { 
+                  conversation: conversationData.conversation || conversationData, 
+                  messages: formattedMessages 
+                };
+              }
+
+              // Otherwise, try to get or create conversation
+              if (targetUserId) {
+                const response = await fetch("/api/chat/conversations", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    targetUserId,
+                    type: "CUSTOMER_PROVIDER",
+                    relatedServiceId: accommodation.id,
+                    relatedServiceType: "PROPERTY",
+                  }),
+                });
+
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({}));
+                  throw new Error(errorData.error || "Failed to create conversation");
+                }
+
+                const data = await response.json();
+                const conv = data.data;
+
+                // Now fetch messages for this conversation
+                if (conv?.id) {
+                  const messagesResponse = await fetch(`/api/chat/conversations/${conv.id}`);
+                  if (messagesResponse.ok) {
+                    const messagesData = await messagesResponse.json();
+                    const conversationData = messagesData.data || conv;
+                    
+                    // Ensure messages are properly formatted from MessageWithSender to Message
+                    // The conversationData should have a messages array
+                    let messages = conversationData.messages || [];
+                    
+                    // If messages array is empty or missing, try to fetch them separately
+                    if (!messages || messages.length === 0) {
+                      try {
+                        const messagesOnlyResponse = await fetch(`/api/chat/conversations/${conv.id}/messages?limit=100`);
+                        if (messagesOnlyResponse.ok) {
+                          const messagesOnlyData = await messagesOnlyResponse.json();
+                          messages = messagesOnlyData.data?.messages || [];
+                        }
+                      } catch (err) {
+                        console.error("Error fetching messages separately:", err);
+                      }
+                    }
+                    
+                    // Sort messages by createdAt to ensure chronological order
+                    messages.sort((a: any, b: any) => {
+                      const dateA = new Date(a.createdAt || a.createdAt).getTime();
+                      const dateB = new Date(b.createdAt || b.createdAt).getTime();
+                      return dateA - dateB;
+                    });
+                    
+                    const formattedMessages = messages.map((m: any) => {
+                      // Handle both MessageWithSender and Message formats
+                      const senderName = m.senderName || m.sender?.name || "Unknown";
+                      const senderAvatar = m.senderAvatar || m.sender?.avatar || null;
+                      const messageType = m.type ? (typeof m.type === 'string' ? m.type.toLowerCase() : m.type.toString().toLowerCase()) : "text";
+                      const createdAt = m.createdAt instanceof Date 
+                        ? m.createdAt.toISOString() 
+                        : (typeof m.createdAt === 'string' ? m.createdAt : new Date().toISOString());
+                      
+                      return {
+                        id: m.id,
+                        conversationId: conv.id,
+                        senderId: m.senderId,
+                        senderName,
+                        senderAvatar,
+                        content: m.content || "",
+                        type: messageType,
+                        attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                        createdAt,
+                        status: "sent" as const,
+                        isEdited: m.isEdited || false,
+                        editedAt: m.editedAt ? (m.editedAt instanceof Date ? m.editedAt.toISOString() : m.editedAt) : undefined,
+                        isDeleted: m.isDeleted || false,
+                      };
+                    });
+                    
+                    // Ensure conversation has participants
+                    const conversation = conversationData.conversation || conversationData;
+                    if (!conversation.participants || conversation.participants.length === 0) {
+                      // If participants are missing, add them from the property owner
+                      conversation.participants = [
+                        { id: user.id, name: user.name, avatar: user.avatar, role: user.role },
+                        { id: accommodation.owner.user.id, name: accommodation.owner.user.name, avatar: accommodation.owner.user.avatar, role: "PROPERTY_OWNER" }
+                      ];
+                    }
+                    
+                    return { 
+                      conversation, 
+                      messages: formattedMessages 
+                    };
+                  }
+                }
+
+                return { conversation: conv, messages: [] };
+              }
+
+              return { conversation: null, messages: [] };
+            } catch (error) {
+              console.error("Error fetching conversation:", error);
+              return { conversation: null, messages: [] };
+            }
+          }}
+          onSendMessage={async ({ conversationId, targetUserId, text, files }) => {
+            try {
+              let response;
+              let jsonData;
+
+              // If we have a conversationId, send to that conversation
+              if (conversationId) {
+                response = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ content: text }),
+                });
+
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({}));
+                  throw new Error(errorData.error || "Failed to send message");
+                }
+
+                jsonData = await response.json();
+                const m = jsonData.data || jsonData;
+                
+                // Normalize message format
+                return {
+                  id: m.id,
+                  conversationId: conversationId,
+                  senderId: m.senderId,
+                  senderName: m.senderName || m.sender?.name || "Unknown",
+                  senderAvatar: m.senderAvatar || m.sender?.avatar || null,
+                  content: m.content,
+                  type: (m.type || "text").toString().toLowerCase(),
+                  attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                  createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : (m.createdAt || new Date().toISOString()),
+                  status: "sent",
+                };
+              }
+
+              // Otherwise, use the chat.send endpoint which creates conversation if needed
+              const formData = new FormData();
+              if (targetUserId) formData.append("targetUserId", targetUserId);
+              formData.append("text", text);
+              if (files) {
+                files.forEach((file) => formData.append("files", file));
+              }
+
+              response = await fetch("/api/chat/send", {
+                method: "POST",
+                body: formData,
+              });
+
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to send message");
+              }
+
+              jsonData = await response.json();
+              const m = jsonData.data || jsonData;
+              
+              // Normalize message format
+              const normalizedMessage = {
+                id: m.id,
+                conversationId: m.conversationId || conversationId,
+                senderId: m.senderId,
+                senderName: m.senderName || "Unknown",
+                senderAvatar: m.senderAvatar || null,
+                content: m.content,
+                type: (m.type || "text").toString().toLowerCase(),
+                attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : (m.createdAt || new Date().toISOString()),
+                status: "sent" as const,
+              };
+              
+              return normalizedMessage;
+            } catch (error) {
+              console.error("Error sending message:", error);
+              throw error;
+            }
+          }}
+          onLoadMore={async ({ conversationId, before }) => {
+            if (!conversationId) return [];
+            try {
+              const url = new URL(`/api/chat/conversations/${conversationId}/messages`, window.location.origin);
+              if (before) url.searchParams.set("before", before);
+              
+              const response = await fetch(url.toString());
+              if (!response.ok) throw new Error("Failed to load messages");
+              const data = await response.json();
+              return data.data?.messages || [];
+            } catch (error) {
+              console.error("Error loading more messages:", error);
+              return [];
+            }
+          }}
+        />
       )}
-      {/* Chat temporarily disabled to avoid crash */}
-      {accommodation?.owner?.user?.id && chatOpen && (
+
+      {/* Fallback for non-logged-in users */}
+      {(!user?.id || !accommodation?.owner?.user?.id) && chatOpen && (
         <div
           className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center px-4"
           onClick={() => setChatOpen(false)}
@@ -748,15 +951,23 @@ export default function AccommodationDetail() {
               </button>
             </div>
             <div className="space-y-3 text-sm text-gray-700">
-              {user?.id ? (
-                <p>In-app chat is temporarily disabled here. Please use your dashboard’s chat, or email the host below.</p>
+              {!user?.id ? (
+                <div>
+                  <p className="mb-4">Please log in to message the host.</p>
+                  <Link
+                    to={`/login?redirectTo=/accommodations/${accommodation.id}`}
+                    className="inline-block px-4 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23] font-semibold"
+                  >
+                    Log In
+                  </Link>
+                </div>
               ) : (
-                <p>Please log in to message the host, or email them directly.</p>
+                <p>Unable to load chat. Please try again later.</p>
               )}
               {accommodation.owner.user.email && (
-                <p>
-                  Email:{" "}
-                  <a className="text-[#01502E] font-semibold" href={`mailto:${accommodation.owner.user.email}`}>
+                <p className="mt-4">
+                  Or email:{" "}
+                  <a className="text-[#01502E] font-semibold hover:underline" href={`mailto:${accommodation.owner.user.email}`}>
                     {accommodation.owner.user.email}
                   </a>
                 </p>

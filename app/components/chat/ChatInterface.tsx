@@ -13,6 +13,8 @@ export type ChatInterfaceProps = {
   onClose: () => void;
   conversationId?: string;
   targetUserId?: string;
+  targetUserName?: string;
+  targetUserAvatar?: string;
   initialMessage?: string;
   currentUserId?: string;
   fetchConversation?: (args: { conversationId?: string; targetUserId?: string }) => Promise<FetchConversationResult>;
@@ -27,6 +29,8 @@ export function ChatInterface({
   onClose,
   conversationId,
   targetUserId,
+  targetUserName,
+  targetUserAvatar,
   initialMessage,
   currentUserId,
   fetchConversation,
@@ -336,6 +340,21 @@ export function ChatInterface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, variant, conversationId, targetUserId]);
 
+  // Listen for conversation reload events
+  useEffect(() => {
+    const handleReload = (event: CustomEvent) => {
+      const { conversationId: reloadId } = event.detail;
+      if (reloadId && (reloadId === conversationId || reloadId === conversation?.id)) {
+        load();
+      }
+    };
+    
+    window.addEventListener('chat:reload-conversation', handleReload as EventListener);
+    return () => {
+      window.removeEventListener('chat:reload-conversation', handleReload as EventListener);
+    };
+  }, [conversationId, conversation?.id]);
+
   // Load conversation when conversationId changes
   useEffect(() => {
     if (conversationId && (isOpen || variant === 'inline')) {
@@ -421,21 +440,31 @@ export function ChatInterface({
       createdAt: new Date().toISOString(),
       status: "sending",
     };
-    // Clear input immediately for better UX
+    // Store message text and files before clearing
     const messageText = text;
-    setValue("");
-    setAttachments([]);
+    const messageFiles = files;
     
     setMessages((prev) => [...prev, temp]);
     scrollToBottomSmooth();
+    
+    // Clear input and attachments AFTER adding temp message
+    setValue("");
+    setAttachments([]);
+    
     try {
-      const result = await (onSendMessage || defaultSend)({ targetUserId, text: messageText, files });
+      const result = await (onSendMessage || defaultSend)({ targetUserId, text: messageText, files: messageFiles });
       if (result) {
         // Replace temp with real message, and remove any duplicates
         setMessages((prev) => {
           const filtered = prev.filter((m) => m.id !== temp.id && m.id !== result.id);
           return [...filtered, result];
         });
+        
+        // If we got a new conversation ID, update the conversation state
+        if (result.conversationId && result.conversationId !== conversation?.id) {
+          // Reload the conversation to get full participant data
+          setTimeout(() => load(), 100);
+        }
       } else {
         setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...m, status: "sent" } : m)));
       }
@@ -514,32 +543,38 @@ export function ChatInterface({
             {(() => {
               // Find the other participant (not the current user)
               const otherParticipant = conversation?.participants?.find(p => p.id !== currentUserId) || conversation?.participants?.[0];
-              console.log('🟡 Rendering header:', { 
-                currentUserId, 
-                participants: conversation?.participants,
-                otherParticipant 
-              });
+              const displayName = targetUserName || otherParticipant?.name || "Chat";
+              const displayAvatar = targetUserAvatar || otherParticipant?.avatar;
+              const displayRole = otherParticipant?.role;
+              const isOnline = otherParticipant?.online || otherParticipant?.isOnline;
+              
               return (
                 <>
                   <img 
-                    src={otherParticipant?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant?.name || 'User')}&background=01502E&color=fff`} 
-                    className="w-8 h-8 rounded-full border-2 border-white/20 object-cover" 
+                    src={displayAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=01502E&color=fff`} 
+                    className="w-10 h-10 rounded-full border-2 border-white/20 object-cover flex-shrink-0" 
                     alt="avatar"
                     onError={(e) => {
-                      console.warn('Failed to load avatar:', otherParticipant?.avatar);
-                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant?.name || 'User')}&background=01502E&color=fff`;
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=01502E&color=fff`;
                     }}
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-white truncate">{otherParticipant?.name || "Chat"}</div>
-                    {otherParticipant?.role && ['PROPERTY_OWNER', 'VEHICLE_OWNER', 'TOUR_GUIDE'].includes(otherParticipant.role) && (
+                    <div className="font-semibold text-white truncate">{displayName}</div>
+                    {displayRole && ['PROPERTY_OWNER', 'VEHICLE_OWNER', 'TOUR_GUIDE'].includes(displayRole) && (
                       <div className="text-xs text-white/90 font-medium truncate">
-                        {otherParticipant.role === 'PROPERTY_OWNER' ? 'Property Owner' : 
-                         otherParticipant.role === 'VEHICLE_OWNER' ? 'Vehicle Owner' : 
-                         otherParticipant.role === 'TOUR_GUIDE' ? 'Tour Guide' : ''}
+                        {displayRole === 'PROPERTY_OWNER' ? 'Property Owner' : 
+                         displayRole === 'VEHICLE_OWNER' ? 'Vehicle Owner' : 
+                         displayRole === 'TOUR_GUIDE' ? 'Tour Guide' : ''}
                       </div>
                     )}
-                    <div className="text-xs text-white/70 truncate">{isTyping ? "typing…" : otherParticipant?.online ? "online" : "offline"}</div>
+                    {isTyping ? (
+                      <div className="text-xs text-white/80 truncate">typing…</div>
+                    ) : isOnline ? (
+                      <div className="text-xs text-white/80 truncate flex items-center gap-1">
+                        <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                        Active
+                      </div>
+                    ) : null}
                   </div>
                 </>
               );

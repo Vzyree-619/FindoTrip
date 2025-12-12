@@ -331,28 +331,30 @@ export default function RoomDetail() {
                   <>
                     <button
                       onClick={prevImage}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg z-10"
                     >
                       <ChevronLeft className="w-6 h-6" />
                     </button>
                     <button
                       onClick={nextImage}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg z-10"
                     >
                       <ChevronRight className="w-6 h-6" />
                     </button>
                   </>
                 )}
                 
-                <button
-                  onClick={() => setShowGallery(true)}
-                  className="absolute bottom-4 right-4 bg-white px-4 py-2 rounded-lg shadow-lg hover:bg-gray-50 font-medium"
-                >
-                  View all {images.length} photos
-                </button>
-                
-                <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-                  {currentImageIndex + 1} / {images.length}
+                {/* Bottom overlay for buttons and counter */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 flex items-center justify-between z-10">
+                  <div className="bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                    {currentImageIndex + 1} / {images.length}
+                  </div>
+                  <button
+                    onClick={() => setShowGallery(true)}
+                    className="bg-white px-4 py-2 rounded-lg shadow-lg hover:bg-gray-50 font-medium text-gray-900 transition-colors"
+                  >
+                    View all {images.length} photos
+                  </button>
                 </div>
               </div>
 
