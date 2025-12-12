@@ -52,9 +52,10 @@ export function ChatInput({
       if (!disabled && value.trim()) {
         const messageText = value.trim();
         const messageFiles = [...files];
-        // Clear files immediately
+        // Clear files and input immediately
         setFiles([]);
-        // onSend will handle clearing the input value
+        onChange(""); // Clear input immediately
+        // Send the message
         onSend(messageText, messageFiles);
       }
     }
@@ -144,7 +145,10 @@ export function ChatInput({
             if (value.trim()) {
               const messageText = value.trim();
               const messageFiles = [...files];
+              // Clear files and input immediately
               setFiles([]);
+              onChange(""); // Clear input immediately
+              // Send the message
               onSend(messageText, messageFiles);
             }
           }}
