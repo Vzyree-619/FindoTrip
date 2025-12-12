@@ -266,6 +266,7 @@ export default function AccommodationDetail() {
   const [showGallery, setShowGallery] = useState(false);
   const [wishlisted, setWishlisted] = useState(isWishlisted);
   const [chatOpen, setChatOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [numberOfRooms, setNumberOfRooms] = useState(1);
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
@@ -681,16 +682,21 @@ export default function AccommodationDetail() {
         <ChatInterface
           isOpen={chatOpen}
           onClose={() => setChatOpen(false)}
+          conversationId={conversationId}
           targetUserId={accommodation.owner.user.id}
           targetUserName={accommodation.owner.user.name || "Property Owner"}
           targetUserAvatar={accommodation.owner.user.avatar || undefined}
           currentUserId={user.id}
           variant="modal"
-          fetchConversation={async ({ conversationId, targetUserId }) => {
+          fetchConversation={async ({ conversationId: convId, targetUserId }) => {
             try {
+              console.log('🔵 [Accommodation] fetchConversation called:', { convId, targetUserId, storedConvId: conversationId });
+              
               // If we have a conversationId, fetch it directly
-              if (conversationId) {
-                const response = await fetch(`/api/chat/conversations/${conversationId}`);
+              if (convId || conversationId) {
+                const idToFetch = convId || conversationId;
+                console.log('🟢 [Accommodation] Fetching conversation by ID:', idToFetch);
+                const response = await fetch(`/api/chat/conversations/${idToFetch}`);
                 if (!response.ok) throw new Error("Failed to fetch conversation");
                 const data = await response.json();
                 const conversationData = data.data;
@@ -749,6 +755,14 @@ export default function AccommodationDetail() {
 
                 const data = await response.json();
                 const conv = data.data;
+                
+                console.log('🟢 [Accommodation] Conversation created/fetched:', { id: conv?.id, participants: conv?.participants?.length });
+                
+                // Store the conversation ID for future use
+                if (conv?.id && conv.id !== conversationId) {
+                  console.log('💾 [Accommodation] Storing conversation ID:', conv.id);
+                  setConversationId(conv.id);
+                }
 
                 // Now fetch messages for this conversation
                 if (conv?.id) {
@@ -889,6 +903,14 @@ export default function AccommodationDetail() {
 
               jsonData = await response.json();
               const m = jsonData.data || jsonData;
+              
+              console.log('🟢 [Accommodation] Message sent successfully:', { id: m.id, conversationId: m.conversationId });
+              
+              // Store the conversation ID if we got one
+              if (m.conversationId && m.conversationId !== conversationId) {
+                console.log('💾 [Accommodation] Storing conversation ID from message:', m.conversationId);
+                setConversationId(m.conversationId);
+              }
               
               // Normalize message format
               const normalizedMessage = {
