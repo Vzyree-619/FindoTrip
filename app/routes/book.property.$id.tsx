@@ -433,7 +433,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
             numberOfNights,
             adults,
             children,
-            guests: adults + children, // Add missing guests field
+            guests: adults + children,
+            basePrice: room.basePrice, // Add missing basePrice field
             roomRate,
             totalRoomCost,
             cleaningFee,
