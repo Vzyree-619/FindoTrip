@@ -26,25 +26,96 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
 
   try {
-    // Get all bookings across all types
-    const bookings = await getUserBookings(userId);
+    // Get all bookings with related data
+    const [propertyBookings, vehicleBookings, tourBookings] = await Promise.all([
+      prisma.propertyBooking.findMany({
+        where: { userId },
+        include: {
+          property: {
+            select: {
+              id: true,
+              name: true,
+              city: true,
+              country: true,
+              images: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.vehicleBooking.findMany({
+        where: { userId },
+        include: {
+          vehicle: {
+            select: {
+              id: true,
+              brand: true,
+              model: true,
+              year: true,
+              images: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.tourBooking.findMany({
+        where: { userId },
+        include: {
+          tour: {
+            select: {
+              id: true,
+              title: true,
+              city: true,
+              country: true,
+              images: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    // Get all payments for these bookings
+    const allBookingIds = [
+      ...propertyBookings.map(b => b.id),
+      ...vehicleBookings.map(b => b.id),
+      ...tourBookings.map(b => b.id),
+    ];
     
-    console.log("User ID:", userId);
-    console.log("Total bookings found:", bookings.length);
+    const payments = await prisma.payment.findMany({
+      where: {
+        bookingId: { in: allBookingIds },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    // For now, return empty arrays for related data
-    // These will need to be fetched based on booking type
-    const accommodations: any[] = [];
-    const payments: any[] = [];
-    const reviews: any[] = [];
-
-    // Combine the data
-    const bookingsWithRelations = bookings.map(booking => ({
-      ...booking,
-      accommodation: accommodations.find(acc => acc.id === booking.accommodationId) || null,
-      payments: payments.filter(payment => payment.bookingId === booking.id).slice(0, 1), // Take only the latest payment
-      reviews: reviews.filter(review => review.bookingId === booking.id),
-    }));
+    // Combine and transform to unified format
+    const bookingsWithRelations = [
+      ...propertyBookings.map(b => ({
+        ...b,
+        type: 'property' as const,
+        accommodation: b.property,
+        accommodationId: b.propertyId,
+        payments: payments.filter(p => p.bookingId === b.id && p.bookingType === 'PROPERTY'),
+        reviews: [],
+      })),
+      ...vehicleBookings.map(b => ({
+        ...b,
+        type: 'vehicle' as const,
+        accommodation: null,
+        accommodationId: null,
+        payments: payments.filter(p => p.bookingId === b.id && p.bookingType === 'VEHICLE'),
+        reviews: [],
+      })),
+      ...tourBookings.map(b => ({
+        ...b,
+        type: 'tour' as const,
+        accommodation: null,
+        accommodationId: null,
+        payments: payments.filter(p => p.bookingId === b.id && p.bookingType === 'TOUR'),
+        reviews: [],
+      })),
+    ];
 
     // Categorize bookings
     const now = new Date();
@@ -235,24 +306,24 @@ export default function MyBookings() {
               <div className="flex items-center text-sm text-gray-600">
                 <Calendar className="w-4 h-4 mr-2" />
                 <div>
-                  <div className="font-medium">Check-in</div>
-                  <div>{new Date(booking.checkIn).toLocaleDateString()}</div>
+                  <div className="font-medium">{booking.type === 'property' ? 'Check-in' : booking.type === 'vehicle' ? 'Pickup' : 'Date'}</div>
+                  <div>{new Date(booking.checkIn || booking.startDate || booking.tourDate).toLocaleDateString()}</div>
                 </div>
               </div>
               
               <div className="flex items-center text-sm text-gray-600">
                 <Calendar className="w-4 h-4 mr-2" />
                 <div>
-                  <div className="font-medium">Check-out</div>
-                  <div>{new Date(booking.checkOut).toLocaleDateString()}</div>
+                  <div className="font-medium">{booking.type === 'property' ? 'Check-out' : booking.type === 'vehicle' ? 'Dropoff' : 'Date'}</div>
+                  <div>{new Date(booking.checkOut || booking.endDate || booking.tourDate).toLocaleDateString()}</div>
                 </div>
               </div>
               
               <div className="flex items-center text-sm text-gray-600">
                 <Users className="w-4 h-4 mr-2" />
                 <div>
-                  <div className="font-medium">Guests</div>
-                  <div>{booking.guests}</div>
+                  <div className="font-medium">{booking.type === 'tour' ? 'Participants' : 'Guests'}</div>
+                  <div>{booking.guests || booking.participants || 1}</div>
                 </div>
               </div>
             </div>
@@ -267,26 +338,28 @@ export default function MyBookings() {
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-bold text-[#01502E]">
-                    PKR {booking.totalPrice?.toLocaleString() || booking.totalAmount?.toLocaleString() || '0'}
+                    {booking.currency || 'PKR'} {booking.totalPrice?.toLocaleString() || booking.totalAmount?.toLocaleString() || '0'}
                   </div>
                   <div className="text-sm text-gray-600">
-                    {booking.paymentStatus === "PENDING" || !booking.payments || booking.payments.length === 0
+                    {booking.paymentStatus === "PENDING" && (!booking.payments || booking.payments.length === 0)
                       ? "Pay on property"
-                      : booking.paymentStatus === "COMPLETED"
+                      : booking.paymentStatus === "COMPLETED" || (booking.payments && booking.payments.length > 0 && booking.payments[0].status === 'COMPLETED')
                       ? "Total paid"
-                      : booking.paymentStatus || "Payment pending"}
+                      : booking.paymentStatus === "PENDING"
+                      ? "Payment pending"
+                      : "Payment pending"}
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {booking.accommodation?.images && booking.accommodation.images.length > 0 && (
+          {serviceImage && (
             <div className="ml-6 flex-shrink-0">
               <img
                 className="h-20 w-20 object-cover rounded-lg"
-                src={booking.accommodation.images[0]}
-                alt={booking.accommodation.name}
+                src={serviceImage}
+                alt={serviceName}
               />
             </div>
           )}
