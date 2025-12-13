@@ -237,34 +237,51 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     totalAmount
   };
 
-  // Availability calendar preview - disabled for now to prevent 500 errors
-  // TODO: Optimize or fetch client-side via API endpoint
-  // The calendar will still display but without color coding until we optimize this
-  const availabilityPreview: Record<string, number> = {};
-  const pricePreview: Record<string, number> = {};
+    // Availability calendar preview - disabled for now to prevent 500 errors
+    // TODO: Optimize or fetch client-side via API endpoint
+    // The calendar will still display but without color coding until we optimize this
+    const availabilityPreview: Record<string, number> = {};
+    const pricePreview: Record<string, number> = {};
 
-  return json({
-    property,
-    room,
-    isAvailable,
-    availableUnits,
-    conflictingBookings,
-    pricingBreakdown,
-    totalPrice: totalAmount,
-    nights: numberOfNights,
-    availabilityPreview,
-    pricePreview,
-    suggestedRange: null,
-    searchParams: {
-      checkIn,
-      checkOut,
-      adults,
-      children,
-      guests: adults + children,
-      roomId: room.id,
-      roomTypeId: room.id, // Also include as roomTypeId for compatibility
-    },
-  });
+    return json({
+      property,
+      room,
+      isAvailable,
+      availableUnits,
+      conflictingBookings,
+      pricingBreakdown,
+      totalPrice: totalAmount,
+      nights: numberOfNights,
+      availabilityPreview,
+      pricePreview,
+      suggestedRange: null,
+      searchParams: {
+        checkIn,
+        checkOut,
+        adults,
+        children,
+        guests: adults + children,
+        roomId: room.id,
+        roomTypeId: room.id, // Also include as roomTypeId for compatibility
+      },
+    });
+  } catch (error: any) {
+    // Catch any unhandled errors and return a proper response
+    console.error('❌ [Book Property Loader] Unhandled error:', error);
+    console.error('❌ [Book Property Loader] Error stack:', error?.stack);
+    
+    // If it's already a Response, re-throw it
+    if (error instanceof Response) {
+      throw error;
+    }
+    
+    // Otherwise return a 500 error with details
+    return json({
+      error: "Failed to load booking page",
+      message: error?.message || "An unexpected error occurred",
+      details: process.env.NODE_ENV === "development" ? error?.stack : undefined
+    }, { status: 500 });
+  }
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
