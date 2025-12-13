@@ -95,7 +95,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ...propertyBookings.map(b => ({
         ...b,
         type: 'property' as const,
-        accommodation: b.property,
+        property: b.property, // Keep property for renderBookingCard
+        accommodation: b.property, // Also keep accommodation for backward compatibility
         accommodationId: b.propertyId,
         payments: payments.filter(p => p.bookingId === b.id && p.bookingType === 'PROPERTY'),
         reviews: [],
@@ -103,6 +104,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ...vehicleBookings.map(b => ({
         ...b,
         type: 'vehicle' as const,
+        vehicle: b.vehicle, // Keep vehicle for renderBookingCard
         accommodation: null,
         accommodationId: null,
         payments: payments.filter(p => p.bookingId === b.id && p.bookingType === 'VEHICLE'),
@@ -111,6 +113,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ...tourBookings.map(b => ({
         ...b,
         type: 'tour' as const,
+        tour: b.tour, // Keep tour for renderBookingCard
         accommodation: null,
         accommodationId: null,
         payments: payments.filter(p => p.bookingId === b.id && p.bookingType === 'TOUR'),
