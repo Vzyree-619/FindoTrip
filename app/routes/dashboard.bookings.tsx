@@ -8,6 +8,7 @@ import { useLoaderData, useActionData, Form, Link } from "@remix-run/react";
 import { useState } from "react";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { getUserBookings } from "~/lib/utils/bookings.server";
+import { prisma } from "~/lib/db/db.server";
 import {
   Calendar,
   MapPin,
