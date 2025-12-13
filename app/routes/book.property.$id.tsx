@@ -236,32 +236,46 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     totalAmount
   };
 
-  // Fetch availability calendar for preview (3 months ahead)
+  // Fetch availability calendar for preview (1 month ahead to avoid timeout)
+  // This is optional and won't block the page if it fails
   let availabilityPreview: Record<string, number> = {};
   let pricePreview: Record<string, number> = {};
   
   if (roomId) {
     try {
       const startDate = new Date();
-      const availabilityCalendar = await getRoomAvailabilityCalendar(roomId, startDate, 3);
+      // Only fetch 1 month to keep it fast
+      const availabilityCalendar = await Promise.race([
+        getRoomAvailabilityCalendar(roomId, startDate, 1),
+        new Promise<any[]>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 5000)
+        )
+      ]) as any[];
       
-      // Build availability preview object
-      for (const day of availabilityCalendar) {
+      // Build availability preview object (limit to first 60 days for performance)
+      const daysToProcess = Math.min(availabilityCalendar.length, 60);
+      for (let i = 0; i < daysToProcess; i++) {
+        const day = availabilityCalendar[i];
         const dateKey = new Date(day.date).toISOString().split('T')[0];
         availabilityPreview[dateKey] = day.availableUnits;
         
-        // Calculate price for this date
+        // Calculate price for this date (with timeout protection)
         try {
-          const priceInfo = await calculateRoomPrice(roomId, new Date(day.date));
+          const priceInfo = await Promise.race([
+            calculateRoomPrice(roomId, new Date(day.date)),
+            new Promise<any>((_, reject) => 
+              setTimeout(() => reject(new Error('Price timeout')), 1000)
+            )
+          ]) as any;
           pricePreview[dateKey] = priceInfo.finalPrice;
         } catch (e) {
-          // If price calculation fails, use base price
+          // If price calculation fails or times out, use base price
           pricePreview[dateKey] = room.basePrice;
         }
       }
-    } catch (error) {
-      console.error('Error fetching availability calendar:', error);
-      // Continue with empty preview if it fails
+    } catch (error: any) {
+      console.error('⚠️ [Book Property Loader] Error fetching availability calendar (non-blocking):', error?.message || error);
+      // Continue with empty preview if it fails - page will still load
     }
   }
 
