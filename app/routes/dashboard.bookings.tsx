@@ -271,17 +271,17 @@ export default function MyBookings() {
 
   const canCancel = (booking: any) => {
     const now = new Date();
-    const checkInDate = new Date(booking.checkIn);
+    const checkInDate = new Date(booking.checkIn || booking.startDate || booking.tourDate);
     return booking.status === "CONFIRMED" && checkInDate > now;
   };
 
   const canReview = (booking: any) => {
     const now = new Date();
-    const checkOutDate = new Date(booking.checkOut);
+    const checkOutDate = new Date(booking.checkOut || booking.endDate || booking.tourDate);
     return (
       (booking.status === "COMPLETED" || 
        (booking.status === "CONFIRMED" && checkOutDate < now)) &&
-      booking.reviews.length === 0
+      (!booking.reviews || booking.reviews.length === 0)
     );
   };
 
