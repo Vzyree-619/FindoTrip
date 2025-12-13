@@ -143,7 +143,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     const payment = await prisma.payment.findFirst({
       where: {
         bookingId,
-        bookingType: bookingType.toUpperCase(),
+        bookingType: bookingType === "property" ? "PROPERTY" : bookingType === "vehicle" ? "VEHICLE" : "TOUR",
       },
       orderBy: {
         createdAt: "desc",
