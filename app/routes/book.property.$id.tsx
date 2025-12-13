@@ -31,31 +31,32 @@ function generateConfirmationCode(): string {
 }
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
-  const userId = await requireUserId(request);
-  const propertyId = params.id;
-  
-  if (!propertyId) {
-    throw new Response("Property ID is required", { status: 400 });
-  }
+  try {
+    const userId = await requireUserId(request);
+    const propertyId = params.id;
+    
+    if (!propertyId) {
+      throw new Response("Property ID is required", { status: 400 });
+    }
 
-  const url = new URL(request.url);
-  const checkIn = url.searchParams.get("checkIn");
-  const checkOut = url.searchParams.get("checkOut");
-  const guests = url.searchParams.get("guests");
-  const adults = parseInt(url.searchParams.get("adults") || "2");
-  const children = parseInt(url.searchParams.get("children") || "0");
-  const roomId = url.searchParams.get("roomId") || url.searchParams.get("roomTypeId") || undefined;
+    const url = new URL(request.url);
+    const checkIn = url.searchParams.get("checkIn");
+    const checkOut = url.searchParams.get("checkOut");
+    const guests = url.searchParams.get("guests");
+    const adults = parseInt(url.searchParams.get("adults") || "2");
+    const children = parseInt(url.searchParams.get("children") || "0");
+    const roomId = url.searchParams.get("roomId") || url.searchParams.get("roomTypeId") || undefined;
 
-  // Log for debugging
-  console.log('🔵 [Book Property Loader] Request:', {
-    method: request.method,
-    propertyId,
-    roomId,
-    checkIn,
-    checkOut,
-    guests,
-    url: url.toString()
-  });
+    // Log for debugging
+    console.log('🔵 [Book Property Loader] Request:', {
+      method: request.method,
+      propertyId,
+      roomId,
+      checkIn,
+      checkOut,
+      guests,
+      url: url.toString()
+    });
 
   const property = await prisma.property.findUnique({
     where: { id: propertyId },
