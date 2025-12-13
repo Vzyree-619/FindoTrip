@@ -161,6 +161,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       provider,
       payment,
       bookingType,
+      bookingId, // Add bookingId to loader data
     });
   } catch (error) {
     console.error("Error loading booking confirmation:", error);
@@ -169,7 +170,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 }
 
 export default function BookingConfirmation() {
-  const { booking, service, provider, payment, bookingType } = useLoaderData<typeof loader>();
+  const { booking, service, provider, payment, bookingType, bookingId } = useLoaderData<typeof loader>();
   const isPendingPayment = !payment || payment.status === 'PENDING';
 
   const getServiceIcon = () => {
