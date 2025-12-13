@@ -429,7 +429,8 @@ export default function MyBookings() {
         )}
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="py-6">
