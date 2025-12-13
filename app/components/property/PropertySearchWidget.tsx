@@ -4,6 +4,7 @@ import { Calendar as CalendarIcon, Users } from "lucide-react";
 import { DatePicker } from "~/components/ui/date-picker";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
+import { cn } from "~/lib/utils";
 import {
   Select,
   SelectContent,
@@ -121,10 +122,10 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
       className={`bg-white border-b border-gray-200 shadow-sm ${sticky ? 'sticky top-16 z-40' : ''}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
           {/* Check-in */}
-          <div className="space-y-2 opacity-100">
-            <Label htmlFor="check-in" className="flex items-center gap-1">
+          <div className="space-y-2 opacity-100 min-w-0">
+            <Label htmlFor="check-in" className="flex items-center gap-1 text-sm">
               <CalendarIcon className="w-4 h-4" />
               Check-in
             </Label>
@@ -136,7 +137,7 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
               }}
               placeholder="Select check-in date"
               minDate={today}
-              className={errors.checkIn ? 'border-red-500' : ''}
+              className={cn(errors.checkIn ? 'border-red-500' : '', 'min-w-0')}
               disabled={!!isUpdating}
             />
             {errors.checkIn && (
@@ -145,8 +146,8 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
           </div>
 
           {/* Check-out */}
-          <div className="space-y-2 opacity-100">
-            <Label htmlFor="check-out" className="flex items-center gap-1">
+          <div className="space-y-2 opacity-100 min-w-0">
+            <Label htmlFor="check-out" className="flex items-center gap-1 text-sm">
               <CalendarIcon className="w-4 h-4" />
               Check-out
             </Label>
@@ -158,7 +159,7 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
               }}
               placeholder="Select check-out date"
               minDate={minCheckOut}
-              className={errors.checkOut ? 'border-red-500' : ''}
+              className={cn(errors.checkOut ? 'border-red-500' : '', 'min-w-0')}
               disabled={!!isUpdating || !checkIn}
             />
             {errors.checkOut && (
