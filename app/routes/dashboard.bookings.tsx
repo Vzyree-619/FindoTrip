@@ -267,9 +267,15 @@ export default function MyBookings() {
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-bold text-[#01502E]">
-                    PKR {booking.totalPrice.toLocaleString()}
+                    PKR {booking.totalPrice?.toLocaleString() || booking.totalAmount?.toLocaleString() || '0'}
                   </div>
-                  <div className="text-sm text-gray-600">Total paid</div>
+                  <div className="text-sm text-gray-600">
+                    {booking.paymentStatus === "PENDING" || !booking.payments || booking.payments.length === 0
+                      ? "Pay on property"
+                      : booking.paymentStatus === "COMPLETED"
+                      ? "Total paid"
+                      : booking.paymentStatus || "Payment pending"}
+                  </div>
                 </div>
               </div>
             </div>
@@ -289,7 +295,7 @@ export default function MyBookings() {
         {/* Actions */}
         <div className="mt-6 flex flex-wrap gap-2">
           <Link
-            to={`/book/confirmation/${booking.id}?type=${booking.type}`}
+            to={`/dashboard/bookings/${booking.id}?type=${booking.type}`}
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
             <Eye className="w-4 h-4 mr-1" />
@@ -336,9 +342,9 @@ export default function MyBookings() {
     <div className="py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">My Bookings</h1>
-          <p className="mt-1 text-sm text-gray-600">
+        <div className="mb-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Bookings</h1>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Manage your current and past reservations
           </p>
         </div>
