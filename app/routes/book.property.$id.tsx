@@ -782,47 +782,66 @@ export default function PropertyBooking() {
                   {/* Availability Calendar Preview */}
                   {roomTypeId && (
                     <div className="w-full">
-                      <Label className="mb-2 block">Availability Preview</Label>
-                      <div className="w-full border rounded-lg p-2 bg-gray-50">
-                        <Calendar
-                          mode="single"
-                          numberOfMonths={2}
-                          selected={selectedDate}
-                          onSelect={(d: Date | undefined) => setSelectedDate(d)}
-                          disabled={(date: Date) => date < today}
-                          footer={<div className="text-sm text-gray-600 mt-2">Choose dates with better availability.</div>}
-                          className="w-full"
-                          classNames={{
-                            root: "w-full",
-                            months: "flex flex-col sm:flex-row gap-4 w-full",
-                            month: "w-full flex-shrink-0",
-                            table: "w-full",
-                            week: "flex w-full",
-                            day: "w-full"
-                          }}
-                          components={{
-                            DayButton: ({ className, day, modifiers, ...props }: any) => {
-                              const key = day.date.toISOString().split('T')[0];
-                              const avail = availabilityPreview?.[key] ?? undefined;
-                              const price = pricePreview?.[key];
-                              let color = '';
-                              if (typeof avail === 'number') {
-                                color = avail <= 0 ? 'bg-red-100 text-red-700' : avail <= 1 ? 'bg-orange-100 text-orange-700' : 'bg-green-50 text-green-700';
-                              }
-                              return (
-                                <button 
-                                  className={`aspect-square w-full min-w-[--cell-size] max-w-[--cell-size] rounded-md flex flex-col items-center justify-center text-xs p-1 ${color} ${className || ''}`}
-                                  {...props}
-                                >
-                                  <span className="font-medium text-xs">{day.date.getDate()}</span>
-                                  {typeof price === 'number' && (
-                                    <span className="text-[9px] leading-tight mt-0.5 font-medium">{property.currency} {price}</span>
-                                  )}
-                                </button>
-                              );
-                            }
-                          }}
-                        />
+                      <Label className="mb-2 block text-sm font-medium">Availability Preview</Label>
+                      <div className="w-full border rounded-lg p-3 bg-white shadow-sm">
+                        <div className="w-full overflow-x-auto -mx-3 px-3">
+                          <div className="inline-block min-w-fit">
+                            <Calendar
+                              mode="single"
+                              numberOfMonths={2}
+                              selected={selectedDate}
+                              onSelect={(d: Date | undefined) => setSelectedDate(d)}
+                              disabled={(date: Date) => date < today}
+                              footer={<div className="text-xs text-gray-500 mt-3 pt-2 border-t">Choose dates with better availability.</div>}
+                              className="w-fit"
+                              classNames={{
+                                root: "w-fit",
+                                months: "flex flex-col xl:flex-row gap-3 xl:gap-4",
+                                month: "w-[280px] flex-shrink-0",
+                                caption: "mb-2",
+                                table: "w-full",
+                                week: "flex w-full",
+                                day: "w-full"
+                              }}
+                              components={{
+                                DayButton: ({ className, day, modifiers, ...props }: any) => {
+                                  const key = day.date.toISOString().split('T')[0];
+                                  const avail = availabilityPreview?.[key] ?? undefined;
+                                  const price = pricePreview?.[key];
+                                  let color = '';
+                                  if (typeof avail === 'number') {
+                                    color = avail <= 0 ? 'bg-red-100 text-red-700 hover:bg-red-200' : avail <= 1 ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' : 'bg-green-50 text-green-700 hover:bg-green-100';
+                                  }
+                                  return (
+                                    <button 
+                                      className={`aspect-square w-full h-[--cell-size] min-w-[--cell-size] max-w-[--cell-size] rounded-md flex flex-col items-center justify-center text-xs p-0.5 transition-colors ${color} ${className || ''}`}
+                                      {...props}
+                                    >
+                                      <span className="font-medium text-xs leading-none">{day.date.getDate()}</span>
+                                      {typeof price === 'number' && (
+                                        <span className="text-[8px] leading-tight mt-0.5 font-semibold">{property.currency} {price}</span>
+                                      )}
+                                    </button>
+                                  );
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded bg-green-50 border border-green-200"></div>
+                            <span className="text-gray-600">Available</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded bg-orange-100 border border-orange-200"></div>
+                            <span className="text-gray-600">Limited</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded bg-red-100 border border-red-200"></div>
+                            <span className="text-gray-600">Booked</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
