@@ -434,14 +434,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
             adults,
             children,
             guests: adults + children,
-            basePrice: room.basePrice,
+            basePrice: totalRoomCost, // basePrice is total base price (roomRate × nights)
             roomRate,
-            totalRoomCost,
             cleaningFee,
             serviceFee,
-            taxAmount,
-            totalAmount,
-            totalPrice: totalAmount, // Add missing totalPrice field (same as totalAmount)
+            taxes: taxAmount, // Use 'taxes' instead of 'taxAmount'
+            discounts: 0,
+            totalPrice: totalAmount, // Final total amount
             currency: room.currency || 'PKR',
             status: "PENDING_PAYMENT",
             paymentStatus: "PENDING",
