@@ -101,38 +101,35 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
 
   // Validate required parameters
-  // During POST requests (form submissions), Remix re-fetches the loader
-  // but query params might not be preserved. We'll handle this gracefully.
+  // During form submissions, Remix re-fetches the loader via .data endpoint
+  // If params are missing, return minimal data instead of throwing
   if (!roomId || !checkIn || !checkOut) {
-    // If it's a POST request, don't throw - let the action handle it
-    if (request.method === "POST") {
-      console.log('⚠️ [Book Property Loader] Missing params during POST, returning minimal data');
-      return json({
-        property,
-        isAvailable: false,
-        pricingBreakdown: {
-          roomRate: 0,
-          totalRoomCost: 0,
-          cleaningFee: 0,
-          serviceFee: 0,
-          taxAmount: 0,
-          totalAmount: 0,
-          numberOfNights: 0,
-        },
-        totalPrice: 0,
-        nights: 0,
-        searchParams: { checkIn: checkIn || "", checkOut: checkOut || "", guests: parseInt(guests || "1"), roomTypeId: roomId || "" },
-        availabilityPreview: {},
-        pricePreview: {},
-        suggestedRange: null,
-      });
-    }
-    // For GET requests, we need these params
-    console.error('❌ [Book Property Loader] Missing parameters:', { roomId, checkIn, checkOut, method: request.method });
-    throw new Response(
-      `Missing booking parameters: roomId=${roomId || 'missing'}, checkIn=${checkIn || 'missing'}, checkOut=${checkOut || 'missing'}`,
-      { status: 400 }
-    );
+    console.log('⚠️ [Book Property Loader] Missing params, returning minimal data:', { 
+      roomId, checkIn, checkOut, method: request.method, 
+      url: url.toString(),
+      hasRoomId: !!roomId,
+      hasCheckIn: !!checkIn,
+      hasCheckOut: !!checkOut
+    });
+    return json({
+      property,
+      isAvailable: false,
+      pricingBreakdown: {
+        roomRate: 0,
+        totalRoomCost: 0,
+        cleaningFee: 0,
+        serviceFee: 0,
+        taxAmount: 0,
+        totalAmount: 0,
+        numberOfNights: 0,
+      },
+      totalPrice: 0,
+      nights: 0,
+      searchParams: { checkIn: checkIn || "", checkOut: checkOut || "", guests: parseInt(guests || "1"), roomTypeId: roomId || "" },
+      availabilityPreview: {},
+      pricePreview: {},
+      suggestedRange: null,
+    });
   }
 
   // Fetch specific room
@@ -141,6 +138,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   });
 
   if (!room || room.propertyId !== propertyId) {
+    console.error('❌ [Book Property Loader] Room not found:', { roomId, propertyId, roomExists: !!room, roomPropertyId: room?.propertyId });
     throw new Response("Room not found or does not belong to this property", { status: 404 });
   }
 
@@ -204,6 +202,14 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
 
   if (!isAvailable || availableUnits < 1) {
+    console.error('❌ [Book Property Loader] Room not available:', { 
+      isAvailable, 
+      availableUnits, 
+      totalUnits: room.totalUnits,
+      conflictingBookings: conflictingBookings.length,
+      checkIn,
+      checkOut
+    });
     throw new Response("Room not available for selected dates", { status: 400 });
   }
 
