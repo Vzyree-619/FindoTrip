@@ -58,52 +58,58 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       url: url.toString()
     });
 
-    const property = await prisma.property.findUnique({
-      where: { id: propertyId },
-      include: {
-        owner: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true,
-                phone: true,
-                avatar: true,
+    let property;
+    try {
+      property = await prisma.property.findUnique({
+        where: { id: propertyId },
+        include: {
+          owner: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                  phone: true,
+                  avatar: true,
+                },
               },
             },
           },
-        },
-        reviews: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                avatar: true,
+          reviews: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  avatar: true,
+                },
               },
             },
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 5,
           },
-          orderBy: {
-            createdAt: "desc",
+          unavailableDates: {
+            where: {
+              startDate: { gte: new Date() },
+            },
+            orderBy: {
+              startDate: "asc",
+            },
           },
-          take: 5,
+          roomTypes: {
+            select: {
+              id: true,
+              name: true,
+              basePrice: true,
+            },
+          },
         },
-        unavailableDates: {
-          where: {
-            startDate: { gte: new Date() },
-          },
-          orderBy: {
-            startDate: "asc",
-          },
-        },
-        roomTypes: {
-          select: {
-            id: true,
-            name: true,
-            basePrice: true,
-          },
-        },
-      },
-    });
+      });
+    } catch (dbError: any) {
+      console.error('❌ [Book Property Loader] Database error fetching property:', dbError);
+      throw new Response(`Database error: ${dbError?.message || 'Unknown error'}`, { status: 500 });
+    }
 
     if (!property) {
       throw new Response("Property not found", { status: 404 });
@@ -141,15 +147,21 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     });
   }
 
-  // Fetch specific room
-  const room = await prisma.roomType.findUnique({
-    where: { id: roomId }
-  });
+    // Fetch specific room
+    let room;
+    try {
+      room = await prisma.roomType.findUnique({
+        where: { id: roomId }
+      });
+    } catch (dbError: any) {
+      console.error('❌ [Book Property Loader] Database error fetching room:', dbError);
+      throw new Response(`Database error: ${dbError?.message || 'Unknown error'}`, { status: 500 });
+    }
 
-  if (!room || room.propertyId !== propertyId) {
-    console.error('❌ [Book Property Loader] Room not found:', { roomId, propertyId, roomExists: !!room, roomPropertyId: room?.propertyId });
-    throw new Response("Room not found or does not belong to this property", { status: 404 });
-  }
+    if (!room || room.propertyId !== propertyId) {
+      console.error('❌ [Book Property Loader] Room not found:', { roomId, propertyId, roomExists: !!room, roomPropertyId: room?.propertyId });
+      throw new Response("Room not found or does not belong to this property", { status: 404 });
+    }
 
   // Check availability for the requested dates
   let isAvailable = true;
