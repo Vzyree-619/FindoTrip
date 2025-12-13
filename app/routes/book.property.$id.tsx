@@ -19,7 +19,8 @@ import { createAndDispatchNotification } from "~/lib/notifications.server";
 import { publishToUser } from "~/lib/realtime.server";
 import { sendEmail } from "~/lib/email/email.server";
 import { calculateCommission, createCommission } from "~/lib/utils/commission.server";
-import { checkDateRangeAvailability } from "~/lib/availability.server";
+import { checkDateRangeAvailability, getRoomAvailabilityCalendar } from "~/lib/availability.server";
+import { calculateRoomPrice } from "~/lib/pricing.server";
 import type { PaymentMethod } from "@prisma/client";
 
 // Helper function to generate confirmation code
@@ -797,8 +798,10 @@ export default function PropertyBooking() {
                               classNames={{
                                 root: "w-fit",
                                 months: "flex flex-col xl:flex-row gap-3 xl:gap-4",
-                                month: "w-[280px] flex-shrink-0",
-                                caption: "mb-2",
+                                month: "w-[280px] flex-shrink-0 relative",
+                                nav: "relative flex items-center justify-between mb-2",
+                                caption: "mb-2 flex items-center justify-center",
+                                month_caption: "flex items-center justify-center",
                                 table: "w-full",
                                 week: "flex w-full",
                                 day: "w-full"
