@@ -289,7 +289,7 @@ export default function MyBookings() {
         {/* Actions */}
         <div className="mt-6 flex flex-wrap gap-2">
           <Link
-            to={`/booking/confirmation/${booking.id}`}
+            to={`/book/confirmation/${booking.id}?type=${booking.type}`}
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
             <Eye className="w-4 h-4 mr-1" />
