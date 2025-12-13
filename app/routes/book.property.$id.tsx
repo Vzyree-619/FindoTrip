@@ -781,35 +781,49 @@ export default function PropertyBooking() {
                   )}
                   {/* Availability Calendar Preview */}
                   {roomTypeId && (
-                    <div>
-                      <Label>Availability Preview</Label>
-                      <Calendar
-                        mode="single"
-                        numberOfMonths={2}
-                        selected={selectedDate}
-                        onSelect={(d: Date | undefined) => setSelectedDate(d)}
-                        disabled={(date: Date) => date < today}
-                        footer={<div className="text-sm text-gray-600">Choose dates with better availability.</div>}
-                        components={{
-                          DayButton: ({ className, day, modifiers, ...props }: any) => {
-                            const key = day.date.toISOString().split('T')[0];
-                            const avail = availabilityPreview?.[key] ?? undefined;
-                            const price = pricePreview?.[key];
-                            let color = '';
-                            if (typeof avail === 'number') {
-                              color = avail <= 0 ? 'bg-red-100 text-red-700' : avail <= 1 ? 'bg-orange-100 text-orange-700' : 'bg-green-50 text-green-700';
+                    <div className="w-full">
+                      <Label className="mb-2 block">Availability Preview</Label>
+                      <div className="w-full border rounded-lg p-2 bg-gray-50">
+                        <Calendar
+                          mode="single"
+                          numberOfMonths={2}
+                          selected={selectedDate}
+                          onSelect={(d: Date | undefined) => setSelectedDate(d)}
+                          disabled={(date: Date) => date < today}
+                          footer={<div className="text-sm text-gray-600 mt-2">Choose dates with better availability.</div>}
+                          className="w-full"
+                          classNames={{
+                            root: "w-full",
+                            months: "flex flex-col sm:flex-row gap-4 w-full",
+                            month: "w-full flex-shrink-0",
+                            table: "w-full",
+                            week: "flex w-full",
+                            day: "w-full"
+                          }}
+                          components={{
+                            DayButton: ({ className, day, modifiers, ...props }: any) => {
+                              const key = day.date.toISOString().split('T')[0];
+                              const avail = availabilityPreview?.[key] ?? undefined;
+                              const price = pricePreview?.[key];
+                              let color = '';
+                              if (typeof avail === 'number') {
+                                color = avail <= 0 ? 'bg-red-100 text-red-700' : avail <= 1 ? 'bg-orange-100 text-orange-700' : 'bg-green-50 text-green-700';
+                              }
+                              return (
+                                <button 
+                                  className={`aspect-square w-full min-w-[--cell-size] max-w-[--cell-size] rounded-md flex flex-col items-center justify-center text-xs p-1 ${color} ${className || ''}`}
+                                  {...props}
+                                >
+                                  <span className="font-medium text-xs">{day.date.getDate()}</span>
+                                  {typeof price === 'number' && (
+                                    <span className="text-[9px] leading-tight mt-0.5 font-medium">{property.currency} {price}</span>
+                                  )}
+                                </button>
+                              );
                             }
-                            return (
-                              <button className={`aspect-square w-full rounded-md flex flex-col items-center justify-center ${color}`} {...props}>
-                                <span>{day.date.getDate()}</span>
-                                {typeof price === 'number' && (
-                                  <span className="text-[10px] text-gray-700">{property.currency} {price}</span>
-                                )}
-                              </button>
-                            );
-                          }
-                        }}
-                      />
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
                   {rangeWarning && (
