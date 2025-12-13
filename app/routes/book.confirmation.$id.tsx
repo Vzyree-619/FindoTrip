@@ -226,6 +226,207 @@ export default function BookingConfirmation() {
     `)}`;
   };
 
+  const handleDownloadVoucher = () => {
+    // Generate detailed voucher HTML
+    const voucherHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Booking Voucher - ${booking.bookingNumber}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+          .header { text-align: center; border-bottom: 3px solid #01502E; padding-bottom: 20px; margin-bottom: 30px; }
+          .logo { font-size: 24px; font-weight: bold; color: #01502E; margin-bottom: 10px; }
+          .booking-number { font-size: 18px; color: #666; }
+          .section { margin-bottom: 30px; }
+          .section-title { font-size: 16px; font-weight: bold; color: #01502E; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+          .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+          .detail-label { font-weight: 600; color: #666; }
+          .detail-value { color: #333; }
+          .status-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+          .status-pending { background: #fff3cd; color: #856404; }
+          .status-confirmed { background: #d4edda; color: #155724; }
+          .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #ddd; text-align: center; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">FindoTrip</div>
+          <div class="booking-number">Booking Voucher #${booking.bookingNumber}</div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Booking Information</div>
+          <div class="detail-row">
+            <span class="detail-label">Booking Number:</span>
+            <span class="detail-value">${booking.bookingNumber}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Status:</span>
+            <span class="detail-value">
+              <span class="status-badge status-${booking.status.toLowerCase()}">${booking.status}</span>
+            </span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Payment Status:</span>
+            <span class="detail-value">${booking.paymentStatus}</span>
+          </div>
+          ${booking.confirmationCode ? `
+          <div class="detail-row">
+            <span class="detail-label">Confirmation Code:</span>
+            <span class="detail-value">${booking.confirmationCode}</span>
+          </div>
+          ` : ''}
+        </div>
+
+        <div class="section">
+          <div class="section-title">Service Details</div>
+          ${serviceDetails ? `
+          <div class="detail-row">
+            <span class="detail-label">Service:</span>
+            <span class="detail-value">${serviceDetails.name}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Location:</span>
+            <span class="detail-value">${serviceDetails.location}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Dates:</span>
+            <span class="detail-value">${serviceDetails.dates}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Check-in:</span>
+            <span class="detail-value">${new Date(serviceDetails.checkIn).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Check-out:</span>
+            <span class="detail-value">${new Date(serviceDetails.checkOut).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Guests:</span>
+            <span class="detail-value">${serviceDetails.guests} ${serviceDetails.guests === "1" ? "person" : "people"}</span>
+          </div>
+          ` : ''}
+        </div>
+
+        <div class="section">
+          <div class="section-title">Guest Information</div>
+          <div class="detail-row">
+            <span class="detail-label">Name:</span>
+            <span class="detail-value">${booking.guestName}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Email:</span>
+            <span class="detail-value">${booking.guestEmail}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Phone:</span>
+            <span class="detail-value">${booking.guestPhone}</span>
+          </div>
+          ${booking.specialRequests ? `
+          <div class="detail-row">
+            <span class="detail-label">Special Requests:</span>
+            <span class="detail-value">${booking.specialRequests}</span>
+          </div>
+          ` : ''}
+        </div>
+
+        <div class="section">
+          <div class="section-title">Pricing Details</div>
+          <div class="detail-row">
+            <span class="detail-label">Base Price:</span>
+            <span class="detail-value">${booking.currency} ${booking.basePrice?.toFixed(2) || '0.00'}</span>
+          </div>
+          ${booking.cleaningFee ? `
+          <div class="detail-row">
+            <span class="detail-label">Cleaning Fee:</span>
+            <span class="detail-value">${booking.currency} ${booking.cleaningFee.toFixed(2)}</span>
+          </div>
+          ` : ''}
+          ${booking.serviceFee ? `
+          <div class="detail-row">
+            <span class="detail-label">Service Fee:</span>
+            <span class="detail-value">${booking.currency} ${booking.serviceFee.toFixed(2)}</span>
+          </div>
+          ` : ''}
+          ${booking.taxes ? `
+          <div class="detail-row">
+            <span class="detail-label">Taxes:</span>
+            <span class="detail-value">${booking.currency} ${booking.taxes.toFixed(2)}</span>
+          </div>
+          ` : ''}
+          <div class="detail-row" style="border-top: 2px solid #01502E; margin-top: 10px; padding-top: 10px;">
+            <span class="detail-label" style="font-size: 18px;">Total Amount:</span>
+            <span class="detail-value" style="font-size: 18px; font-weight: bold; color: #01502E;">${booking.currency} ${booking.totalPrice.toFixed(2)}</span>
+          </div>
+        </div>
+
+        ${provider ? `
+        <div class="section">
+          <div class="section-title">Provider Contact</div>
+          <div class="detail-row">
+            <span class="detail-label">Name:</span>
+            <span class="detail-value">${provider.user?.name || 'N/A'}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Email:</span>
+            <span class="detail-value">${provider.user?.email || 'N/A'}</span>
+          </div>
+          ${provider.user?.phone ? `
+          <div class="detail-row">
+            <span class="detail-label">Phone:</span>
+            <span class="detail-value">${provider.user.phone}</span>
+          </div>
+          ` : ''}
+        </div>
+        ` : ''}
+
+        <div class="footer">
+          <p>This is your official booking voucher. Please present this at check-in.</p>
+          <p>Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+          <p>For support, contact: support@findotrip.com</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Create blob and download
+    const blob = new Blob([voucherHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `booking-voucher-${booking.bookingNumber}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleShareBooking = () => {
+    const shareText = `I've booked ${serviceDetails?.name || 'a service'} on FindoTrip!\n\nBooking Number: ${booking.bookingNumber}\nDates: ${serviceDetails?.dates || 'N/A'}\n\nCheck it out!`;
+    const shareUrl = window.location.href;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: `My Booking - ${booking.bookingNumber}`,
+        text: shareText,
+        url: shareUrl,
+      }).catch(() => {
+        // Fallback to clipboard
+        navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+        alert('Booking details copied to clipboard!');
+      });
+    } else {
+      // Fallback to clipboard
+      navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      alert('Booking details copied to clipboard!');
+    }
+  };
+
+  const handleContactSupport = () => {
+    window.location.href = `/dashboard/support?booking=${bookingId}&type=${bookingType}`;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -330,10 +531,12 @@ export default function BookingConfirmation() {
                       <p className="text-sm text-gray-600">{provider.user?.email}</p>
                       <p className="text-sm text-gray-600">{provider.user?.phone}</p>
                     </div>
-                    <Button variant="outline" size="sm">
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Contact
-                    </Button>
+                    <Link to={`/accommodations/${booking.propertyId}?contact=true`}>
+                      <Button variant="outline" size="sm">
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        Contact
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -452,11 +655,11 @@ export default function BookingConfirmation() {
                     Show this QR code to the service provider for verification.
                   </p>
                   <div className="space-y-2">
-                    <Button className="w-full" variant="outline">
+                    <Button className="w-full" variant="outline" onClick={handleDownloadVoucher}>
                       <Download className="h-4 w-4 mr-2" />
                       Download Voucher
                     </Button>
-                    <Button className="w-full" variant="outline">
+                    <Button className="w-full" variant="outline" onClick={handleShareBooking}>
                       <Share2 className="h-4 w-4 mr-2" />
                       Share Booking
                     </Button>
@@ -504,10 +707,10 @@ export default function BookingConfirmation() {
                   <p className="text-sm text-gray-600">
                     If you have any questions about your booking, our support team is here to help.
                   </p>
-                  <Button variant="outline" className="w-full">
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Contact Support
-                  </Button>
+                    <Button variant="outline" className="w-full" onClick={handleContactSupport}>
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Contact Support
+                    </Button>
                 </div>
               </CardContent>
             </Card>

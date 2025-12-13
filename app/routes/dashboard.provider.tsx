@@ -39,6 +39,8 @@ import {
   Info,
   Camera,
   MessageCircle,
+  Calendar,
+  Users,
 } from "lucide-react";
 import SupportButton from "~/components/support/SupportButton";
 import ChatButton from "~/components/chat/ChatButton";
@@ -87,7 +89,60 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  return json({ user, owner, properties, error: null });
+  // Get all bookings for this owner's properties (including PENDING)
+  const propertyIds = properties.map(p => p.id);
+  const bookings = await prisma.propertyBooking.findMany({
+    where: {
+      propertyId: { in: propertyIds },
+    },
+    include: {
+      property: {
+        select: {
+          id: true,
+          name: true,
+          city: true,
+        },
+      },
+      roomType: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 20, // Latest 20 bookings
+  });
+
+  // Separate bookings by status
+  const pendingBookings = bookings.filter(b => b.status === "PENDING");
+  const confirmedBookings = bookings.filter(b => b.status === "CONFIRMED");
+  const upcomingBookings = bookings.filter(b => {
+    const checkIn = new Date(b.checkIn);
+    const now = new Date();
+    return b.status === "CONFIRMED" && checkIn >= now;
+  });
+
+  return json({ 
+    user, 
+    owner, 
+    properties, 
+    bookings,
+    pendingBookings,
+    confirmedBookings,
+    upcomingBookings,
+    error: null 
+  });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -322,7 +377,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function ProviderDashboard() {
-  const { user, owner, properties, error } = useLoaderData<typeof loader>();
+  const { user, owner, properties, bookings, pendingBookings, confirmedBookings, upcomingBookings, error } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
   const submitted = searchParams.get("submitted") === "1";
   const created = searchParams.get("created") === "1";
@@ -517,6 +572,155 @@ export default function ProviderDashboard() {
             >
               ×
             </Link>
+          </div>
+        )}
+
+        {/* Bookings Section */}
+        {(pendingBookings.length > 0 || confirmedBookings.length > 0) && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-2 sm:p-3 md:p-4 lg:p-6 mb-4 sm:mb-6 md:mb-8 w-full">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 md:mb-4">
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#01502E] flex-shrink-0" />
+              <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white">
+                Booking Requests
+              </h2>
+            </div>
+            
+            {pendingBookings.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Pending Bookings ({pendingBookings.length})
+                </h3>
+                <div className="space-y-3">
+                  {pendingBookings.map((booking: any) => (
+                    <div
+                      key={booking.id}
+                      className="border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 bg-yellow-50 dark:bg-yellow-900/20"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold text-sm text-gray-900 dark:text-white">
+                              {booking.property.name}
+                            </h4>
+                            <span className="px-2 py-0.5 text-xs rounded bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200">
+                              PENDING
+                            </span>
+                          </div>
+                          {booking.roomType && (
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                              Room: {booking.roomType.name}
+                            </p>
+                          )}
+                          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>
+                                {new Date(booking.checkIn).toLocaleDateString('en-US', { 
+                                  weekday: 'short', 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })} - {new Date(booking.checkOut).toLocaleDateString('en-US', { 
+                                  weekday: 'short', 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              <span>{booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="font-semibold">Guest:</span>
+                              <span>{booking.user.name} ({booking.user.email})</span>
+                            </div>
+                            {booking.user.phone && (
+                              <div className="flex items-center gap-1">
+                                <span className="font-semibold">Phone:</span>
+                                <span>{booking.user.phone}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-2 text-sm font-semibold text-[#01502E] dark:text-green-400">
+                            {booking.currency} {booking.totalPrice.toFixed(2)}
+                            {booking.paymentStatus === 'PENDING' && (
+                              <span className="ml-2 text-xs font-normal text-gray-600 dark:text-gray-400">
+                                (Payment on property)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {upcomingBookings.length > 0 && (
+              <div>
+                <h3 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Upcoming Confirmed Bookings ({upcomingBookings.length})
+                </h3>
+                <div className="space-y-3">
+                  {upcomingBookings.slice(0, 5).map((booking: any) => (
+                    <div
+                      key={booking.id}
+                      className="border border-green-200 dark:border-green-800 rounded-lg p-3 bg-green-50 dark:bg-green-900/20"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold text-sm text-gray-900 dark:text-white">
+                              {booking.property.name}
+                            </h4>
+                            <span className="px-2 py-0.5 text-xs rounded bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200">
+                              CONFIRMED
+                            </span>
+                          </div>
+                          {booking.roomType && (
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                              Room: {booking.roomType.name}
+                            </p>
+                          )}
+                          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>
+                                {new Date(booking.checkIn).toLocaleDateString('en-US', { 
+                                  weekday: 'short', 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })} - {new Date(booking.checkOut).toLocaleDateString('en-US', { 
+                                  weekday: 'short', 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              <span>{booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="font-semibold">Guest:</span>
+                              <span>{booking.user.name}</span>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm font-semibold text-[#01502E] dark:text-green-400">
+                            {booking.currency} {booking.totalPrice.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
