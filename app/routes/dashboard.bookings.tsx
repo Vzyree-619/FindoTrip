@@ -285,21 +285,41 @@ export default function MyBookings() {
     );
   };
 
-  const renderBookingCard = (booking: any) => (
+  const renderBookingCard = (booking: any) => {
+    // Get service name based on booking type
+    const serviceName = booking.type === 'property' 
+      ? booking.property?.name || 'Property'
+      : booking.type === 'vehicle'
+      ? `${booking.vehicle?.brand || ''} ${booking.vehicle?.model || ''} ${booking.vehicle?.year || ''}`.trim() || 'Vehicle'
+      : booking.tour?.title || 'Tour';
+    
+    const serviceLocation = booking.type === 'property'
+      ? `${booking.property?.city || ''}, ${booking.property?.country || ''}`.trim()
+      : booking.type === 'vehicle'
+      ? booking.pickupLocation || 'Location TBD'
+      : `${booking.tour?.city || ''}, ${booking.tour?.country || ''}`.trim();
+    
+    const serviceImage = booking.type === 'property'
+      ? booking.property?.images?.[0]
+      : booking.type === 'vehicle'
+      ? booking.vehicle?.images?.[0]
+      : booking.tour?.images?.[0];
+
+    return (
     <div key={booking.id} className="bg-white shadow rounded-lg overflow-hidden">
       <div className="p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-semibold text-gray-900">
-                {booking.accommodation?.name}
+                {serviceName}
               </h3>
-              {getStatusBadge(booking.status, booking.checkIn, booking.checkOut)}
+              {getStatusBadge(booking.status, booking.checkIn || booking.startDate || booking.tourDate, booking.checkOut || booking.endDate || booking.tourDate)}
             </div>
             
             <div className="flex items-center text-sm text-gray-600 mb-2">
               <MapPin className="w-4 h-4 mr-1" />
-              {booking.accommodation?.city}, {booking.accommodation?.country}
+              {serviceLocation}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
