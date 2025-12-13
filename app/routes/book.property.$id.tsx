@@ -442,7 +442,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
             discounts: 0,
             totalPrice: totalAmount, // Final total amount
             currency: room.currency || 'PKR',
-            status: "PENDING_PAYMENT",
+            status: "PENDING", // Use PENDING instead of PENDING_PAYMENT (BookingStatus enum)
             paymentStatus: "PENDING",
             guestName,
             guestEmail,
