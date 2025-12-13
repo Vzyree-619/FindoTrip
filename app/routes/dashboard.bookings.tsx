@@ -48,6 +48,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // Categorize bookings
     const now = new Date();
+    
+    // PENDING bookings - show all pending bookings
+    const pending = bookingsWithRelations.filter((booking) => booking.status === "PENDING");
+    
     const upcoming = bookingsWithRelations.filter((booking) => {
       if (booking.status !== "CONFIRMED") return false;
       
@@ -87,12 +91,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
     
     const cancelled = bookingsWithRelations.filter((booking) => booking.status === "CANCELLED");
 
+    console.log("Pending bookings:", pending.length);
     console.log("Upcoming bookings:", upcoming.length);
     console.log("Past bookings:", past.length);
     console.log("Cancelled bookings:", cancelled.length);
+    console.log("All bookings:", bookingsWithRelations.length);
 
     return json({
       bookings: {
+        pending,
         upcoming,
         past,
         cancelled,
@@ -139,7 +146,7 @@ export async function action({ request }: ActionFunctionArgs) {
 export default function MyBookings() {
   const { bookings } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
-  const [activeTab, setActiveTab] = useState<"upcoming" | "past" | "cancelled">("upcoming");
+  const [activeTab, setActiveTab] = useState<"pending" | "upcoming" | "past" | "cancelled">("pending");
   const [cancellingBooking, setCancellingBooking] = useState<string | null>(null);
 
   const getStatusBadge = (status: string, checkIn: string, checkOut: string) => {
@@ -367,6 +374,7 @@ export default function MyBookings() {
         <div className="mb-6">
           <nav className="flex space-x-8">
             {[
+              { key: "pending", label: "Pending", count: bookings.pending?.length || 0 },
               { key: "upcoming", label: "Upcoming", count: bookings.upcoming.length },
               { key: "past", label: "Past", count: bookings.past.length },
               { key: "cancelled", label: "Cancelled", count: bookings.cancelled.length },
@@ -388,7 +396,7 @@ export default function MyBookings() {
 
         {/* Bookings List */}
         <div className="space-y-6">
-          {bookings[activeTab].length > 0 ? (
+          {bookings[activeTab] && bookings[activeTab].length > 0 ? (
             bookings[activeTab].map(renderBookingCard)
           ) : (
             <div className="text-center py-12">
@@ -397,7 +405,9 @@ export default function MyBookings() {
                 No {activeTab} bookings
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                {activeTab === "upcoming" 
+                {activeTab === "pending"
+                  ? "You don't have any pending bookings."
+                  : activeTab === "upcoming" 
                   ? "You don't have any upcoming trips."
                   : activeTab === "past"
                   ? "You haven't completed any trips yet."
