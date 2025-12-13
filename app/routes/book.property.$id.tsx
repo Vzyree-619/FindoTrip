@@ -45,6 +45,17 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const children = parseInt(url.searchParams.get("children") || "0");
   const roomId = url.searchParams.get("roomId") || url.searchParams.get("roomTypeId") || undefined;
 
+  // Log for debugging
+  console.log('🔵 [Book Property Loader] Request:', {
+    method: request.method,
+    propertyId,
+    roomId,
+    checkIn,
+    checkOut,
+    guests,
+    url: url.toString()
+  });
+
   const property = await prisma.property.findUnique({
     where: { id: propertyId },
     include: {
@@ -91,7 +102,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
   // Validate required parameters
   if (!roomId || !checkIn || !checkOut) {
-    throw new Response("Missing booking parameters: roomId, checkIn, and checkOut are required", { status: 400 });
+    console.error('❌ [Book Property Loader] Missing parameters:', { roomId, checkIn, checkOut });
+    throw new Response(
+      `Missing booking parameters: roomId=${roomId || 'missing'}, checkIn=${checkIn || 'missing'}, checkOut=${checkOut || 'missing'}`,
+      { status: 400 }
+    );
   }
 
   // Fetch specific room
@@ -114,6 +129,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     
     // Validate dates
     if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime()) || checkOutDate <= checkInDate) {
+      console.error('❌ [Book Property Loader] Invalid date range:', { checkIn, checkOut, checkInDate, checkOutDate });
       throw new Response("Invalid date range", { status: 400 });
     }
     
