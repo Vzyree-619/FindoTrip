@@ -236,50 +236,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     totalAmount
   };
 
-  // Fetch availability calendar for preview (optional, non-blocking)
-  // If this fails, we just return empty objects and the page still loads
-  let availabilityPreview: Record<string, number> = {};
-  let pricePreview: Record<string, number> = {};
-  
-  // Only fetch if we have roomId and it's a valid request
-  if (roomId && checkIn && checkOut) {
-    try {
-      const startDate = new Date();
-      startDate.setHours(0, 0, 0, 0);
-      
-      // Fetch only 1 month (30 days) to keep it fast
-      const availabilityCalendar = await getRoomAvailabilityCalendar(roomId, startDate, 1).catch(() => []);
-      
-      if (Array.isArray(availabilityCalendar) && availabilityCalendar.length > 0) {
-        // Process only first 30 days to avoid timeout
-        const daysToProcess = Math.min(availabilityCalendar.length, 30);
-        
-        for (let i = 0; i < daysToProcess; i++) {
-          try {
-            const day = availabilityCalendar[i];
-            if (!day || !day.date) continue;
-            
-            const dateKey = new Date(day.date).toISOString().split('T')[0];
-            availabilityPreview[dateKey] = day.availableUnits ?? 0;
-            
-            // Calculate price - use base price as fallback if calculation fails
-            try {
-              const priceInfo = await calculateRoomPrice(roomId, new Date(day.date)).catch(() => null);
-              pricePreview[dateKey] = priceInfo?.finalPrice ?? room.basePrice;
-            } catch {
-              pricePreview[dateKey] = room.basePrice;
-            }
-          } catch (dayError) {
-            // Skip this day and continue
-            continue;
-          }
-        }
-      }
-    } catch (error: any) {
-      // Silently fail - availability preview is optional
-      console.log('ℹ️ [Book Property Loader] Availability preview skipped:', error?.message || 'Unknown error');
-    }
-  }
+  // Availability calendar preview - disabled for now to prevent 500 errors
+  // TODO: Optimize or fetch client-side via API endpoint
+  // The calendar will still display but without color coding until we optimize this
+  const availabilityPreview: Record<string, number> = {};
+  const pricePreview: Record<string, number> = {};
 
   return json({
     property,
