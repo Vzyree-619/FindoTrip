@@ -236,46 +236,48 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     totalAmount
   };
 
-  // Fetch availability calendar for preview (1 month ahead to avoid timeout)
-  // This is optional and won't block the page if it fails
+  // Fetch availability calendar for preview (optional, non-blocking)
+  // If this fails, we just return empty objects and the page still loads
   let availabilityPreview: Record<string, number> = {};
   let pricePreview: Record<string, number> = {};
   
-  if (roomId) {
+  // Only fetch if we have roomId and it's a valid request
+  if (roomId && checkIn && checkOut) {
     try {
       const startDate = new Date();
-      // Only fetch 1 month to keep it fast
-      const availabilityCalendar = await Promise.race([
-        getRoomAvailabilityCalendar(roomId, startDate, 1),
-        new Promise<any[]>((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 5000)
-        )
-      ]) as any[];
+      startDate.setHours(0, 0, 0, 0);
       
-      // Build availability preview object (limit to first 60 days for performance)
-      const daysToProcess = Math.min(availabilityCalendar.length, 60);
-      for (let i = 0; i < daysToProcess; i++) {
-        const day = availabilityCalendar[i];
-        const dateKey = new Date(day.date).toISOString().split('T')[0];
-        availabilityPreview[dateKey] = day.availableUnits;
+      // Fetch only 1 month (30 days) to keep it fast
+      const availabilityCalendar = await getRoomAvailabilityCalendar(roomId, startDate, 1).catch(() => []);
+      
+      if (Array.isArray(availabilityCalendar) && availabilityCalendar.length > 0) {
+        // Process only first 30 days to avoid timeout
+        const daysToProcess = Math.min(availabilityCalendar.length, 30);
         
-        // Calculate price for this date (with timeout protection)
-        try {
-          const priceInfo = await Promise.race([
-            calculateRoomPrice(roomId, new Date(day.date)),
-            new Promise<any>((_, reject) => 
-              setTimeout(() => reject(new Error('Price timeout')), 1000)
-            )
-          ]) as any;
-          pricePreview[dateKey] = priceInfo.finalPrice;
-        } catch (e) {
-          // If price calculation fails or times out, use base price
-          pricePreview[dateKey] = room.basePrice;
+        for (let i = 0; i < daysToProcess; i++) {
+          try {
+            const day = availabilityCalendar[i];
+            if (!day || !day.date) continue;
+            
+            const dateKey = new Date(day.date).toISOString().split('T')[0];
+            availabilityPreview[dateKey] = day.availableUnits ?? 0;
+            
+            // Calculate price - use base price as fallback if calculation fails
+            try {
+              const priceInfo = await calculateRoomPrice(roomId, new Date(day.date)).catch(() => null);
+              pricePreview[dateKey] = priceInfo?.finalPrice ?? room.basePrice;
+            } catch {
+              pricePreview[dateKey] = room.basePrice;
+            }
+          } catch (dayError) {
+            // Skip this day and continue
+            continue;
+          }
         }
       }
     } catch (error: any) {
-      console.error('⚠️ [Book Property Loader] Error fetching availability calendar (non-blocking):', error?.message || error);
-      // Continue with empty preview if it fails - page will still load
+      // Silently fail - availability preview is optional
+      console.log('ℹ️ [Book Property Loader] Availability preview skipped:', error?.message || 'Unknown error');
     }
   }
 
