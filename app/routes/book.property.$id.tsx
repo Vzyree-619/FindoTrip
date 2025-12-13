@@ -251,6 +251,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       children,
       guests: adults + children,
       roomId: room.id,
+      roomTypeId: room.id, // Also include as roomTypeId for compatibility
     },
   });
 }
@@ -580,7 +581,9 @@ export default function PropertyBooking() {
   });
   const [specialRequests, setSpecialRequests] = useState("");
   const [insurance, setInsurance] = useState(false);
-  const [roomTypeId, setRoomTypeId] = useState<string | undefined>(searchParams.roomTypeId);
+  const [roomTypeId, setRoomTypeId] = useState<string | undefined>(
+    searchParams.roomId || searchParams.roomTypeId || searchParamsUrl.get("roomTypeId") || searchParamsUrl.get("roomId") || undefined
+  );
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [rangeWarning, setRangeWarning] = useState<string | null>(null);
   const today = (() => {
@@ -628,6 +631,7 @@ export default function PropertyBooking() {
     } else {
       setCheckOutDate(date || undefined);
     }
+    console.log('🔵 [Book Property] Date selected:', { field, date, iso });
   };
 
   const handleGuestChange = (field: string, value: number) => {
@@ -832,9 +836,9 @@ export default function PropertyBooking() {
                       />
                     </div>
                   </div>
-                  <input type="hidden" name="checkIn" value={selectedDates.checkIn || checkInDate?.toISOString().split("T")[0] || searchParams.checkIn || ""} />
-                  <input type="hidden" name="checkOut" value={selectedDates.checkOut || checkOutDate?.toISOString().split("T")[0] || searchParams.checkOut || ""} />
-                  <input type="hidden" name="roomId" value={roomTypeId || searchParams.roomTypeId || ""} />
+                  <input type="hidden" name="checkIn" value={selectedDates.checkIn || checkInDate?.toISOString().split("T")[0] || searchParams.checkIn || searchParamsUrl.get("checkIn") || ""} />
+                  <input type="hidden" name="checkOut" value={selectedDates.checkOut || checkOutDate?.toISOString().split("T")[0] || searchParams.checkOut || searchParamsUrl.get("checkOut") || ""} />
+                  <input type="hidden" name="roomId" value={roomTypeId || searchParams.roomId || searchParams.roomTypeId || searchParamsUrl.get("roomTypeId") || searchParamsUrl.get("roomId") || ""} />
                   {pricingBreakdown && (
                     <>
                       <input type="hidden" name="roomRate" value={pricingBreakdown.roomRate?.toString() || "0"} />
