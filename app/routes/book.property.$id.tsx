@@ -283,8 +283,35 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const taxAmount = parseFloat(formData.get("taxAmount") as string);
     const totalAmount = parseFloat(formData.get("totalAmount") as string);
 
+    // Log all form data for debugging
+    console.log('🔵 [Book Property Action] Form data received:', {
+      checkIn: checkIn || 'MISSING',
+      checkOut: checkOut || 'MISSING',
+      roomId: roomId || 'MISSING',
+      guestName: guestName || 'MISSING',
+      guestEmail: guestEmail || 'MISSING',
+      guestPhone: guestPhone || 'MISSING',
+      adults,
+      children,
+      roomRate: roomRate || 'MISSING',
+      totalRoomCost: totalRoomCost || 'MISSING',
+    });
+
     if (!checkIn || !checkOut || !roomId || !guestName || !guestEmail || !guestPhone) {
-      return json({ error: "All required fields must be filled" }, { status: 400 });
+      const missingFields = [];
+      if (!checkIn) missingFields.push('checkIn');
+      if (!checkOut) missingFields.push('checkOut');
+      if (!roomId) missingFields.push('roomId');
+      if (!guestName) missingFields.push('guestName');
+      if (!guestEmail) missingFields.push('guestEmail');
+      if (!guestPhone) missingFields.push('guestPhone');
+      
+      console.error('❌ [Book Property Action] Missing required fields:', missingFields);
+      return json({ 
+        error: "All required fields must be filled",
+        missingFields,
+        details: `Missing: ${missingFields.join(', ')}`
+      }, { status: 400 });
     }
 
     const checkInDate = new Date(checkIn);
@@ -805,15 +832,19 @@ export default function PropertyBooking() {
                       />
                     </div>
                   </div>
-                  <input type="hidden" name="checkIn" value={selectedDates.checkIn} />
-                  <input type="hidden" name="checkOut" value={selectedDates.checkOut} />
+                  <input type="hidden" name="checkIn" value={selectedDates.checkIn || checkInDate?.toISOString().split("T")[0] || searchParams.checkIn || ""} />
+                  <input type="hidden" name="checkOut" value={selectedDates.checkOut || checkOutDate?.toISOString().split("T")[0] || searchParams.checkOut || ""} />
                   <input type="hidden" name="roomId" value={roomTypeId || searchParams.roomTypeId || ""} />
-                  <input type="hidden" name="roomRate" value={pricingBreakdown.roomRate.toString()} />
-                  <input type="hidden" name="totalRoomCost" value={pricingBreakdown.totalRoomCost.toString()} />
-                  <input type="hidden" name="cleaningFee" value={pricingBreakdown.cleaningFee.toString()} />
-                  <input type="hidden" name="serviceFee" value={pricingBreakdown.serviceFee.toString()} />
-                  <input type="hidden" name="taxAmount" value={pricingBreakdown.taxAmount.toString()} />
-                  <input type="hidden" name="totalAmount" value={(pricingBreakdown.totalAmount + (insurance ? 50 : 0)).toString()} />
+                  {pricingBreakdown && (
+                    <>
+                      <input type="hidden" name="roomRate" value={pricingBreakdown.roomRate?.toString() || "0"} />
+                      <input type="hidden" name="totalRoomCost" value={pricingBreakdown.totalRoomCost?.toString() || "0"} />
+                      <input type="hidden" name="cleaningFee" value={pricingBreakdown.cleaningFee?.toString() || "0"} />
+                      <input type="hidden" name="serviceFee" value={pricingBreakdown.serviceFee?.toString() || "0"} />
+                      <input type="hidden" name="taxAmount" value={pricingBreakdown.taxAmount?.toString() || "0"} />
+                      <input type="hidden" name="totalAmount" value={((pricingBreakdown.totalAmount || 0) + (insurance ? 50 : 0)).toString()} />
+                    </>
+                  )}
 
                   {/* Guest Selection */}
                   <div>
