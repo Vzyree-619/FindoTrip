@@ -236,6 +236,35 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     totalAmount
   };
 
+  // Fetch availability calendar for preview (3 months ahead)
+  let availabilityPreview: Record<string, number> = {};
+  let pricePreview: Record<string, number> = {};
+  
+  if (roomId) {
+    try {
+      const startDate = new Date();
+      const availabilityCalendar = await getRoomAvailabilityCalendar(roomId, startDate, 3);
+      
+      // Build availability preview object
+      for (const day of availabilityCalendar) {
+        const dateKey = new Date(day.date).toISOString().split('T')[0];
+        availabilityPreview[dateKey] = day.availableUnits;
+        
+        // Calculate price for this date
+        try {
+          const priceInfo = await calculateRoomPrice(roomId, new Date(day.date));
+          pricePreview[dateKey] = priceInfo.finalPrice;
+        } catch (e) {
+          // If price calculation fails, use base price
+          pricePreview[dateKey] = room.basePrice;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching availability calendar:', error);
+      // Continue with empty preview if it fails
+    }
+  }
+
   return json({
     property,
     room,
@@ -245,6 +274,9 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     pricingBreakdown,
     totalPrice: totalAmount,
     nights: numberOfNights,
+    availabilityPreview,
+    pricePreview,
+    suggestedRange: null,
     searchParams: {
       checkIn,
       checkOut,
