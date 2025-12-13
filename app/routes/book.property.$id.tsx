@@ -101,8 +101,34 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
 
   // Validate required parameters
+  // During POST requests (form submissions), Remix re-fetches the loader
+  // but query params might not be preserved. We'll handle this gracefully.
   if (!roomId || !checkIn || !checkOut) {
-    console.error('❌ [Book Property Loader] Missing parameters:', { roomId, checkIn, checkOut });
+    // If it's a POST request, don't throw - let the action handle it
+    if (request.method === "POST") {
+      console.log('⚠️ [Book Property Loader] Missing params during POST, returning minimal data');
+      return json({
+        property,
+        isAvailable: false,
+        pricingBreakdown: {
+          roomRate: 0,
+          totalRoomCost: 0,
+          cleaningFee: 0,
+          serviceFee: 0,
+          taxAmount: 0,
+          totalAmount: 0,
+          numberOfNights: 0,
+        },
+        totalPrice: 0,
+        nights: 0,
+        searchParams: { checkIn: checkIn || "", checkOut: checkOut || "", guests: parseInt(guests || "1"), roomTypeId: roomId || "" },
+        availabilityPreview: {},
+        pricePreview: {},
+        suggestedRange: null,
+      });
+    }
+    // For GET requests, we need these params
+    console.error('❌ [Book Property Loader] Missing parameters:', { roomId, checkIn, checkOut, method: request.method });
     throw new Response(
       `Missing booking parameters: roomId=${roomId || 'missing'}, checkIn=${checkIn || 'missing'}, checkOut=${checkOut || 'missing'}`,
       { status: 400 }
@@ -237,7 +263,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (intent === "createBooking") {
     const checkIn = formData.get("checkIn") as string;
     const checkOut = formData.get("checkOut") as string;
-    const roomId = formData.get("roomId") as string;
+    const roomId = (formData.get("roomId") || formData.get("roomTypeId")) as string;
     const adults = parseInt(formData.get("adults") as string);
     const children = parseInt(formData.get("children") as string) || 0;
     const guestName = formData.get("guestName") as string;
@@ -775,6 +801,13 @@ export default function PropertyBooking() {
                   </div>
                   <input type="hidden" name="checkIn" value={selectedDates.checkIn} />
                   <input type="hidden" name="checkOut" value={selectedDates.checkOut} />
+                  <input type="hidden" name="roomId" value={roomTypeId || searchParams.roomTypeId || ""} />
+                  <input type="hidden" name="roomRate" value={pricingBreakdown.roomRate.toString()} />
+                  <input type="hidden" name="totalRoomCost" value={pricingBreakdown.totalRoomCost.toString()} />
+                  <input type="hidden" name="cleaningFee" value={pricingBreakdown.cleaningFee.toString()} />
+                  <input type="hidden" name="serviceFee" value={pricingBreakdown.serviceFee.toString()} />
+                  <input type="hidden" name="taxAmount" value={pricingBreakdown.taxAmount.toString()} />
+                  <input type="hidden" name="totalAmount" value={(pricingBreakdown.totalAmount + (insurance ? 50 : 0)).toString()} />
 
                   {/* Guest Selection */}
                   <div>
