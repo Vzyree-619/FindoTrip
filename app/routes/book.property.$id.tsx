@@ -58,49 +58,56 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       url: url.toString()
     });
 
-  const property = await prisma.property.findUnique({
-    where: { id: propertyId },
-    include: {
-      owner: {
-        include: {
-          user: {
-            select: {
-              name: true,
-              email: true,
-              phone: true,
-              avatar: true,
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
+      include: {
+        owner: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+                phone: true,
+                avatar: true,
+              },
             },
           },
         },
-      },
-      reviews: {
-        include: {
-          user: {
-            select: {
-              name: true,
-              avatar: true,
+        reviews: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                avatar: true,
+              },
             },
           },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 5,
         },
-        orderBy: {
-          createdAt: "desc",
+        unavailableDates: {
+          where: {
+            startDate: { gte: new Date() },
+          },
+          orderBy: {
+            startDate: "asc",
+          },
         },
-        take: 5,
+        roomTypes: {
+          select: {
+            id: true,
+            name: true,
+            basePrice: true,
+          },
+        },
       },
-      unavailableDates: {
-        where: {
-          startDate: { gte: new Date() },
-        },
-        orderBy: {
-          startDate: "asc",
-        },
-      },
-    },
-  });
+    });
 
-  if (!property) {
-    throw new Response("Property not found", { status: 404 });
-  }
+    if (!property) {
+      throw new Response("Property not found", { status: 404 });
+    }
 
   // Validate required parameters
   // During form submissions, Remix re-fetches the loader via .data endpoint
@@ -192,7 +199,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     isAvailable = availableUnits > 0;
 
     // Check unavailable dates
-    const unavailablePeriods = property.unavailableDates.filter(period => {
+    const unavailablePeriods = (property.unavailableDates || []).filter(period => {
+      if (!period || !period.startDate || !period.endDate) return false;
       const periodStart = new Date(period.startDate);
       const periodEnd = new Date(period.endDate);
       return (
@@ -215,17 +223,27 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     throw new Response("Room not available for selected dates", { status: 400 });
   }
 
-  // Calculate pricing
-  const checkInDate = new Date(checkIn);
-  const checkOutDate = new Date(checkOut);
-  const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  const roomRate = room.basePrice;
-  const totalRoomCost = roomRate * numberOfNights;
-  const cleaningFee = property.cleaningFee || 0;
-  const serviceFee = property.serviceFee || (totalRoomCost * 0.10); // 10% service fee if not set
-  const taxAmount = (totalRoomCost + cleaningFee + serviceFee) * ((property.taxRate || 8) / 100); // 8% tax default
-  const totalAmount = totalRoomCost + cleaningFee + serviceFee + taxAmount;
+    // Calculate pricing
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    
+    // Validate dates are valid
+    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
+      throw new Response("Invalid date format", { status: 400 });
+    }
+    
+    const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (!room || !room.basePrice) {
+      throw new Response("Room pricing information is missing", { status: 500 });
+    }
+    
+    const roomRate = room.basePrice || 0;
+    const totalRoomCost = roomRate * numberOfNights;
+    const cleaningFee = property?.cleaningFee || 0;
+    const serviceFee = property?.serviceFee || (totalRoomCost * 0.10); // 10% service fee if not set
+    const taxAmount = (totalRoomCost + cleaningFee + serviceFee) * ((property?.taxRate || 8) / 100); // 8% tax default
+    const totalAmount = totalRoomCost + cleaningFee + serviceFee + taxAmount;
 
   const pricingBreakdown = {
     roomRate,
