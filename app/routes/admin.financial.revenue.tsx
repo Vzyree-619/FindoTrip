@@ -112,8 +112,22 @@ export async function loader({ request }: LoaderFunctionArgs) {
     paymentWhereClause.bookingType = serviceType.toUpperCase();
   }
   
+  // Map payment method filter to valid enum values
   if (paymentMethod !== 'all') {
-    paymentWhereClause.method = paymentMethod.toUpperCase();
+    const methodMap: Record<string, string> = {
+      'credit_card': 'CREDIT_CARD',
+      'debit_card': 'DEBIT_CARD',
+      'bank_transfer': 'BANK_TRANSFER',
+      'mobile_wallet': 'MOBILE_WALLET',
+      'cash': 'CASH',
+      'crypto': 'CRYPTO',
+    };
+    const mappedMethod = methodMap[paymentMethod.toLowerCase()] || paymentMethod.toUpperCase();
+    // Only set if it's a valid PaymentMethod enum value
+    const validMethods = ['CREDIT_CARD', 'DEBIT_CARD', 'BANK_TRANSFER', 'MOBILE_WALLET', 'CASH', 'CRYPTO'];
+    if (validMethods.includes(mappedMethod)) {
+      paymentWhereClause.method = mappedMethod as any;
+    }
   }
   
   // Get revenue statistics from bookings
@@ -185,20 +199,30 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   ];
   
-  // Get revenue by payment method
+  // Get revenue by payment method (using valid enum values)
   const revenueByPayment = await Promise.all([
     prisma.payment.aggregate({
-      where: { ...paymentWhereClause, method: 'CREDIT_CARD' },
+      where: { ...paymentWhereClause, method: 'CREDIT_CARD' as any },
       _sum: { amount: true },
       _count: { id: true }
     }),
     prisma.payment.aggregate({
-      where: { ...paymentWhereClause, method: 'PAYPAL' },
+      where: { ...paymentWhereClause, method: 'DEBIT_CARD' as any },
       _sum: { amount: true },
       _count: { id: true }
     }),
     prisma.payment.aggregate({
-      where: { ...paymentWhereClause, method: 'BANK_TRANSFER' },
+      where: { ...paymentWhereClause, method: 'BANK_TRANSFER' as any },
+      _sum: { amount: true },
+      _count: { id: true }
+    }),
+    prisma.payment.aggregate({
+      where: { ...paymentWhereClause, method: 'MOBILE_WALLET' as any },
+      _sum: { amount: true },
+      _count: { id: true }
+    }),
+    prisma.payment.aggregate({
+      where: { ...paymentWhereClause, method: 'CASH' as any },
       _sum: { amount: true },
       _count: { id: true }
     })
@@ -320,7 +344,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         amount: revenueByPayment[0]._sum.amount || 0,
         count: revenueByPayment[0]._count.id || 0
       },
-      paypal: {
+      debitCard: {
         amount: revenueByPayment[1]._sum.amount || 0,
         count: revenueByPayment[1]._count.id || 0
       },
@@ -383,17 +407,23 @@ export default function RevenueOverview() {
   const getPaymentIcon = (method: string) => {
     switch (method) {
       case 'CREDIT_CARD': return CreditCard;
-      case 'PAYPAL': return Wallet;
+      case 'DEBIT_CARD': return CreditCard;
       case 'BANK_TRANSFER': return Banknote;
+      case 'MOBILE_WALLET': return Wallet;
+      case 'CASH': return DollarSign;
+      case 'CRYPTO': return Wallet;
       default: return DollarSign;
     }
   };
-  
+
   const getPaymentColor = (method: string) => {
     switch (method) {
       case 'CREDIT_CARD': return 'text-blue-600';
-      case 'PAYPAL': return 'text-yellow-600';
+      case 'DEBIT_CARD': return 'text-indigo-600';
       case 'BANK_TRANSFER': return 'text-green-600';
+      case 'MOBILE_WALLET': return 'text-yellow-600';
+      case 'CASH': return 'text-gray-600';
+      case 'CRYPTO': return 'text-purple-600';
       default: return 'text-gray-600';
     }
   };
@@ -481,8 +511,11 @@ export default function RevenueOverview() {
             >
               <option value="all">All Methods</option>
               <option value="credit_card">Credit Card</option>
-              <option value="paypal">PayPal</option>
+              <option value="debit_card">Debit Card</option>
               <option value="bank_transfer">Bank Transfer</option>
+              <option value="mobile_wallet">Mobile Wallet</option>
+              <option value="cash">Cash</option>
+              <option value="crypto">Crypto</option>
             </select>
           </div>
         </div>
@@ -641,15 +674,45 @@ export default function RevenueOverview() {
           
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center space-x-3">
-              <Wallet className="w-5 h-5 text-yellow-600" />
-              <span className="font-medium text-gray-900">PayPal</span>
+              <CreditCard className="w-5 h-5 text-indigo-600" />
+              <span className="font-medium text-gray-900">Debit Card</span>
             </div>
             <div className="text-right">
               <div className="font-semibold text-gray-900">
-                {formatCurrency(revenueByPayment.paypal.amount)}
+                {formatCurrency(revenueByPayment.debitCard.amount)}
               </div>
               <div className="text-sm text-gray-600">
-                {revenueByPayment.paypal.count} transactions
+                {revenueByPayment.debitCard.count} transactions
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <Wallet className="w-5 h-5 text-yellow-600" />
+              <span className="font-medium text-gray-900">Mobile Wallet</span>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold text-gray-900">
+                {formatCurrency(revenueByPayment.mobileWallet.amount)}
+              </div>
+              <div className="text-sm text-gray-600">
+                {revenueByPayment.mobileWallet.count} transactions
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <DollarSign className="w-5 h-5 text-gray-600" />
+              <span className="font-medium text-gray-900">Cash</span>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold text-gray-900">
+                {formatCurrency(revenueByPayment.cash.amount)}
+              </div>
+              <div className="text-sm text-gray-600">
+                {revenueByPayment.cash.count} transactions
               </div>
             </div>
           </div>
