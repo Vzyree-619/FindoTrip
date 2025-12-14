@@ -1,7 +1,6 @@
 import { json, type ActionFunctionArgs } from "@remix-run/node";
 import { prisma } from "~/lib/db/db.server";
 import { getSuperAdmin } from "~/lib/utils/admin.server";
-import { ConversationType } from "~/lib/chat.server";
 
 export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== "POST") {
@@ -47,7 +46,7 @@ export async function action({ request }: ActionFunctionArgs) {
     let conversation = await prisma.conversation.findFirst({
       where: {
         participants: { hasEvery: [guestUser.id, admin.id] },
-        type: ConversationType.CUSTOMER_ADMIN,
+        type: "CUSTOMER_ADMIN",
         isActive: true,
       },
     });
@@ -58,7 +57,7 @@ export async function action({ request }: ActionFunctionArgs) {
         data: {
           participants: [guestUser.id, admin.id],
           participantRoles: ["CUSTOMER", "SUPER_ADMIN"],
-          type: ConversationType.CUSTOMER_ADMIN,
+          type: "CUSTOMER_ADMIN",
           unreadCount: {},
           lastReadAt: {},
           hiddenBy: [],

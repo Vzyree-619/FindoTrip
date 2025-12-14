@@ -22,7 +22,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       where: { id: conversationId },
       include: {
         messages: {
-          where: { isDeleted: { not: true } },
+          where: { isDeleted: false },
           include: {
             sender: {
               select: {
