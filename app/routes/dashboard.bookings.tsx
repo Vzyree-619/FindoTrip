@@ -29,8 +29,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   try {
     console.log("🔵 [Bookings Loader] Fetching bookings for userId:", userId);
     
-    // Get all bookings with related data
-    const [propertyBookings, vehicleBookings, tourBookings] = await Promise.all([
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Loader timeout")), 10000); // 10 second timeout
+    });
+
+    // Get all bookings with related data with limits to prevent performance issues
+    const bookingsPromise = Promise.all([
       prisma.propertyBooking.findMany({
         where: { userId },
         include: {
@@ -45,6 +50,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           },
         },
         orderBy: { createdAt: 'desc' },
+        take: 100, // Limit to prevent performance issues
       }),
       prisma.vehicleBooking.findMany({
         where: { userId },
@@ -60,6 +66,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           },
         },
         orderBy: { createdAt: 'desc' },
+        take: 100, // Limit to prevent performance issues
       }),
       prisma.tourBooking.findMany({
         where: { userId },
@@ -75,8 +82,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
           },
         },
         orderBy: { createdAt: 'desc' },
+        take: 100, // Limit to prevent performance issues
       }),
     ]);
+
+    const [propertyBookings, vehicleBookings, tourBookings] = await Promise.race([
+      bookingsPromise,
+      timeoutPromise,
+    ]) as any;
 
     // Get all payments for these bookings
     const allBookingIds = [
@@ -85,12 +98,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ...tourBookings.map(b => b.id),
     ];
     
-    const payments = await prisma.payment.findMany({
-      where: {
-        bookingId: { in: allBookingIds },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Get payments with timeout and limit
+    const paymentsPromise = allBookingIds.length > 0
+      ? prisma.payment.findMany({
+          where: {
+            bookingId: { in: allBookingIds },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 200, // Limit to prevent performance issues
+        })
+      : Promise.resolve([]);
+    
+    const payments = await Promise.race([
+      paymentsPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Payments timeout")), 5000)),
+    ]).catch(() => []) as any;
 
     // Combine and transform to unified format
     const bookingsWithRelations = [

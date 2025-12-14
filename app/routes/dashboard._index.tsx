@@ -14,80 +14,91 @@ import {
 } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const userId = await requireUserId(request);
+  try {
+    const userId = await requireUserId(request);
 
-  // Get dashboard stats - only for customers
-  const [propertyBookings, vehicleBookings, tourBookings, reviewsCount, wishlists, recentBookingsData] = await Promise.all([
-    prisma.propertyBooking.findMany({
-      where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
-      select: { id: true, status: true, checkIn: true },
-    }),
-    prisma.vehicleBooking.findMany({
-      where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
-      select: { id: true, status: true, startDate: true },
-    }),
-    prisma.tourBooking.findMany({
-      where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
-      select: { id: true, status: true, tourDate: true },
-    }),
-    prisma.review.count({
-      where: { userId },
-    }),
-    prisma.wishlist.findMany({
-      where: { userId },
-    }),
-    // Get recent bookings with full details for Recent Activity section
-    Promise.all([
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Loader timeout")), 15000); // 15 second timeout
+    });
+
+    // Get dashboard stats - only for customers
+    const statsPromise = Promise.all([
       prisma.propertyBooking.findMany({
-        where: { userId },
-        include: {
-          property: {
-            select: {
-              id: true,
-              name: true,
-              city: true,
-              country: true,
-              images: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
+        where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
+        select: { id: true, status: true, checkIn: true },
       }),
       prisma.vehicleBooking.findMany({
-        where: { userId },
-        include: {
-          vehicle: {
-            select: {
-              id: true,
-              brand: true,
-              model: true,
-              year: true,
-              images: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
+        where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
+        select: { id: true, status: true, startDate: true },
       }),
       prisma.tourBooking.findMany({
+        where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
+        select: { id: true, status: true, tourDate: true },
+      }),
+      prisma.review.count({
         where: { userId },
-        include: {
-          tour: {
-            select: {
-              id: true,
-              title: true,
-              city: true,
-              country: true,
-              images: true,
+      }),
+      prisma.wishlist.findMany({
+        where: { userId },
+      }),
+      // Get recent bookings with full details for Recent Activity section
+      Promise.all([
+        prisma.propertyBooking.findMany({
+          where: { userId },
+          include: {
+            property: {
+              select: {
+                id: true,
+                name: true,
+                city: true,
+                country: true,
+                images: true,
+              },
             },
           },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      }),
-    ]),
-  ]);
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        }),
+        prisma.vehicleBooking.findMany({
+          where: { userId },
+          include: {
+            vehicle: {
+              select: {
+                id: true,
+                brand: true,
+                model: true,
+                year: true,
+                images: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        }),
+        prisma.tourBooking.findMany({
+          where: { userId },
+          include: {
+            tour: {
+              select: {
+                id: true,
+                title: true,
+                city: true,
+                country: true,
+                images: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        }),
+      ]),
+    ]);
+
+    const [propertyBookings, vehicleBookings, tourBookings, reviewsCount, wishlists, recentBookingsData] = await Promise.race([
+      statsPromise,
+      timeoutPromise,
+    ]) as any;
 
   // Calculate total bookings
   const bookingsCount = propertyBookings.length + vehicleBookings.length + tourBookings.length;
@@ -171,6 +182,32 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
     recentBookings,
   });
+  } catch (error) {
+    console.error("Error in dashboard._index loader:", error);
+    // Return minimal data to prevent page from hanging
+    const userId = await requireUserId(request);
+    return json({
+      user: await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          avatar: true,
+          phone: true,
+          verified: true,
+        },
+      }).catch(() => null),
+      stats: {
+        bookingsCount: 0,
+        upcomingBookings: 0,
+        reviewsCount: 0,
+        favoritesCount: 0,
+      },
+      recentBookings: [],
+    });
+  }
 }
 
 export default function DashboardIndex() {
