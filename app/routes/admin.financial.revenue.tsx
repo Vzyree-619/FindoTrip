@@ -758,13 +758,19 @@ export default function RevenueOverview() {
                       {service.serviceType} #{service.serviceId.slice(-8)}
                     </div>
                     <div className="text-sm text-gray-600">
-                      {service._count.id} bookings
+                      {service.serviceName || `${service.serviceType} #${service.serviceId.slice(-8)}`}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {service.city}
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="font-semibold text-gray-900">
-                    {formatCurrency(service._sum.totalAmount || 0)}
+                    {formatCurrency(service.totalRevenue || 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {service.totalBookings || 0} bookings
                   </div>
                 </div>
               </div>
