@@ -646,6 +646,9 @@ export default function MyBookings() {
             </div>
           </div>
         )}
+
+        {/* Render child route (booking details) */}
+        <Outlet />
       </div>
     </div>
   );
