@@ -791,13 +791,13 @@ export default function RevenueOverview() {
                 <div>
                   <div className="font-medium text-gray-900">{location.city}</div>
                   <div className="text-sm text-gray-600">
-                    {location._count.id} bookings
+                    {location.totalBookings || 0} bookings
                   </div>
                 </div>
               </div>
               <div className="text-right">
                 <div className="font-semibold text-gray-900">
-                  {formatCurrency(location._sum.totalAmount || 0)}
+                  {formatCurrency(location.totalRevenue || 0)}
                 </div>
               </div>
             </div>
