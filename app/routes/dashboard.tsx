@@ -95,15 +95,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
     wishlists,
   ] = await Promise.all([
     prisma.propertyBooking.findMany({
-      where: { userId, status: { in: ["CONFIRMED", "COMPLETED"] } },
+      where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
       select: { id: true, status: true, checkIn: true },
     }),
     prisma.vehicleBooking.findMany({
-      where: { userId, status: { in: ["CONFIRMED", "COMPLETED"] } },
+      where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
       select: { id: true, status: true, startDate: true },
     }),
     prisma.tourBooking.findMany({
-      where: { userId, status: { in: ["CONFIRMED", "COMPLETED"] } },
+      where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
       select: { id: true, status: true, tourDate: true },
     }),
     prisma.review.count({
@@ -119,13 +119,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const now = new Date();
   const upcomingPropertyBookings = propertyBookings.filter(
-    (b) => b.status === "CONFIRMED" && b.checkIn >= now
+    (b) => (b.status === "PENDING" || b.status === "CONFIRMED") && b.checkIn && new Date(b.checkIn) >= now
   ).length;
   const upcomingVehicleBookings = vehicleBookings.filter(
-    (b) => b.status === "CONFIRMED" && b.startDate >= now
+    (b) => (b.status === "PENDING" || b.status === "CONFIRMED") && b.startDate && new Date(b.startDate) >= now
   ).length;
   const upcomingTourBookings = tourBookings.filter(
-    (b) => b.status === "CONFIRMED" && b.tourDate >= now
+    (b) => (b.status === "PENDING" || b.status === "CONFIRMED") && b.tourDate && new Date(b.tourDate) >= now
   ).length;
   const upcomingBookings =
     upcomingPropertyBookings + upcomingVehicleBookings + upcomingTourBookings;

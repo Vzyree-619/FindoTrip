@@ -27,6 +27,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
 
   try {
+    console.log("🔵 [Bookings Loader] Fetching bookings for userId:", userId);
+    
     // Get all bookings with related data
     const [propertyBookings, vehicleBookings, tourBookings] = await Promise.all([
       prisma.propertyBooking.findMany({
@@ -166,11 +168,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
     
     const cancelled = bookingsWithRelations.filter((booking) => booking.status === "CANCELLED");
 
-    console.log("Pending bookings:", pending.length);
-    console.log("Upcoming bookings:", upcoming.length);
-    console.log("Past bookings:", past.length);
-    console.log("Cancelled bookings:", cancelled.length);
-    console.log("All bookings:", bookingsWithRelations.length);
+    console.log("🔵 [Bookings Loader] Results:");
+    console.log("  - Property bookings found:", propertyBookings.length);
+    console.log("  - Vehicle bookings found:", vehicleBookings.length);
+    console.log("  - Tour bookings found:", tourBookings.length);
+    console.log("  - Total bookings with relations:", bookingsWithRelations.length);
+    console.log("  - Pending bookings:", pending.length);
+    console.log("  - Upcoming bookings:", upcoming.length);
+    console.log("  - Past bookings:", past.length);
+    console.log("  - Cancelled bookings:", cancelled.length);
+    
+    // Log first booking details for debugging
+    if (bookingsWithRelations.length > 0) {
+      const firstBooking = bookingsWithRelations[0];
+      console.log("  - First booking:", {
+        id: firstBooking.id,
+        type: firstBooking.type,
+        status: firstBooking.status,
+        userId: firstBooking.userId,
+        createdAt: firstBooking.createdAt,
+      });
+    }
 
     return json({
       bookings: {
