@@ -119,30 +119,30 @@ export async function loader({ request }: LoaderFunctionArgs) {
       timeoutPromise,
     ]) as any;
 
-  const bookingsCount =
-    propertyBookings.length + vehicleBookings.length + tourBookings.length;
+    const bookingsCount =
+      propertyBookings.length + vehicleBookings.length + tourBookings.length;
 
-  const now = new Date();
-  const upcomingPropertyBookings = propertyBookings.filter(
-    (b) => (b.status === "PENDING" || b.status === "CONFIRMED") && b.checkIn && new Date(b.checkIn) >= now
-  ).length;
-  const upcomingVehicleBookings = vehicleBookings.filter(
-    (b) => (b.status === "PENDING" || b.status === "CONFIRMED") && b.startDate && new Date(b.startDate) >= now
-  ).length;
-  const upcomingTourBookings = tourBookings.filter(
-    (b) => (b.status === "PENDING" || b.status === "CONFIRMED") && b.tourDate && new Date(b.tourDate) >= now
-  ).length;
-  const upcomingBookings =
-    upcomingPropertyBookings + upcomingVehicleBookings + upcomingTourBookings;
+    const now = new Date();
+    const upcomingPropertyBookings = propertyBookings.filter(
+      (b: any) => (b.status === "PENDING" || b.status === "CONFIRMED") && b.checkIn && new Date(b.checkIn) >= now
+    ).length;
+    const upcomingVehicleBookings = vehicleBookings.filter(
+      (b: any) => (b.status === "PENDING" || b.status === "CONFIRMED") && b.startDate && new Date(b.startDate) >= now
+    ).length;
+    const upcomingTourBookings = tourBookings.filter(
+      (b: any) => (b.status === "PENDING" || b.status === "CONFIRMED") && b.tourDate && new Date(b.tourDate) >= now
+    ).length;
+    const upcomingBookings =
+      upcomingPropertyBookings + upcomingVehicleBookings + upcomingTourBookings;
 
-  const favoritesCount = wishlists.reduce((total, wishlist) => {
-    return (
-      total +
-      wishlist.propertyIds.length +
-      wishlist.vehicleIds.length +
-      wishlist.tourIds.length
-    );
-  }, 0);
+    const favoritesCount = wishlists.reduce((total: number, wishlist: any) => {
+      return (
+        total +
+        wishlist.propertyIds.length +
+        wishlist.vehicleIds.length +
+        wishlist.tourIds.length
+      );
+    }, 0);
 
   let appearanceSettings = {
     theme: "light",
@@ -181,6 +181,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
     appearanceSettings,
   });
+  } catch (error) {
+    console.error("Error in dashboard loader:", error);
+    // Return minimal data to prevent page from hanging
+    return json({
+      user,
+      stats: {
+        bookingsCount: 0,
+        upcomingBookings: 0,
+        reviewsCount: 0,
+        favoritesCount: 0,
+      },
+      appearanceSettings: {
+        theme: "light",
+        fontSize: "medium",
+        compactMode: false,
+        sidebarCollapsed: false,
+        animationsEnabled: true,
+      },
+    });
+  }
 }
 
 export default function Dashboard() {
