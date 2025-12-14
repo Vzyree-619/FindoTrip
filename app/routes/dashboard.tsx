@@ -87,32 +87,37 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   // Get dashboard stats - only for customers
-  const [
-    propertyBookings,
-    vehicleBookings,
-    tourBookings,
-    reviewsCount,
-    wishlists,
-  ] = await Promise.all([
-    prisma.propertyBooking.findMany({
-      where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
-      select: { id: true, status: true, checkIn: true },
-    }),
-    prisma.vehicleBooking.findMany({
-      where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
-      select: { id: true, status: true, startDate: true },
-    }),
-    prisma.tourBooking.findMany({
-      where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
-      select: { id: true, status: true, tourDate: true },
-    }),
-    prisma.review.count({
-      where: { userId },
-    }),
-    prisma.wishlist.findMany({
-      where: { userId },
-    }),
-  ]);
+  // Add timeout to prevent hanging
+  try {
+    const statsPromise = Promise.all([
+      prisma.propertyBooking.findMany({
+        where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
+        select: { id: true, status: true, checkIn: true },
+      }),
+      prisma.vehicleBooking.findMany({
+        where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
+        select: { id: true, status: true, startDate: true },
+      }),
+      prisma.tourBooking.findMany({
+        where: { userId, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
+        select: { id: true, status: true, tourDate: true },
+      }),
+      prisma.review.count({
+        where: { userId },
+      }),
+      prisma.wishlist.findMany({
+        where: { userId },
+      }),
+    ]);
+
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Loader timeout")), 10000); // 10 second timeout
+    });
+
+    const [propertyBookings, vehicleBookings, tourBookings, reviewsCount, wishlists] = await Promise.race([
+      statsPromise,
+      timeoutPromise,
+    ]) as any;
 
   const bookingsCount =
     propertyBookings.length + vehicleBookings.length + tourBookings.length;
