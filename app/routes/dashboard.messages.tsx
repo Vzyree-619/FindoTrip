@@ -24,11 +24,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   // Get conversations where user is a participant
+  // Include CUSTOMER_ADMIN conversations for super admins to see public chat messages
   // Note: We don't filter by isActive here because we want to show all conversations
   // including newly created ones that might not have isActive set yet
   const allConversations = await prisma.conversation.findMany({
     where: {
       participants: { has: userId },
+      // For super admin, show all conversation types including CUSTOMER_ADMIN
+      // For others, show their normal conversations
+      ...(user.role === "SUPER_ADMIN" ? {} : {}),
     },
     include: {
       messages: {

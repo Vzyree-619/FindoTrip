@@ -104,11 +104,29 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function AdminDashboard() {
   const { user, stats, recentUsers, recentBookings } = useLoaderData<typeof loader>();
 
+  // Get unread message count for admin
+  const adminConversations = await prisma.conversation.findMany({
+    where: {
+      participants: { has: user.id },
+      type: "CUSTOMER_ADMIN",
+      isActive: true,
+    },
+    select: {
+      unreadCount: true,
+    },
+  });
+
+  const unreadMessagesCount = adminConversations.reduce((total, conv) => {
+    const unread = (conv.unreadCount as Record<string, number> || {})[user.id] || 0;
+    return total + unread;
+  }, 0);
+
   const sections = [
     { href: "/admin/users/all", icon: Users, title: "User Management", desc: "Manage all platform users" },
     { href: "/admin/approvals/providers", icon: Shield, title: "Content Moderation", desc: "Review and approve content", count: stats.pendingApprovals },
     { href: "/admin/analytics/platform", icon: BarChart3, title: "Analytics", desc: "Platform metrics and trends" },
     { href: "/admin/support/tickets", icon: Users, title: "Support Center", desc: "Tickets and provider support" },
+    { href: "/dashboard/messages", icon: MessagesSquare, title: "Messages", desc: "Chat with users and visitors", count: unreadMessagesCount > 0 ? unreadMessagesCount : undefined },
     { href: "/admin/bookings/all", icon: Calendar, title: "Booking Management", desc: "Manage all platform bookings" },
     { href: "/admin/financial/revenue", icon: DollarSign, title: "Financial Overview", desc: "Revenue and commission tracking" },
   ];

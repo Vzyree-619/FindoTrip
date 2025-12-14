@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '~/components/ui/card';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
+import PublicChatButton from '~/components/chat/PublicChatButton';
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -330,6 +331,7 @@ export default function FAQSection() {
               variant="secondary" 
               size="lg"
               className="bg-white text-[#01502E] hover:bg-gray-100"
+              onClick={() => setShowChat(true)}
             >
               <MessageCircle className="h-5 w-5 mr-2" />
               Live Chat
@@ -353,6 +355,11 @@ export default function FAQSection() {
           </div>
         </div>
       </div>
+      
+      {/* Public Chat Modal */}
+      {showChat && (
+        <PublicChatButton triggerOpen={showChat} onOpenChange={setShowChat} />
+      )}
     </section>
   );
 }
