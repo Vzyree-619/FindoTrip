@@ -83,7 +83,64 @@ export async function loader({ request }: LoaderFunctionArgs) {
       },
     });
 
-    return json({ user, guide, tours, bookings, error: null });
+    // Calculate financial statistics
+    const confirmedCompletedBookings = bookings.filter(b => 
+      b.status === "CONFIRMED" || b.status === "COMPLETED"
+    );
+    
+    const totalRevenue = confirmedCompletedBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+    
+    // Calculate commission (10% default rate)
+    const commissionRate = 0.1;
+    const totalCommission = totalRevenue * commissionRate;
+    const netRevenue = totalRevenue - totalCommission;
+    
+    // Get commissions from database
+    const commissions = await prisma.commission.findMany({
+      where: {
+        tourGuideId: guide.id,
+        bookingType: "tour"
+      },
+      select: {
+        amount: true,
+        status: true,
+        calculatedAt: true
+      }
+    });
+    
+    const pendingCommissions = commissions
+      .filter(c => c.status === "PENDING")
+      .reduce((sum, c) => sum + c.amount, 0);
+    
+    const paidCommissions = commissions
+      .filter(c => c.status === "PAID")
+      .reduce((sum, c) => sum + c.amount, 0);
+    
+    // Monthly revenue
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthlyRevenue = confirmedCompletedBookings
+      .filter(b => new Date(b.createdAt) >= startOfMonth)
+      .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+    const monthlyCommission = monthlyRevenue * commissionRate;
+    const monthlyNet = monthlyRevenue - monthlyCommission;
+
+    return json({ 
+      user, 
+      guide, 
+      tours, 
+      bookings,
+      // Financial data
+      totalRevenue,
+      totalCommission,
+      netRevenue,
+      pendingCommissions,
+      paidCommissions,
+      monthlyRevenue,
+      monthlyCommission,
+      monthlyNet,
+      error: null 
+    });
   } catch (error) {
     console.error("Error in tour guide dashboard loader:", error);
     return json({

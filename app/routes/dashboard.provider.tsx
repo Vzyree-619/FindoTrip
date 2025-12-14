@@ -41,6 +41,9 @@ import {
   MessageCircle,
   Calendar,
   Users,
+  DollarSign,
+  TrendingUp,
+  CreditCard,
 } from "lucide-react";
 import SupportButton from "~/components/support/SupportButton";
 import ChatButton from "~/components/chat/ChatButton";
@@ -133,6 +136,48 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return b.status === "CONFIRMED" && checkIn >= now;
   });
 
+  // Calculate financial statistics
+  const confirmedCompletedBookings = bookings.filter(b => 
+    b.status === "CONFIRMED" || b.status === "COMPLETED"
+  );
+  
+  const totalRevenue = confirmedCompletedBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+  
+  // Calculate commission (10% default rate)
+  const commissionRate = 0.1;
+  const totalCommission = totalRevenue * commissionRate;
+  const netRevenue = totalRevenue - totalCommission;
+  
+  // Get commissions from database
+  const commissions = await prisma.commission.findMany({
+    where: {
+      propertyOwnerId: owner.id,
+      bookingType: "property"
+    },
+    select: {
+      amount: true,
+      status: true,
+      calculatedAt: true
+    }
+  });
+  
+  const pendingCommissions = commissions
+    .filter(c => c.status === "PENDING")
+    .reduce((sum, c) => sum + c.amount, 0);
+  
+  const paidCommissions = commissions
+    .filter(c => c.status === "PAID")
+    .reduce((sum, c) => sum + c.amount, 0);
+  
+  // Monthly revenue
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthlyRevenue = confirmedCompletedBookings
+    .filter(b => new Date(b.createdAt) >= startOfMonth)
+    .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+  const monthlyCommission = monthlyRevenue * commissionRate;
+  const monthlyNet = monthlyRevenue - monthlyCommission;
+
   return json({ 
     user, 
     owner, 
@@ -141,6 +186,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
     pendingBookings,
     confirmedBookings,
     upcomingBookings,
+    // Financial data
+    totalRevenue,
+    totalCommission,
+    netRevenue,
+    pendingCommissions,
+    paidCommissions,
+    monthlyRevenue,
+    monthlyCommission,
+    monthlyNet,
     error: null 
   });
 }
@@ -611,6 +665,97 @@ export default function ProviderDashboard() {
                   Your account is fully verified. You can now manage all your
                   properties.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Financial Summary Section */}
+        {isVerified && (totalRevenue > 0 || monthlyRevenue > 0) && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-2 sm:p-3 md:p-4 lg:p-6 mb-4 sm:mb-6 md:mb-8 w-full">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-[#01502E] flex-shrink-0" />
+                <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white">
+                  Financial Overview
+                </h2>
+              </div>
+              <Link
+                to="/dashboard/provider/revenue"
+                className="text-xs sm:text-sm text-[#01502E] hover:text-[#003d21] dark:text-green-400 dark:hover:text-green-300 font-medium"
+              >
+                View Details →
+              </Link>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+              {/* Total Revenue */}
+              <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-3 sm:p-4 border border-green-200 dark:border-green-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Revenue</span>
+                  <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
+                </div>
+                <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                  PKR {totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  All time
+                </p>
+              </div>
+
+              {/* Net Revenue */}
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-3 sm:p-4 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Net Revenue</span>
+                  <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                  PKR {netRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  After commission
+                </p>
+              </div>
+
+              {/* Monthly Revenue */}
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-3 sm:p-4 border border-purple-200 dark:border-purple-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">This Month</span>
+                  <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                </div>
+                <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                  PKR {monthlyRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Net: PKR {monthlyNet.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+              </div>
+
+              {/* Pending Commission */}
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-lg p-3 sm:p-4 border border-yellow-200 dark:border-yellow-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Commission Due</span>
+                  <CreditCard className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                  PKR {pendingCommissions.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {((pendingCommissions / totalRevenue) * 100 || 0).toFixed(1)}% of total
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Platform Commission Rate:</span>
+                <span className="font-semibold text-gray-900 dark:text-white">10%</span>
+              </div>
+              <div className="flex items-center justify-between text-xs sm:text-sm mt-2">
+                <span className="text-gray-600 dark:text-gray-400">Total Commission Paid:</span>
+                <span className="font-semibold text-green-600 dark:text-green-400">
+                  PKR {paidCommissions.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </span>
               </div>
             </div>
           </div>
