@@ -627,30 +627,31 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
 
       // Update booking status
-      if (paymentMethod === 'pay_at_pickup' || paymentMethod === 'bank_transfer') {
-        // Keep status as PENDING for provider approval/payment later
-      } else if (bookingType === "property") {
+      // Keep status as PENDING for property owner verification, even after payment
+      // Property owners will confirm bookings through their dashboard
+      if (bookingType === "property") {
         await prisma.propertyBooking.update({
           where: { id: bookingId },
           data: {
-            status: "CONFIRMED",
-            paymentStatus: "COMPLETED",
+            // Keep status as PENDING - property owner will confirm
+            status: "PENDING",
+            paymentStatus: paymentMethod === 'pay_at_pickup' || paymentMethod === 'bank_transfer' ? "PENDING" : "COMPLETED",
           },
         });
       } else if (bookingType === "vehicle") {
         await prisma.vehicleBooking.update({
           where: { id: bookingId },
           data: {
-            status: "CONFIRMED",
-            paymentStatus: "COMPLETED",
+            status: "PENDING",
+            paymentStatus: paymentMethod === 'pay_at_pickup' || paymentMethod === 'bank_transfer' ? "PENDING" : "COMPLETED",
           },
         });
       } else if (bookingType === "tour") {
         await prisma.tourBooking.update({
           where: { id: bookingId },
           data: {
-            status: "CONFIRMED",
-            paymentStatus: "COMPLETED",
+            status: "PENDING",
+            paymentStatus: paymentMethod === 'pay_at_pickup' || paymentMethod === 'bank_transfer' ? "PENDING" : "COMPLETED",
           },
         });
       }
