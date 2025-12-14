@@ -30,7 +30,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const redirectTo = url.searchParams.get("redirectTo");
   const fromBooking = redirectTo?.includes("/book/tour/") || redirectTo?.includes("/book/stay/") || redirectTo?.includes("/book/vehicle/");
   
-  return json({ redirectTo, fromBooking });
+  return json({ 
+    redirectTo, 
+    fromBooking,
+    googleOAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    facebookOAuthEnabled: !!process.env.FACEBOOK_CLIENT_ID,
+  });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -82,6 +87,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Login() {
+  const { googleOAuthEnabled, facebookOAuthEnabled } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const navigation = useNavigation();
@@ -237,7 +243,7 @@ export default function Login() {
 
           {/* Social Login */}
           <div className="mt-6 grid grid-cols-2 gap-4">
-            {process.env.GOOGLE_CLIENT_ID ? (
+            {googleOAuthEnabled ? (
               <a
                 href="/auth/google"
                 className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
@@ -265,7 +271,7 @@ export default function Login() {
                 <span className="text-sm font-medium text-gray-700">Google</span>
               </button>
             )}
-            {process.env.FACEBOOK_CLIENT_ID ? (
+            {facebookOAuthEnabled ? (
               <a
                 href="/auth/facebook"
                 className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"

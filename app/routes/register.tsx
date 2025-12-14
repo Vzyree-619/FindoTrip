@@ -43,7 +43,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const redirectTo = url.searchParams.get("redirectTo");
   const fromBooking = redirectTo?.includes("/accommodations/") || redirectTo?.includes("/vehicles/") || redirectTo?.includes("/tours/");
   
-  return json({ redirectTo, fromBooking });
+  return json({ 
+    redirectTo, 
+    fromBooking,
+    googleOAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    facebookOAuthEnabled: !!process.env.FACEBOOK_CLIENT_ID,
+  });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -115,7 +120,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function Register() {
   const actionData = useActionData<typeof action>();
-  const { redirectTo, fromBooking } = useLoaderData<typeof loader>();
+  const { redirectTo, fromBooking, googleOAuthEnabled, facebookOAuthEnabled } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const navigate = useNavigate();
   const isSubmitting = navigation.state === "submitting";
@@ -645,7 +650,7 @@ export default function Register() {
 
           {/* Social Login */}
           <div className="mt-6 grid grid-cols-2 gap-4">
-            {process.env.GOOGLE_CLIENT_ID ? (
+            {googleOAuthEnabled ? (
               <a
                 href="/auth/google"
                 className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
@@ -674,7 +679,7 @@ export default function Register() {
                 <span className="text-sm font-medium">Google</span>
               </Button>
             )}
-            {process.env.FACEBOOK_CLIENT_ID ? (
+            {facebookOAuthEnabled ? (
               <a
                 href="/auth/facebook"
                 className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
