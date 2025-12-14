@@ -135,6 +135,7 @@ export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showChat, setShowChat] = useState(false);
 
   const filteredFAQs = faqData.filter(faq => {
     const matchesCategory = selectedCategory === 'all' || faq.category === selectedCategory;
