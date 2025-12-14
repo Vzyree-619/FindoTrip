@@ -13,7 +13,10 @@ import {
   Info, 
   MessageCircle, 
   Settings, 
-  Calendar 
+  Calendar,
+  DollarSign,
+  TrendingUp,
+  CreditCard,
 } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -91,8 +94,65 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
+    // Calculate financial statistics
+    const confirmedCompletedBookings = bookings.filter(b => 
+      b.status === "CONFIRMED" || b.status === "COMPLETED"
+    );
+    
+    const totalRevenue = confirmedCompletedBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+    
+    // Calculate commission (10% default rate)
+    const commissionRate = 0.1;
+    const totalCommission = totalRevenue * commissionRate;
+    const netRevenue = totalRevenue - totalCommission;
+    
+    // Get commissions from database
+    const commissions = await prisma.commission.findMany({
+      where: {
+        tourGuideId: guide.id,
+        bookingType: "tour"
+      },
+      select: {
+        amount: true,
+        status: true,
+        calculatedAt: true
+      }
+    });
+    
+    const pendingCommissions = commissions
+      .filter(c => c.status === "PENDING")
+      .reduce((sum, c) => sum + c.amount, 0);
+    
+    const paidCommissions = commissions
+      .filter(c => c.status === "PAID")
+      .reduce((sum, c) => sum + c.amount, 0);
+    
+    // Monthly revenue
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthlyRevenue = confirmedCompletedBookings
+      .filter(b => new Date(b.createdAt) >= startOfMonth)
+      .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+    const monthlyCommission = monthlyRevenue * commissionRate;
+    const monthlyNet = monthlyRevenue - monthlyCommission;
+
     console.log("Loader completed successfully");
-    return json({ user, guide, tours, bookings, error: null });
+    return json({ 
+      user, 
+      guide, 
+      tours, 
+      bookings,
+      // Financial data
+      totalRevenue,
+      totalCommission,
+      netRevenue,
+      pendingCommissions,
+      paidCommissions,
+      monthlyRevenue,
+      monthlyCommission,
+      monthlyNet,
+      error: null 
+    });
   } catch (error) {
     console.error("Error in tour guide dashboard loader:", error);
     return json({ 
@@ -189,7 +249,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function TourGuideDashboard() {
-  const { user, guide, tours, bookings, error } = useLoaderData<typeof loader>();
+  const { user, guide, tours, bookings, totalRevenue, netRevenue, monthlyRevenue, monthlyNet, pendingCommissions, paidCommissions, error } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const submitted = searchParams.get("submitted") === "1";
@@ -306,6 +366,83 @@ export default function TourGuideDashboard() {
         {actionData && 'error' in actionData && actionData.error && (
           <div className="mb-6 rounded-md bg-red-50 p-4 flex items-center gap-2 text-red-800">
             <AlertCircle className="w-5 h-5" /> {actionData.error}
+          </div>
+        )}
+
+        {/* Financial Summary Section */}
+        {isVerified && (totalRevenue > 0 || monthlyRevenue > 0) && (
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <DollarSign className="w-5 h-5 text-[#01502E]" />
+              <h2 className="text-lg font-semibold text-gray-900">Financial Overview</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              {/* Total Revenue */}
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600">Total Revenue</span>
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  PKR {totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">All time</p>
+              </div>
+
+              {/* Net Revenue */}
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600">Net Revenue</span>
+                  <TrendingUp className="w-4 h-4 text-blue-600" />
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  PKR {netRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">After commission</p>
+              </div>
+
+              {/* Monthly Revenue */}
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600">This Month</span>
+                  <Calendar className="w-4 h-4 text-purple-600" />
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  PKR {monthlyRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Net: PKR {monthlyNet.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+              </div>
+
+              {/* Pending Commission */}
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 border border-yellow-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600">Commission Due</span>
+                  <CreditCard className="w-4 h-4 text-yellow-600" />
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  PKR {pendingCommissions.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {((pendingCommissions / totalRevenue) * 100 || 0).toFixed(1)}% of total
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Platform Commission Rate:</span>
+                <span className="font-semibold text-gray-900">10%</span>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-2">
+                <span className="text-gray-600">Total Commission Paid:</span>
+                <span className="font-semibold text-green-600">
+                  PKR {paidCommissions.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </span>
+              </div>
+            </div>
           </div>
         )}
 

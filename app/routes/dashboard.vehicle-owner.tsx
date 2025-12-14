@@ -25,6 +25,10 @@ import {
   Info,
   Camera,
   MessageCircle,
+  DollarSign,
+  TrendingUp,
+  CreditCard,
+  Calendar,
 } from "lucide-react";
 import SupportButton from "~/components/support/SupportButton";
 
@@ -357,7 +361,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function VehicleOwnerDashboard() {
-  const { user, owner, vehicles, error } = useLoaderData<typeof loader>();
+  const { user, owner, vehicles, totalRevenue, netRevenue, monthlyRevenue, monthlyNet, pendingCommissions, paidCommissions, error } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const submitted = searchParams.get("submitted") === "1";
@@ -525,6 +529,85 @@ export default function VehicleOwnerDashboard() {
         {actionError && (
           <div className="mb-6 rounded-md bg-red-50 p-4 flex items-center gap-2 text-red-800">
             <AlertCircle className="w-5 h-5" /> {actionError}
+          </div>
+        )}
+
+        {/* Financial Summary Section */}
+        {owner?.verified && (totalRevenue > 0 || monthlyRevenue > 0) && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 mb-6 sm:mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <DollarSign className="w-5 h-5 text-[#01502E] flex-shrink-0" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Financial Overview
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              {/* Total Revenue */}
+              <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</span>
+                  <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
+                </div>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  PKR {totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">All time</p>
+              </div>
+
+              {/* Net Revenue */}
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Net Revenue</span>
+                  <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  PKR {netRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">After commission</p>
+              </div>
+
+              {/* Monthly Revenue */}
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">This Month</span>
+                  <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                </div>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  PKR {monthlyRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Net: PKR {monthlyNet.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+              </div>
+
+              {/* Pending Commission */}
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Commission Due</span>
+                  <CreditCard className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  PKR {pendingCommissions.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {((pendingCommissions / totalRevenue) * 100 || 0).toFixed(1)}% of total
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Platform Commission Rate:</span>
+                <span className="font-semibold text-gray-900 dark:text-white">10%</span>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-2">
+                <span className="text-gray-600 dark:text-gray-400">Total Commission Paid:</span>
+                <span className="font-semibold text-green-600 dark:text-green-400">
+                  PKR {paidCommissions.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </span>
+              </div>
+            </div>
           </div>
         )}
 
