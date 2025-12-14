@@ -97,6 +97,25 @@ export default function FeaturedVehicles({
   const [isHovered, setIsHovered] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
+  // Load initial favorites
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const response = await fetch('/dashboard/favorites', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const vehicleIds = data.favorites?.vehicles?.map((v: any) => v.id) || [];
+          setFavorites(new Set(vehicleIds));
+        }
+      } catch (error) {
+        // Silently fail - user might not be logged in
+      }
+    };
+    loadFavorites();
+  }, []);
+
   // Auto-slide functionality
   useEffect(() => {
     if (autoSlide && !isHovered && vehicles.length > 1) {
@@ -115,16 +134,62 @@ export default function FeaturedVehicles({
     setCurrentSlide((prev) => (prev - 1 + vehicles.length) % vehicles.length);
   };
 
-  const handleFavoriteToggle = (vehicleId: string) => {
+  const handleFavoriteToggle = async (vehicleId: string) => {
+    const isCurrentlyFavorite = favorites.has(vehicleId);
+    const newFavoriteState = !isCurrentlyFavorite;
+    
+    // Optimistic update
     setFavorites(prev => {
       const newFavorites = new Set(prev);
-      if (newFavorites.has(vehicleId)) {
-        newFavorites.delete(vehicleId);
-      } else {
+      if (newFavoriteState) {
         newFavorites.add(vehicleId);
+      } else {
+        newFavorites.delete(vehicleId);
       }
       return newFavorites;
     });
+    
+    try {
+      const response = await fetch('/api/wishlist-toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          serviceType: 'vehicle',
+          serviceId: vehicleId,
+          action: newFavoriteState ? 'add' : 'remove'
+        })
+      });
+
+      if (!response.ok) {
+        // Revert on error
+        setFavorites(prev => {
+          const revertedFavorites = new Set(prev);
+          if (isCurrentlyFavorite) {
+            revertedFavorites.add(vehicleId);
+          } else {
+            revertedFavorites.delete(vehicleId);
+          }
+          return revertedFavorites;
+        });
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update favorites' }));
+        console.error('Failed to update favorites:', errorData.error);
+      }
+    } catch (error) {
+      // Revert on error
+      setFavorites(prev => {
+        const revertedFavorites = new Set(prev);
+        if (isCurrentlyFavorite) {
+          revertedFavorites.add(vehicleId);
+        } else {
+          revertedFavorites.delete(vehicleId);
+        }
+        return revertedFavorites;
+      });
+      console.error('Error updating favorites:', error);
+    }
   };
 
   if (vehicles.length === 0) {
