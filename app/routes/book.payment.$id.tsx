@@ -448,7 +448,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       // Stripe integration (server-side intent creation)
       if (paymentMethod === 'stripe') {
-        if (process.env.STRIPE_SECRET) {
+        if (process.env.STRIPE_SECRET_KEY) {
           try {
             const stripeModule = await import('stripe' as any).catch(() => null);
             if (!stripeModule) {
@@ -472,7 +472,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
                 warning: 'Stripe package not installed. Please contact admin to set up payment processing.'
               });
             }
-            const stripe = new stripeModule.default(process.env.STRIPE_SECRET as string, { apiVersion: '2023-10-16' });
+            const stripe = new stripeModule.default(process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET as string, { apiVersion: '2023-10-16' });
             const amountMinor = Math.round((booking.totalPrice || 0) * 100);
             const currency = (booking.currency || 'PKR').toLowerCase();
             const intent = await stripe.paymentIntents.create({

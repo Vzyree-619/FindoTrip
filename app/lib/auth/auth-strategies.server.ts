@@ -35,7 +35,7 @@ const googleStrategy = new OAuth2Strategy<User, GoogleProfile, GoogleExtraParams
     tokenURL: "https://oauth2.googleapis.com/token",
     clientID: process.env.GOOGLE_CLIENT_ID || "",
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:5174/auth/google/callback",
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || `${process.env.APP_URL || "http://localhost:5173"}/auth/google/callback`,
     scope: "openid email profile",
   },
   async ({ accessToken, extraParams, profile }) => {
@@ -106,7 +106,7 @@ const facebookStrategy = new OAuth2Strategy<User, FacebookProfile, FacebookExtra
     tokenURL: "https://graph.facebook.com/v18.0/oauth/access_token",
     clientID: process.env.FACEBOOK_CLIENT_ID || "",
     clientSecret: process.env.FACEBOOK_CLIENT_SECRET || "",
-    callbackURL: process.env.FACEBOOK_CALLBACK_URL || "http://localhost:5174/auth/facebook/callback",
+    callbackURL: process.env.FACEBOOK_CALLBACK_URL || `${process.env.APP_URL || "http://localhost:5173"}/auth/facebook/callback`,
     scope: "email public_profile",
   },
   async ({ accessToken }) => {
