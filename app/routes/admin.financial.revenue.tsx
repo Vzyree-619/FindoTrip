@@ -351,6 +351,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
       bankTransfer: {
         amount: revenueByPayment[2]._sum.amount || 0,
         count: revenueByPayment[2]._count.id || 0
+      },
+      mobileWallet: {
+        amount: revenueByPayment[3]._sum.amount || 0,
+        count: revenueByPayment[3]._count.id || 0
+      },
+      cash: {
+        amount: revenueByPayment[4]._sum.amount || 0,
+        count: revenueByPayment[4]._count.id || 0
       }
     },
     topEarningServices,
