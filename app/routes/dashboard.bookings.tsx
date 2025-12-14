@@ -4,7 +4,7 @@ import {
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "@remix-run/node";
-import { useLoaderData, useActionData, Form, Link, useNavigation } from "@remix-run/react";
+import { useLoaderData, useActionData, Form, Link, useNavigation, Outlet } from "@remix-run/react";
 import { useState, useMemo, useCallback } from "react";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { getUserBookings } from "~/lib/utils/bookings.server";
