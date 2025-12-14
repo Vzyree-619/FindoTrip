@@ -128,13 +128,6 @@ export default function AdminDashboard() {
               <Shield className="w-4 h-4 mr-2" />
               Access Full Admin Panel
             </Link>
-            <Link 
-              to="/admin" 
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Admin Access Center
-            </Link>
           </div>
         </div>
 
