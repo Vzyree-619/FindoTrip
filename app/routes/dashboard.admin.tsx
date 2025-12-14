@@ -28,7 +28,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     recentUsers,
     recentBookings,
     platformRevenue,
-    activeConversations
+    activeConversations,
+    adminConversations
   ] = await Promise.all([
     // User statistics
     prisma.user.count(),
@@ -73,12 +74,30 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }),
     
     // Active conversations
-    prisma.conversation.count({ where: { updatedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } })
+    prisma.conversation.count({ where: { updatedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
+    
+    // Get unread message count for admin
+    prisma.conversation.findMany({
+      where: {
+        participants: { has: user.id },
+        type: "CUSTOMER_ADMIN",
+        isActive: true,
+      },
+      select: {
+        unreadCount: true,
+      },
+    })
   ]);
 
   const totalBookingsCount = propertyBookings + vehicleBookings + tourBookings;
   const pendingApprovalsCount = pendingProperties + pendingVehicles + pendingTours;
   const totalRevenue = platformRevenue._sum.totalPrice || 0;
+  
+  // Calculate unread messages count
+  const unreadMessagesCount = adminConversations.reduce((total: number, conv: any) => {
+    const unread = (conv.unreadCount as Record<string, number> || {})[user.id] || 0;
+    return total + unread;
+  }, 0);
 
   return json({ 
     user,
@@ -97,29 +116,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       activeConversations
     },
     recentUsers,
-    recentBookings
+    recentBookings,
+    unreadMessagesCount
   });
 }
 
 export default function AdminDashboard() {
-  const { user, stats, recentUsers, recentBookings } = useLoaderData<typeof loader>();
-
-  // Get unread message count for admin
-  const adminConversations = await prisma.conversation.findMany({
-    where: {
-      participants: { has: user.id },
-      type: "CUSTOMER_ADMIN",
-      isActive: true,
-    },
-    select: {
-      unreadCount: true,
-    },
-  });
-
-  const unreadMessagesCount = adminConversations.reduce((total, conv) => {
-    const unread = (conv.unreadCount as Record<string, number> || {})[user.id] || 0;
-    return total + unread;
-  }, 0);
+  const { user, stats, recentUsers, recentBookings, unreadMessagesCount } = useLoaderData<typeof loader>();
 
   const sections = [
     { href: "/admin/users/all", icon: Users, title: "User Management", desc: "Manage all platform users" },
