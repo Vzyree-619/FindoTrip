@@ -186,6 +186,74 @@ export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
   const intent = form.get("intent");
 
+  if (intent === "confirm-booking" || intent === "reject-booking") {
+    const bookingId = form.get("bookingId") as string;
+    const reason = form.get("reason") as string;
+
+    if (!bookingId) {
+      return json({ error: "Booking ID is required" }, { status: 400 });
+    }
+
+    // Verify booking belongs to this owner's property
+    const booking = await prisma.propertyBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        property: {
+          select: { ownerId: true }
+        }
+      }
+    });
+
+    if (!booking || booking.property.ownerId !== owner.id) {
+      return json({ error: "Booking not found or unauthorized" }, { status: 403 });
+    }
+
+    if (intent === "confirm-booking") {
+      await prisma.propertyBooking.update({
+        where: { id: bookingId },
+        data: {
+          status: "CONFIRMED",
+          updatedAt: new Date()
+        }
+      });
+
+      // Send notification to customer
+      await prisma.notification.create({
+        data: {
+          userId: booking.userId,
+          type: "BOOKING_CONFIRMED",
+          title: "Booking Confirmed!",
+          message: `Your booking ${booking.bookingNumber} has been confirmed by the property owner.`,
+          userRole: "CUSTOMER"
+        }
+      });
+
+      return json({ success: true, message: "Booking confirmed successfully" });
+    } else if (intent === "reject-booking") {
+      await prisma.propertyBooking.update({
+        where: { id: bookingId },
+        data: {
+          status: "CANCELLED",
+          cancellationReason: reason || "Rejected by property owner",
+          updatedAt: new Date()
+        }
+      });
+
+      // Send notification to customer
+      await prisma.notification.create({
+        data: {
+          userId: booking.userId,
+          type: "BOOKING_CANCELLED",
+          title: "Booking Cancelled",
+          message: `Your booking ${booking.bookingNumber} has been cancelled. ${reason ? `Reason: ${reason}` : ''}`,
+          userRole: "CUSTOMER"
+        }
+      });
+
+      return json({ success: true, message: "Booking rejected successfully" });
+    }
+  }
+
   if (intent === "update-avatar") {
     const file = form.get("avatar") as File | null;
     if (!file) return json({ error: "No file provided" }, { status: 400 });
@@ -650,6 +718,34 @@ export default function ProviderDashboard() {
                                 (Payment on property)
                               </span>
                             )}
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            <Form method="post" className="flex-1">
+                              <input type="hidden" name="intent" value="confirm-booking" />
+                              <input type="hidden" name="bookingId" value={booking.id} />
+                              <button
+                                type="submit"
+                                className="w-full px-3 py-1.5 text-xs font-medium rounded bg-green-600 hover:bg-green-700 text-white transition-colors"
+                              >
+                                Confirm Booking
+                              </button>
+                            </Form>
+                            <Form method="post" className="flex-1">
+                              <input type="hidden" name="intent" value="reject-booking" />
+                              <input type="hidden" name="bookingId" value={booking.id} />
+                              <input type="hidden" name="reason" value="Rejected by property owner" />
+                              <button
+                                type="submit"
+                                className="w-full px-3 py-1.5 text-xs font-medium rounded bg-red-600 hover:bg-red-700 text-white transition-colors"
+                                onClick={(e) => {
+                                  if (!confirm('Are you sure you want to reject this booking?')) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                              >
+                                Reject
+                              </button>
+                            </Form>
                           </div>
                         </div>
                       </div>
