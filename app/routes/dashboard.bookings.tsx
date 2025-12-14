@@ -4,7 +4,7 @@ import {
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "@remix-run/node";
-import { useLoaderData, useActionData, Form, Link, useNavigation, Outlet } from "@remix-run/react";
+import { useLoaderData, useActionData, Form, Link, useNavigation, Outlet, useLocation } from "@remix-run/react";
 import { useState, useMemo, useCallback } from "react";
 import { requireUserId } from "~/lib/auth/auth.server";
 import { getUserBookings } from "~/lib/utils/bookings.server";
@@ -429,7 +429,11 @@ export default function MyBookings() {
   const { bookings } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const location = useLocation();
   const [cancellingBooking, setCancellingBooking] = useState<string | null>(null);
+
+  // Check if we're on a booking details page (child route)
+  const isBookingDetailsPage = location.pathname.includes('/bookings/') && location.pathname !== '/dashboard/bookings';
 
   // Determine default tab - show first tab with bookings
   const defaultTab = useMemo(() => {
@@ -460,6 +464,11 @@ export default function MyBookings() {
   }, []);
 
   const isLoading = navigation.state === "loading";
+
+  // If we're on a booking details page, only render the outlet
+  if (isBookingDetailsPage) {
+    return <Outlet />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
