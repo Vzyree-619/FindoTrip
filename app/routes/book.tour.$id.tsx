@@ -721,6 +721,7 @@ export default function TourBooking() {
               </CardHeader>
               <CardContent>
                 <Form method="post" className="space-y-6">
+                  <input type="hidden" name="paymentMethod" value={paymentMethod} />
                   {/* Date Selection */}
                   <div>
                     <Label htmlFor="tourDate">Tour Date</Label>
@@ -988,6 +989,69 @@ export default function TourBooking() {
                     </div>
                   )}
 
+                  {/* Payment Method Selection */}
+                  <div className="space-y-4 border-t pt-4">
+                    <Label className="text-base font-semibold">Payment Method</Label>
+                    <div className="space-y-3">
+                      <div 
+                        onClick={() => setPaymentMethod("stripe")}
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                          paymentMethod === "stripe" 
+                            ? "border-[#01502E] bg-[#01502E]/5" 
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <CreditCard className="h-5 w-5 text-[#01502E]" />
+                          <div className="flex-1">
+                            <div className="font-medium">Pay Online</div>
+                            <div className="text-sm text-gray-600">Secure payment with credit/debit card</div>
+                          </div>
+                          <input 
+                            type="radio" 
+                            name="paymentMethod" 
+                            value="stripe" 
+                            checked={paymentMethod === "stripe"}
+                            onChange={() => setPaymentMethod("stripe")}
+                            className="w-4 h-4"
+                          />
+                        </div>
+                      </div>
+                      <div 
+                        onClick={() => setPaymentMethod("pay_on_arrival")}
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                          paymentMethod === "pay_on_arrival" 
+                            ? "border-[#01502E] bg-[#01502E]/5" 
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Wallet className="h-5 w-5 text-[#01502E]" />
+                          <div className="flex-1">
+                            <div className="font-medium">Pay on Arrival</div>
+                            <div className="text-sm text-gray-600">Pay the tour guide when you arrive</div>
+                          </div>
+                          <input 
+                            type="radio" 
+                            name="paymentMethod" 
+                            value="pay_on_arrival" 
+                            checked={paymentMethod === "pay_on_arrival"}
+                            onChange={() => setPaymentMethod("pay_on_arrival")}
+                            className="w-4 h-4"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {paymentMethod === "pay_on_arrival" && (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-sm">
+                          Your booking will be confirmed after the tour guide approves. You'll pay when you arrive for the tour.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+
                   {/* Error Messages */}
                   {actionData?.error && (
                     <Alert variant="destructive">
@@ -1009,7 +1073,19 @@ export default function TourBooking() {
                         Processing...
                       </>
                     ) : (
-                      "Book Now"
+                      <>
+                        {paymentMethod === "pay_on_arrival" ? (
+                          <>
+                            <Wallet className="h-4 w-4 mr-2" />
+                            Book Now (Pay on Arrival)
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Book Now
+                          </>
+                        )}
+                      </>
                     )}
                   </Button>
                 </Form>
