@@ -99,8 +99,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     showReadReceipts: true,
     showTypingIndicators: true,
     autoDownloadMedia: false,
-    messagePreview: true,
-    darkMode: false
+    messagePreview: true
   };
 
   return json({

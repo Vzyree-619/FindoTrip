@@ -5,7 +5,6 @@ import { clsx } from "./utils";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
 import AttachmentPreview from "./AttachmentPreview";
-import { useTheme } from "~/contexts/ThemeContext";
 import { useNotificationsStream } from "~/hooks/useNotificationsStream";
 
 export type ChatInterfaceProps = {
