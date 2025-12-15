@@ -1,4 +1,4 @@
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
+import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useActionData, Form, useNavigation, useSearchParams } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
@@ -11,7 +11,7 @@ import { Badge } from "~/components/ui/badge";
 import { Separator } from "~/components/ui/separator";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Loader2, MapPin, Users, Star, Calendar, Clock, User } from "lucide-react";
+import { Loader2, MapPin, Users, Star, Calendar, Clock, User, CreditCard, Wallet, AlertCircle } from "lucide-react";
 import { blockServiceDates } from "~/lib/utils/calendar.server";
 import { createAndDispatchNotification } from "~/lib/notifications.server";
 import { publishToUser } from "~/lib/realtime.server";
@@ -249,6 +249,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const meetingTime = formData.get("meetingTime") as string;
     const specialRequests = formData.get("specialRequests") as string;
     const language = formData.get("language") as string;
+    const paymentMethod = (formData.get("paymentMethod") as string) || "stripe";
 
     if (!tourDateParam || !timeSlot || !participants || !leadTravelerName || !leadTravelerEmail || !leadTravelerPhone) {
       return json({ error: "All required fields must be filled" }, { status: 400 });
@@ -356,12 +357,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
         data: {
           amount: booking.totalPrice,
           currency: booking.currency,
-          method: "CREDIT_CARD" as PaymentMethod,
+          method: paymentMethod === "pay_on_arrival" ? "CASH" : "CREDIT_CARD",
           transactionId: pendingTxnId,
           status: "PENDING",
+          paymentGateway: paymentMethod === "pay_on_arrival" ? "offline" : null,
+          gatewayResponse: paymentMethod === "pay_on_arrival" ? { note: "Pay on arrival" } : null,
           userId,
           bookingId: booking.id,
           bookingType: "tour",
+        },
+      });
+
+      // Update booking payment status
+      await prisma.tourBooking.update({
+        where: { id: booking.id },
+        data: {
+          paymentStatus: paymentMethod === "pay_on_arrival" ? "PENDING" : "PENDING",
         },
       });
 
@@ -404,8 +415,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
         userRole: "CUSTOMER",
         type: "BOOKING_CONFIRMED",
         title: "Booking Created",
-        message: `Your tour booking for ${booking.tour.title} is created. Please complete payment to confirm.`,
-        actionUrl: `/book/payment/${booking.id}?type=tour`,
+        message: `Your tour booking for ${booking.tour.title} is created. ${paymentMethod === "pay_on_arrival" ? "You'll pay the guide when you arrive." : "Please complete payment to confirm."}`,
+        actionUrl: paymentMethod === "pay_on_arrival" ? `/book/confirmation/${booking.id}?type=tour` : `/book/payment/${booking.id}?type=tour`,
         data: {
           bookingId: booking.id,
           bookingType: "tour",
@@ -472,7 +483,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
         }
       } catch {}
 
-      // Redirect directly to payment page to ensure navigation proceeds
+      // If pay on arrival, redirect to confirmation
+      if (paymentMethod === "pay_on_arrival") {
+        return redirect(`/book/confirmation/${booking.id}?type=tour`);
+      }
+
+      // Otherwise redirect to payment page
       return redirect(`/book/payment/${booking.id}?type=tour`);
     } catch (error) {
       console.error("Error creating booking:", error);
@@ -508,6 +524,7 @@ export default function TourBooking() {
   });
   const [specialRequests, setSpecialRequests] = useState("");
   const [language, setLanguage] = useState("en");
+  const [paymentMethod, setPaymentMethod] = useState("stripe");
 
   const isSubmitting = navigation.state === "submitting";
 
