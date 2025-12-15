@@ -5,7 +5,6 @@ interface ChatSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: {
-    theme: string;
     fontSize: string;
     soundEnabled: boolean;
     notificationsEnabled: boolean;
@@ -66,31 +65,6 @@ export function ChatSettingsModal({
             </div>
             
             <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Theme
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { value: 'light', label: 'Light' },
-                    { value: 'dark', label: 'Dark' },
-                    { value: 'auto', label: 'Auto' }
-                  ].map((option) => (
-                    <label key={option.value} className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        name="theme"
-                        value={option.value}
-                        checked={localSettings.theme === option.value}
-                        onChange={(e) => handleSettingChange('theme', e.target.value)}
-                        className="text-[#01502E] focus:ring-[#01502E]"
-                      />
-                      <span className="text-sm">{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Font Size

@@ -538,7 +538,7 @@ export function ChatInterface({
               const displayName = targetUserName || otherParticipant?.name || "Chat";
               const displayAvatar = targetUserAvatar || otherParticipant?.avatar;
               const displayRole = otherParticipant?.role;
-              const isOnline = otherParticipant?.online || otherParticipant?.isOnline;
+              const isOnline = otherParticipant?.online || false;
               
               return (
                 <>
