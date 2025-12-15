@@ -5,8 +5,6 @@ import { requireUserId } from "~/lib/auth/auth.server";
 import { prisma } from "~/lib/db/db.server";
 import ChatContainer from "~/components/chat/ChatContainer";
 import { MessageCircle, Users, Settings } from "lucide-react";
-import { ThemeProvider, updateGlobalTheme } from "~/contexts/ThemeContext";
-import { ThemeToggle } from "~/components/chat/ThemeToggle";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -144,28 +142,25 @@ export default function MessagesDashboard() {
   }, [revalidator]);
 
   return (
-    <ThemeProvider initialTheme={chatSettings?.theme || 'light'}>
-      <div className="bg-gray-50 dark:bg-gray-900 w-full overflow-x-hidden max-w-full min-w-0 box-border">
+      <div className="bg-gray-50">
         <div className="px-2 sm:px-3 lg:px-4 w-full max-w-full box-border overflow-x-hidden min-w-0">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <MessageCircle className="w-8 h-8 text-[#01502E]" />
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Messages</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
             </div>
-            <ThemeToggle />
           </div>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600">
             Chat with customers, service providers, and support team
           </p>
         </div>
 
         {/* Chat Interface */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 h-[calc(100vh-220px)] max-h-[calc(100vh-220px)] overflow-hidden w-full max-w-full box-border min-w-0">
+        <div className="bg-white">
           <ChatContainer 
             currentUserId={user.id}
-            theme={chatSettings?.theme || 'light'}
             initialPeerId={peerId}
             initialConversations={formattedConversations}
           />
@@ -173,12 +168,12 @@ export default function MessagesDashboard() {
 
         {/* Quick Actions - responsive layout */}
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
+          <div className="bg-white">
             <div className="flex items-center gap-3 mb-3">
               <Users className="w-6 h-6 text-blue-600" />
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Start New Chat</h3>
+              <h3 className="font-semibold text-gray-900">Start New Chat</h3>
             </div>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+            <p className="text-gray-600">
               Start a conversation with any user on the platform
             </p>
             <button className="w-full bg-[#01502E] text-white px-4 py-2 rounded-md hover:bg-[#013d23] transition-colors">
@@ -186,12 +181,12 @@ export default function MessagesDashboard() {
             </button>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700 sm:col-span-1 lg:col-span-1">
+          <div className="bg-white">
             <div className="flex items-center gap-3 mb-3">
               <MessageCircle className="w-6 h-6 text-green-600" />
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Support Chat</h3>
+              <h3 className="font-semibold text-gray-900">Support Chat</h3>
             </div>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+            <p className="text-gray-600">
               Get help from our support team. Manage your chat preferences and notifications.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -208,6 +203,5 @@ export default function MessagesDashboard() {
         </div>
         </div>
       </div>
-    </ThemeProvider>
   );
 }

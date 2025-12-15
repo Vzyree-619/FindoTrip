@@ -3,7 +3,6 @@ import { Settings, Bell, Shield, Palette, Volume2, VolumeX, Eye, EyeOff, Message
 
 interface ChatSettingsProps {
   settings: {
-    theme: string;
     fontSize: string;
     soundEnabled: boolean;
     notificationsEnabled: boolean;
@@ -12,7 +11,6 @@ interface ChatSettingsProps {
     showTypingIndicators: boolean;
     autoDownloadMedia: boolean;
     messagePreview: boolean;
-    darkMode: boolean;
   };
   onSettingsChange: (settings: any) => void;
   className?: string;
@@ -65,32 +63,6 @@ export function ChatSettings({ settings, onSettingsChange, className }: ChatSett
         </div>
 
         <div className="space-y-4">
-          {/* Theme Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Chat Theme
-            </label>
-            <div className="space-y-2">
-              {[
-                { value: 'light', label: 'Light Theme' },
-                { value: 'dark', label: 'Dark Theme' },
-                { value: 'auto', label: 'Auto (System)' }
-              ].map((option) => (
-                <label key={option.value} className="flex items-center space-x-3">
-                  <input
-                    type="radio"
-                    name="theme"
-                    value={option.value}
-                    checked={localSettings.theme === option.value}
-                    onChange={(e) => handleSettingChange('theme', e.target.value)}
-                    className="text-[#01502E] focus:ring-[#01502E]"
-                  />
-                  <span className="text-sm">{option.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
           {/* Font Size */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">

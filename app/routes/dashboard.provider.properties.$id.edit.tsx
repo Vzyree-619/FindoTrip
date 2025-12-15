@@ -340,8 +340,8 @@ export default function EditProperty() {
     return (
       <div className="w-full py-8 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Property Not Found</h1>
-          <Link to="/dashboard/provider" className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+          <h1 className="text-2xl font-bold text-gray-900">Property Not Found</h1>
+          <Link to="/dashboard/provider" className="inline-flex items-center px-4 py-2 border border-gray-300">
             Back to Dashboard
           </Link>
         </div>
@@ -352,18 +352,18 @@ export default function EditProperty() {
   const { property } = loaderData;
   
   return (
-    <div className="w-full py-4 sm:py-6 lg:py-8 bg-gray-50 dark:bg-gray-900 min-h-full">
+    <div className="w-full py-4 sm:py-6 lg:py-8 bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Edit Property: {property.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Edit Property: {property.name}</h1>
           <Link 
             to="/dashboard/provider" 
-            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+            className="inline-flex items-center px-4 py-2 border border-gray-300"
           >
             ← Back
           </Link>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white">
           {actionData?.errors && (
             <div className="mb-4 p-3 rounded bg-red-50 text-red-700">
               <div className="font-semibold mb-1">Please fix the following:</div>

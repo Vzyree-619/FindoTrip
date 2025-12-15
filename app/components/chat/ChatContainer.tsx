@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { ConversationList } from "./ConversationList";
 import { ChatInterface } from "./ChatInterface";
-import { ThemeProvider } from "~/contexts/ThemeContext";
 import { useNotificationsStream } from "~/hooks/useNotificationsStream";
 import type { Conversation, Message } from "./types";
 
@@ -184,7 +183,6 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
   const selectedConversation = useMemo(() => conversations.find((c) => c.id === selectedId) || null, [conversations, selectedId]);
 
   return (
-    <ThemeProvider initialTheme={theme}>
       <div className={`${className} h-full flex flex-col overflow-hidden w-full max-w-full box-border`}>
         <div className="flex-1 flex flex-col lg:flex-row gap-1.5 sm:gap-2 min-h-0 overflow-hidden w-full max-w-full min-w-0 box-border">
           <div className="lg:w-[260px] xl:w-[300px] border rounded-md overflow-hidden flex flex-col min-h-0 max-h-full w-full min-w-0 flex-shrink-0 box-border">
@@ -289,6 +287,5 @@ export default function ChatContainer({ className, currentUserId: currentUserIdP
           </div>
         </div>
       </div>
-    </ThemeProvider>
   );
 }

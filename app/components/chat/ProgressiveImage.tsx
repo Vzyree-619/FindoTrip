@@ -44,12 +44,12 @@ export function ProgressiveImage({
       
       {/* Loading skeleton */}
       {!isLoaded && !isError && (
-        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+        <div className="absolute inset-0 bg-gray-200" />
       )}
       
       {/* Error state */}
       {isError && (
-        <div className="absolute inset-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+        <div className="absolute inset-0 bg-gray-100">
           <div className="text-gray-400 text-sm">Failed to load</div>
         </div>
       )}

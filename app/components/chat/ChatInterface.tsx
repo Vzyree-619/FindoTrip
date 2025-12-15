@@ -46,18 +46,18 @@ export function ChatInterface({
         "fixed inset-0 z-50 bg-black/50 flex items-center justify-center",
         !isOpen && "hidden"
       )}>
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4">
+        <div className="bg-white">
           <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-lg font-semibold text-gray-900">
               Login Required
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p className="text-gray-600">
               You need to be logged in to start a conversation.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="flex-1 px-4 py-2 text-gray-600"
               >
                 Cancel
               </button>
@@ -73,7 +73,6 @@ export function ChatInterface({
       </div>
     );
   }
-  const { resolvedTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -526,8 +525,8 @@ export function ChatInterface({
       <div
         className={clsx(
           variant === 'modal'
-            ? "w-full sm:w-[720px] max-w-full h-[90vh] sm:h-[85vh] max-h-[90vh] bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-lg flex flex-col overflow-hidden animate-[slideIn_160ms_ease-out] my-auto"
-            : "h-full min-h-0 w-full max-w-full bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-sm flex flex-col overflow-hidden box-border"
+            ? "w-full sm:w-[720px] max-w-full h-[90vh] sm:h-[85vh] max-h-[90vh] bg-white"
+            : "h-full min-h-0 w-full max-w-full bg-white"
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -582,23 +581,21 @@ export function ChatInterface({
         </div>
 
         {/* Messages */}
-        <div ref={listRef} onScroll={onScrollTop} className={`flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-3 space-y-2 min-h-0 w-full max-w-full box-border ${
-          resolvedTheme === 'dark' ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
+        <div ref={listRef} onScroll={onScrollTop} className={`flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-3 space-y-2 min-h-0 w-full max-w-full box-border bg-gray-50`}>
           {loading ? (
-            <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+            <div className="h-full flex items-center justify-center text-gray-500">
               <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading chat…
             </div>
           ) : !conversationId && !targetUserId ? (
-            <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+            <div className="h-full flex items-center justify-center text-gray-500">
               <div className="text-center">
-                <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-                <p className="text-lg font-medium mb-2 text-gray-900 dark:text-gray-100">No conversation selected</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Select a conversation from the list to start chatting</p>
+                <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg font-medium mb-2 text-gray-900">No conversation selected</p>
+                <p className="text-sm text-gray-600">Select a conversation from the list to start chatting</p>
               </div>
             </div>
           ) : messages.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">Say hello 👋</div>
+            <div className="h-full flex items-center justify-center text-gray-500">Say hello 👋</div>
           ) : (
             messages.map((m, idx) => (
               <MessageBubble

@@ -109,7 +109,7 @@ export function MobileConversationList({
                 <button
                   onClick={() => onSelect?.(conv.id)}
                   className={clsx(
-                    "w-full text-left p-4 border-b border-gray-100 dark:border-gray-800",
+                    "w-full text-left p-4 border-b border-gray-100",
                     "hover:bg-gray-50 active:bg-gray-100",
                     "transition-transform duration-200",
                     isSwipped && "transform -translate-x-24"

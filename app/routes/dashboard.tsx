@@ -16,7 +16,6 @@ import {
   DollarSign,
   TrendingUp,
 } from "lucide-react";
-import { ThemeProvider } from "~/contexts/ThemeContext";
 import { useState } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -145,7 +144,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }, 0);
 
   let appearanceSettings = {
-    theme: "light",
     fontSize: "medium",
     compactMode: false,
     sidebarCollapsed: false,
@@ -154,7 +152,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (user?.appearanceSettings) {
     try {
-      appearanceSettings = JSON.parse(user.appearanceSettings);
+      const parsed = JSON.parse(user.appearanceSettings);
+      // Remove theme from settings if it exists
+      const { theme, ...rest } = parsed;
+      appearanceSettings = rest;
     } catch (e) {
       console.error("Failed to parse appearance settings:", e);
     }
@@ -193,7 +194,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
         favoritesCount: 0,
       },
       appearanceSettings: {
-        theme: "light",
         fontSize: "medium",
         compactMode: false,
         sidebarCollapsed: false,
@@ -209,9 +209,9 @@ export default function Dashboard() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
+          <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -224,59 +224,56 @@ export default function Dashboard() {
 
   if (isProviderRole) {
     return (
-      <ThemeProvider
-        initialTheme={appearanceSettings.theme as "light" | "dark" | "auto"}
-      >
-        <div className="bg-gray-50 dark:bg-gray-900 min-h-screen flex flex-col overflow-x-hidden w-full">
+        <div className="bg-gray-50 min-h-screen flex flex-col overflow-x-hidden w-full">
           {/* Desktop Sidebar */}
           <div className="hidden md:flex md:fixed md:top-0 md:left-0 md:h-screen md:w-64 md:flex-col md:z-40">
             <ProviderSidebar user={user} stats={stats} />
           </div>
 
           {/* Mobile Header */}
-          <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+          <div className="md:hidden bg-white border-b border-gray-200 sticky top-0 z-30">
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                <h2 className="text-lg font-bold text-gray-900">
                   Dashboard
                 </h2>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 {mobileMenuOpen ? (
-                  <X className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                  <X className="w-6 h-6 text-gray-600" />
                 ) : (
-                  <Menu className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                  <Menu className="w-6 h-6 text-gray-600" />
                 )}
               </button>
             </div>
 
             {/* Mobile Menu Dropdown */}
             {mobileMenuOpen && (
-              <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-2">
+              <div className="border-t border-gray-200 p-4 space-y-2">
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="bg-blue-50 dark:bg-blue-900 p-2 rounded-lg">
-                    <div className="text-blue-600 dark:text-blue-300 text-xs font-medium">
+                  <div className="bg-blue-50 p-2 rounded-lg">
+                    <div className="text-blue-600 text-xs font-medium">
                       Bookings
                     </div>
-                    <div className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                    <div className="text-lg font-bold text-blue-900">
                       {stats.bookingsCount}
                     </div>
                   </div>
-                  <div className="bg-green-50 dark:bg-green-900 p-2 rounded-lg">
-                    <div className="text-green-600 dark:text-green-300 text-xs font-medium">
+                  <div className="bg-green-50 p-2 rounded-lg">
+                    <div className="text-green-600 text-xs font-medium">
                       Upcoming
                     </div>
-                    <div className="text-lg font-bold text-green-900 dark:text-green-100">
+                    <div className="text-lg font-bold text-green-900">
                       {stats.upcomingBookings}
                     </div>
                   </div>
                 </div>
                 <Link
                   to={user.role === "TOUR_GUIDE" ? "/dashboard/guide/bookings" : user.role === "PROPERTY_OWNER" ? "/dashboard/provider" : user.role === "VEHICLE_OWNER" ? "/dashboard/vehicle-owner" : "/dashboard/bookings"}
-                  className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Calendar className="w-4 h-4" />
@@ -285,7 +282,7 @@ export default function Dashboard() {
                 {user.role === "PROPERTY_OWNER" && (
                   <Link
                     to="/dashboard/provider/revenue"
-                    className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                    className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md text-sm"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <TrendingUp className="w-4 h-4" />
@@ -294,7 +291,7 @@ export default function Dashboard() {
                 )}
                 <Link
                   to="/dashboard/messages"
-                  className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <MessageCircle className="w-4 h-4" />
@@ -302,7 +299,7 @@ export default function Dashboard() {
                 </Link>
                 <Link
                   to={user.role === "TOUR_GUIDE" ? "/dashboard/guide/reviews" : user.role === "PROPERTY_OWNER" ? "/dashboard/provider/reviews" : user.role === "VEHICLE_OWNER" ? "/dashboard/vehicle-owner" : "/dashboard/reviews"}
-                  className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Star className="w-4 h-4" />
@@ -310,7 +307,7 @@ export default function Dashboard() {
                 </Link>
                 <Link
                   to={user.role === "TOUR_GUIDE" ? "/dashboard/guide/profile" : user.role === "PROPERTY_OWNER" ? "/dashboard/provider" : user.role === "VEHICLE_OWNER" ? "/dashboard/vehicle-owner" : "/dashboard/profile"}
-                  className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Settings className="w-4 h-4" />
@@ -318,7 +315,7 @@ export default function Dashboard() {
                 </Link>
                 <Link
                   to="/dashboard/settings/appearance"
-                  className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Palette className="w-4 h-4" />
@@ -335,7 +332,6 @@ export default function Dashboard() {
             </div>
           </main>
         </div>
-      </ThemeProvider>
     );
   }
 
@@ -356,43 +352,40 @@ export default function Dashboard() {
   ];
 
   return (
-    <ThemeProvider
-      initialTheme={appearanceSettings.theme as "light" | "dark" | "auto"}
-    >
-      <div className="bg-gray-50 dark:bg-gray-900 min-h-screen flex flex-col overflow-x-hidden w-full">
+      <div className="bg-gray-50 min-h-screen flex flex-col overflow-x-hidden w-full">
         {/* Desktop Sidebar */}
-        <div className="hidden md:flex md:fixed md:top-0 md:left-0 md:h-screen md:w-64 md:flex-col md:z-40 md:bg-white dark:md:bg-gray-800">
+        <div className="hidden md:flex md:fixed md:top-0 md:left-0 md:h-screen md:w-64 md:flex-col md:z-40 md:bg-white">
           <CustomerSidebar user={safeUser} navigation={navigation} />
         </div>
 
         {/* Mobile Header */}
-        <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+        <div className="md:hidden bg-white border-b border-gray-200 sticky top-0 z-30">
           <div className="flex items-center justify-between p-4">
             <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+              <h2 className="text-lg font-bold text-gray-900">
                 Dashboard
               </h2>
             </div>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              className="p-2 hover:bg-gray-100 rounded-lg"
             >
               {mobileMenuOpen ? (
-                <X className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                <X className="w-6 h-6 text-gray-600" />
               ) : (
-                <Menu className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                <Menu className="w-6 h-6 text-gray-600" />
               )}
             </button>
           </div>
 
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <nav className="border-t border-gray-200 dark:border-gray-700 p-2 space-y-1">
+            <nav className="border-t border-gray-200 p-2 space-y-1">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
                   to={item.href}
-                  className="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm"
+                  className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md text-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <item.icon className="w-4 h-4 mr-2" />
@@ -410,7 +403,6 @@ export default function Dashboard() {
           </div>
         </main>
       </div>
-    </ThemeProvider>
   );
 }
 
@@ -438,12 +430,12 @@ function ProviderSidebar({ user, stats }: any) {
   };
 
   return (
-    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto flex flex-col pt-16">
+    <div className="w-64 bg-white border-r border-gray-200 h-screen overflow-y-auto flex flex-col pt-16">
       <div className="p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+        <h2 className="text-xl font-bold text-gray-900">
           Dashboard
         </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+        <p className="text-sm text-gray-600 mt-1">
           Welcome back, {user.name}
         </p>
       </div>
@@ -451,35 +443,35 @@ function ProviderSidebar({ user, stats }: any) {
       <nav className="flex-1 overflow-y-auto">
         <div className="px-6 py-3">
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg">
-              <div className="text-blue-600 dark:text-blue-300 font-medium">
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="text-blue-600 font-medium">
                 Total Bookings
               </div>
-              <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+              <div className="text-2xl font-bold text-blue-900">
                 {stats.bookingsCount}
               </div>
             </div>
-            <div className="bg-green-50 dark:bg-green-900 p-3 rounded-lg">
-              <div className="text-green-600 dark:text-green-300 font-medium">
+            <div className="bg-green-50 p-3 rounded-lg">
+              <div className="text-green-600 font-medium">
                 Upcoming
               </div>
-              <div className="text-2xl font-bold text-green-900 dark:text-green-100">
+              <div className="text-2xl font-bold text-green-900">
                 {stats.upcomingBookings}
               </div>
             </div>
-            <div className="bg-purple-50 dark:bg-purple-900 p-3 rounded-lg">
-              <div className="text-purple-600 dark:text-purple-300 font-medium">
+            <div className="bg-purple-50 p-3 rounded-lg">
+              <div className="text-purple-600 font-medium">
                 Reviews
               </div>
-              <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+              <div className="text-2xl font-bold text-purple-900">
                 {stats.reviewsCount}
               </div>
             </div>
-            <div className="bg-orange-50 dark:bg-orange-900 p-3 rounded-lg">
-              <div className="text-orange-600 dark:text-orange-300 font-medium">
+            <div className="bg-orange-50 p-3 rounded-lg">
+              <div className="text-orange-600 font-medium">
                 Favorites
               </div>
-              <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
+              <div className="text-2xl font-bold text-orange-900">
                 {stats.favoritesCount}
               </div>
             </div>
@@ -489,7 +481,7 @@ function ProviderSidebar({ user, stats }: any) {
         <div className="px-6 py-3 space-y-2">
           <Link
             to={getBookingsRoute()}
-            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
           >
             <Calendar className="w-4 h-4" />
             My Bookings
@@ -497,7 +489,7 @@ function ProviderSidebar({ user, stats }: any) {
           {user.role === "PROPERTY_OWNER" && (
             <Link
               to="/dashboard/provider/revenue"
-              className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+              className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
             >
               <TrendingUp className="w-4 h-4" />
               Revenue & Commissions
@@ -505,28 +497,28 @@ function ProviderSidebar({ user, stats }: any) {
           )}
           <Link
             to="/dashboard/messages"
-            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
           >
             <MessageCircle className="w-4 h-4" />
             Messages
           </Link>
           <Link
             to={getReviewsRoute()}
-            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
           >
             <Star className="w-4 h-4" />
             Reviews
           </Link>
           <Link
             to={getProfileRoute()}
-            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
           >
             <Settings className="w-4 h-4" />
             Profile
           </Link>
           <Link
             to="/dashboard/settings/appearance"
-            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
           >
             <Palette className="w-4 h-4" />
             Appearance
@@ -539,8 +531,8 @@ function ProviderSidebar({ user, stats }: any) {
 
 function CustomerSidebar({ user, navigation }: any) {
   return (
-    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto flex flex-col pt-16">
-      <div className="flex items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="w-64 bg-white border-r border-gray-200 h-screen overflow-y-auto flex flex-col pt-16">
+      <div className="flex items-center px-6 py-4 border-b border-gray-200">
         <div className="flex items-center">
           {user.avatar ? (
             <img
@@ -556,10 +548,10 @@ function CustomerSidebar({ user, navigation }: any) {
             </div>
           )}
           <div className="ml-3">
-            <p className="text-base font-medium text-gray-900 dark:text-gray-100 truncate">
+            <p className="text-base font-medium text-gray-900 truncate">
               {user.name}
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+            <p className="text-sm text-gray-500 truncate">
               {user.email}
             </p>
           </div>
@@ -577,7 +569,7 @@ function CustomerSidebar({ user, navigation }: any) {
               `group flex items-center px-4 py-3 text-base font-medium rounded-lg transition ${
                 isActive
                   ? "bg-[#01502E] text-white"
-                  : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`
             }
           >

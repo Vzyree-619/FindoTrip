@@ -165,21 +165,21 @@ export default function PublicChatModal({ isOpen, onClose }: PublicChatModalProp
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md h-[600px] flex flex-col">
+      <div className="bg-white">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#01502E] flex items-center justify-center">
               <MessageCircle className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Live Chat Support</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">We're here to help!</p>
+              <h3 className="font-semibold text-gray-900">Live Chat Support</h3>
+              <p className="text-xs text-gray-500">We're here to help!</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            className="text-gray-400 hover:text-gray-600"
           >
             <X className="w-5 h-5" />
           </button>
@@ -190,14 +190,14 @@ export default function PublicChatModal({ isOpen, onClose }: PublicChatModalProp
           {!conversationId ? (
             <div className="text-center py-8">
               <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
+              <p className="text-gray-600">
                 Start a conversation with our support team
               </p>
             </div>
           ) : messages.length === 0 ? (
             <div className="text-center py-8">
               <Loader2 className="w-8 h-8 text-gray-400 mx-auto mb-4 animate-spin" />
-              <p className="text-gray-600 dark:text-gray-400">Loading messages...</p>
+              <p className="text-gray-600">Loading messages...</p>
             </div>
           ) : (
             messages.map((msg) => (
@@ -209,7 +209,7 @@ export default function PublicChatModal({ isOpen, onClose }: PublicChatModalProp
                   className={`max-w-[80%] rounded-lg p-3 ${
                     msg.senderName === name.trim()
                       ? "bg-[#01502E] text-white"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
+                      : "bg-gray-100"
                   }`}
                 >
                   <p className="text-sm font-medium mb-1">
@@ -230,7 +230,7 @@ export default function PublicChatModal({ isOpen, onClose }: PublicChatModalProp
         </div>
 
         {/* Input Form */}
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+        <div className="border-t border-gray-200">
           {!conversationId ? (
             <form onSubmit={handleSendMessage} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">

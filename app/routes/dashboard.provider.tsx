@@ -513,12 +513,12 @@ export default function ProviderDashboard() {
   // Show error if user doesn't have access
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50">
         <div className="text-center max-w-md">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
             Access Restricted
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm md:text-base">
+          <p className="text-gray-600">
             {error}
           </p>
           <Link
@@ -549,13 +549,13 @@ export default function ProviderDashboard() {
   }
 
   return (
-    <div className="min-h-screen  bg-gray-50 dark:bg-gray-900 w-full overflow-x-hidden">
+    <div className="min-h-screen  bg-gray-50">
       <div className="w-full max-w-full md:max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 md:py-8 box-border">
         <div className="w-full">
-          <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900">
             Property Owner Dashboard
           </h1>
-          <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 mt-0.5 sm:mt-1">
+          <p className="text-xs sm:text-sm md:text-base text-gray-600">
             Welcome, {user.name}
           </p>
           <div className="mt-2 sm:mt-3 flex flex-col gap-2 sm:gap-3">
@@ -587,12 +587,12 @@ export default function ProviderDashboard() {
                   />
                   <button
                     type="submit"
-                    className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs sm:text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
+                    className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 border border-gray-300"
                   >
                     <Camera className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> Change Photo
                   </button>
                   {(actionData as any)?.target && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400 truncate hidden sm:inline">
+                    <span className="text-xs text-gray-500">
                       Uploaded to: {(actionData as any).target}
                     </span>
                   )}
@@ -602,7 +602,7 @@ export default function ProviderDashboard() {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
               <Link
                 to="/dashboard/messages"
-                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:py-2 bg-green-600 dark:bg-green-700 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-800 text-xs sm:text-sm w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:py-2 bg-green-600"
               >
                 <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> <span>Messages</span>
               </Link>
@@ -618,10 +618,10 @@ export default function ProviderDashboard() {
 
         {/* Approval Status Banner */}
         {!isVerified && (
-          <div className="mb-3 sm:mb-4 md:mb-6 rounded-lg border border-gray-200 dark:border-gray-700 p-2 sm:p-3 md:p-4 w-full">
+          <div className="mb-3 sm:mb-4 md:mb-6 rounded-lg border border-gray-200">
             {hasPendingApprovals ? (
-              <div className="flex items-start gap-2 text-yellow-800 dark:text-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 p-2 sm:p-3 rounded">
-                <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 text-yellow-800">
+                <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
                 <div className="min-w-0 flex-1">
                   <h3 className="font-medium text-xs sm:text-sm md:text-base">Awaiting Verification</h3>
                   <p className="text-xs sm:text-sm mt-0.5 sm:mt-1">
@@ -631,8 +631,8 @@ export default function ProviderDashboard() {
                 </div>
               </div>
             ) : hasRejectedItems ? (
-              <div className="flex items-start gap-2 text-red-800 dark:text-red-200 bg-red-50 dark:bg-red-900/20 p-2 sm:p-3 rounded">
-                <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 text-red-800">
+                <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
                 <div className="min-w-0 flex-1">
                   <h3 className="font-medium text-xs sm:text-sm md:text-base">Verification Required</h3>
                   <p className="text-xs sm:text-sm mt-0.5 sm:mt-1">
@@ -642,8 +642,8 @@ export default function ProviderDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-start gap-2 text-blue-800 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/20 p-2 sm:p-3 rounded">
-                <Info className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 text-blue-800">
+                <Info className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                 <div className="min-w-0 flex-1">
                   <h3 className="font-medium text-xs sm:text-sm md:text-base">Complete Your Profile</h3>
                   <p className="text-xs sm:text-sm mt-0.5 sm:mt-1">
@@ -656,9 +656,9 @@ export default function ProviderDashboard() {
         )}
 
         {isVerified && (
-          <div className="mb-3 sm:mb-4 md:mb-6 rounded-lg border border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20 p-2 sm:p-3 md:p-4 w-full">
-            <div className="flex items-start gap-2 text-green-800 dark:text-green-200">
-              <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+          <div className="mb-3 sm:mb-4 md:mb-6 rounded-lg border border-green-200">
+            <div className="flex items-start gap-2 text-green-800">
+              <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
               <div className="min-w-0 flex-1">
                 <h3 className="font-medium text-xs sm:text-sm md:text-base">Verified Provider</h3>
                 <p className="text-xs sm:text-sm mt-0.5 sm:mt-1">
@@ -672,17 +672,17 @@ export default function ProviderDashboard() {
 
         {/* Financial Summary Section */}
         {isVerified && (totalRevenue > 0 || monthlyRevenue > 0) && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-2 sm:p-3 md:p-4 lg:p-6 mb-4 sm:mb-6 md:mb-8 w-full">
+          <div className="bg-white">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-[#01502E] flex-shrink-0" />
-                <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900">
                   Financial Overview
                 </h2>
               </div>
               <Link
                 to="/dashboard/provider/revenue"
-                className="text-xs sm:text-sm text-[#01502E] hover:text-[#003d21] dark:text-green-400 dark:hover:text-green-300 font-medium"
+                className="text-xs sm:text-sm text-[#01502E] hover:text-[#003d21]"
               >
                 View Details →
               </Link>
@@ -690,70 +690,70 @@ export default function ProviderDashboard() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
               {/* Total Revenue */}
-              <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-3 sm:p-4 border border-green-200 dark:border-green-800">
+              <div className="bg-gradient-to-br from-green-50 to-green-100">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Revenue</span>
-                  <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <span className="text-xs sm:text-sm text-gray-600">Total Revenue</span>
+                  <DollarSign className="w-4 h-4 text-green-600" />
                 </div>
-                <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                <p className="text-lg sm:text-xl font-bold text-gray-900">
                   PKR {totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-xs text-gray-500">
                   All time
                 </p>
               </div>
 
               {/* Net Revenue */}
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-3 sm:p-4 border border-blue-200 dark:border-blue-800">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Net Revenue</span>
-                  <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-xs sm:text-sm text-gray-600">Net Revenue</span>
+                  <TrendingUp className="w-4 h-4 text-blue-600" />
                 </div>
-                <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                <p className="text-lg sm:text-xl font-bold text-gray-900">
                   PKR {netRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-xs text-gray-500">
                   After commission
                 </p>
               </div>
 
               {/* Monthly Revenue */}
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-3 sm:p-4 border border-purple-200 dark:border-purple-800">
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">This Month</span>
-                  <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <span className="text-xs sm:text-sm text-gray-600">This Month</span>
+                  <Calendar className="w-4 h-4 text-purple-600" />
                 </div>
-                <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                <p className="text-lg sm:text-xl font-bold text-gray-900">
                   PKR {monthlyRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-xs text-gray-500">
                   Net: PKR {monthlyNet.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
               </div>
 
               {/* Pending Commission */}
-              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-lg p-3 sm:p-4 border border-yellow-200 dark:border-yellow-800">
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Commission Due</span>
-                  <CreditCard className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                  <span className="text-xs sm:text-sm text-gray-600">Commission Due</span>
+                  <CreditCard className="w-4 h-4 text-yellow-600" />
                 </div>
-                <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                <p className="text-lg sm:text-xl font-bold text-gray-900">
                   PKR {pendingCommissions.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-xs text-gray-500">
                   {((pendingCommissions / totalRevenue) * 100 || 0).toFixed(1)}% of total
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex items-center justify-between text-xs sm:text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Platform Commission Rate:</span>
-                <span className="font-semibold text-gray-900 dark:text-white">10%</span>
+                <span className="text-gray-600">Platform Commission Rate:</span>
+                <span className="font-semibold text-gray-900">10%</span>
               </div>
               <div className="flex items-center justify-between text-xs sm:text-sm mt-2">
-                <span className="text-gray-600 dark:text-gray-400">Total Commission Paid:</span>
-                <span className="font-semibold text-green-600 dark:text-green-400">
+                <span className="text-gray-600">Total Commission Paid:</span>
+                <span className="font-semibold text-green-600">
                   PKR {paidCommissions.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </span>
               </div>
@@ -762,7 +762,7 @@ export default function ProviderDashboard() {
         )}
 
         {(actionData && (actionData as any).success) || submitted ? (
-          <div className="mb-6 rounded-md bg-green-50 dark:bg-green-900/20 p-4 flex items-center gap-2 text-green-800 dark:text-green-200">
+          <div className="mb-6 rounded-md bg-green-50">
             <CheckCircle2 className="w-5 h-5 flex-shrink-0" />{" "}
             <span>Property created successfully and awaiting approval</span>
           </div>
@@ -770,18 +770,18 @@ export default function ProviderDashboard() {
 
         {/* Success Message for Property Creation */}
         {created && (
-          <div className="mb-4 sm:mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 sm:p-4 flex items-start gap-3">
+          <div className="mb-4 sm:mb-6 bg-green-50">
             <div className="flex-1">
-              <p className="text-sm font-medium text-green-800 dark:text-green-200">
+              <p className="text-sm font-medium text-green-800">
                 Property created successfully! 🎉
               </p>
-              <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+              <p className="text-xs text-green-700">
                 Use the "Manage Rooms" button on your property card to add room types with pricing, capacity, and amenities.
               </p>
             </div>
             <Link
               to="/dashboard/provider"
-              className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200 text-sm"
+              className="text-green-600"
             >
               ×
             </Link>
@@ -790,41 +790,41 @@ export default function ProviderDashboard() {
 
         {/* Bookings Section */}
         {(pendingBookings.length > 0 || confirmedBookings.length > 0) && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-2 sm:p-3 md:p-4 lg:p-6 mb-4 sm:mb-6 md:mb-8 w-full">
+          <div className="bg-white">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 md:mb-4">
               <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#01502E] flex-shrink-0" />
-              <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900">
                 Booking Requests
               </h2>
             </div>
             
             {pendingBookings.length > 0 && (
               <div className="mb-4">
-                <h3 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <h3 className="text-xs sm:text-sm font-semibold text-gray-700">
                   Pending Bookings ({pendingBookings.length})
                 </h3>
                 <div className="space-y-3">
                   {pendingBookings.map((booking: any) => (
                     <div
                       key={booking.id}
-                      className="border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 bg-yellow-50 dark:bg-yellow-900/20"
+                      className="border border-yellow-200"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-sm text-gray-900 dark:text-white">
+                            <h4 className="font-semibold text-sm text-gray-900">
                               {booking.property.name}
                             </h4>
-                            <span className="px-2 py-0.5 text-xs rounded bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200">
+                            <span className="px-2 py-0.5 text-xs rounded bg-yellow-100">
                               PENDING
                             </span>
                           </div>
                           {booking.roomType && (
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                            <p className="text-xs text-gray-600">
                               Room: {booking.roomType.name}
                             </p>
                           )}
-                          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                          <div className="text-xs text-gray-600">
                             <div className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               <span>
@@ -856,10 +856,10 @@ export default function ProviderDashboard() {
                               </div>
                             )}
                           </div>
-                          <div className="mt-2 text-sm font-semibold text-[#01502E] dark:text-green-400">
+                          <div className="mt-2 text-sm font-semibold text-[#01502E]">
                             {booking.currency} {booking.totalPrice.toFixed(2)}
                             {booking.paymentStatus === 'PENDING' && (
-                              <span className="ml-2 text-xs font-normal text-gray-600 dark:text-gray-400">
+                              <span className="ml-2 text-xs font-normal text-gray-600">
                                 (Payment on property)
                               </span>
                             )}
@@ -902,31 +902,31 @@ export default function ProviderDashboard() {
 
             {upcomingBookings.length > 0 && (
               <div>
-                <h3 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <h3 className="text-xs sm:text-sm font-semibold text-gray-700">
                   Upcoming Confirmed Bookings ({upcomingBookings.length})
                 </h3>
                 <div className="space-y-3">
                   {upcomingBookings.slice(0, 5).map((booking: any) => (
                     <div
                       key={booking.id}
-                      className="border border-green-200 dark:border-green-800 rounded-lg p-3 bg-green-50 dark:bg-green-900/20"
+                      className="border border-green-200"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-sm text-gray-900 dark:text-white">
+                            <h4 className="font-semibold text-sm text-gray-900">
                               {booking.property.name}
                             </h4>
-                            <span className="px-2 py-0.5 text-xs rounded bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200">
+                            <span className="px-2 py-0.5 text-xs rounded bg-green-100">
                               CONFIRMED
                             </span>
                           </div>
                           {booking.roomType && (
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                            <p className="text-xs text-gray-600">
                               Room: {booking.roomType.name}
                             </p>
                           )}
-                          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                          <div className="text-xs text-gray-600">
                             <div className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               <span>
@@ -952,7 +952,7 @@ export default function ProviderDashboard() {
                               <span>{booking.user.name}</span>
                             </div>
                           </div>
-                          <div className="mt-2 text-sm font-semibold text-[#01502E] dark:text-green-400">
+                          <div className="mt-2 text-sm font-semibold text-[#01502E]">
                             {booking.currency} {booking.totalPrice.toFixed(2)}
                           </div>
                         </div>
@@ -966,15 +966,15 @@ export default function ProviderDashboard() {
         )}
 
         {/* Properties Grid */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-2 sm:p-3 md:p-4 lg:p-6 mb-4 sm:mb-6 md:mb-8 w-full">
+        <div className="bg-white">
           <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 md:mb-4">
             <Home className="w-4 h-4 sm:w-5 sm:h-5 text-[#01502E] flex-shrink-0" />
-            <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900">
               My Properties
             </h2>
           </div>
           {properties.length === 0 ? (
-            <div className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400">
+            <div className="text-xs sm:text-sm md:text-base text-gray-600">
               No properties yet. Create your first property below.
             </div>
           ) : (
@@ -982,7 +982,7 @@ export default function ProviderDashboard() {
               {properties.map((p: any) => (
                 <div
                   key={p.id}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-lg dark:hover:shadow-gray-900 transition"
+                  className="border border-gray-200"
                 >
                   <img
                     src={p.images?.[0] || "/landingPageImg.jpg"}
@@ -991,25 +991,25 @@ export default function ProviderDashboard() {
                   <div className="p-2 sm:p-3 md:p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 text-sm md:text-base">
+                        <h3 className="font-semibold text-gray-900">
                           {p.name}
                         </h3>
-                        <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-1">
+                        <div className="text-xs md:text-sm text-gray-600">
                           <MapPin className="w-3 h-3 flex-shrink-0" />{" "}
                           <span className="line-clamp-1">
                             {p.city}, {p.country}
                           </span>
                         </div>
                       </div>
-                      <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 flex-shrink-0">
+                      <span className="text-xs px-2 py-1 rounded bg-gray-100">
                         {p.type}
                       </span>
                     </div>
                     <div className="flex items-center justify-between mt-3 text-sm">
-                      <div className="text-[#01502E] dark:text-[#4ade80] font-semibold">
+                      <div className="text-[#01502E]">
                         PKR {p.basePrice.toLocaleString()}/night
                       </div>
-                      <div className="flex items-center gap-1 text-gray-700 dark:text-gray-300 text-xs">
+                      <div className="flex items-center gap-1 text-gray-700">
                         <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />{" "}
                         <span>
                           {p.rating.toFixed(1)} ({p.reviewCount})
@@ -1020,10 +1020,10 @@ export default function ProviderDashboard() {
                       <span
                         className={`px-2 py-0.5 rounded whitespace-nowrap ${
                           p.approvalStatus === "APPROVED"
-                            ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                            ? "bg-green-50"
                             : p.approvalStatus === "PENDING"
-                            ? "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300"
-                            : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                            ? "bg-yellow-50"
+                            : "bg-red-50"
                         }`}
                       >
                         {p.approvalStatus}
@@ -1031,8 +1031,8 @@ export default function ProviderDashboard() {
                       <span
                         className={`px-2 py-0.5 rounded whitespace-nowrap ${
                           p.available
-                            ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                            ? "bg-blue-50"
+                            : "bg-gray-100"
                         }`}
                       >
                         {p.available ? "Available" : "Unavailable"}
@@ -1042,13 +1042,13 @@ export default function ProviderDashboard() {
                       <div className="flex flex-col sm:flex-row gap-2">
                         <Link
                           to={`/accommodations/${p.id}`}
-                          className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer"
+                          className="flex-1 text-center border border-gray-300"
                         >
                           View
                         </Link>
                         <Link
                           to={`/dashboard/provider/properties/${p.id}/edit`}
-                          className="flex-1 text-center border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer block"
+                          className="flex-1 text-center border border-gray-300"
                         >
                           Edit
                         </Link>
@@ -1063,7 +1063,7 @@ export default function ProviderDashboard() {
                       </div>
                       <Link
                         to={`/dashboard/provider/properties/${p.id}/rooms`}
-                        className="w-full text-center border-2 border-[#01502E] dark:border-[#4ade80] text-[#01502E] dark:text-[#4ade80] hover:bg-[#01502E] hover:text-white dark:hover:bg-[#4ade80] dark:hover:text-gray-900 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors relative z-10 cursor-pointer font-medium"
+                        className="w-full text-center border-2 border-[#01502E]"
                       >
                         Manage Rooms
                       </Link>
@@ -1078,18 +1078,18 @@ export default function ProviderDashboard() {
         {/* Create Property */}
         <div
           id="create"
-          className="bg-white dark:bg-gray-800 rounded-lg shadow p-2 sm:p-3 md:p-4 lg:p-6 w-full max-w-full box-border"
+          className="bg-white"
         >
           <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 md:mb-4">
             <Plus className="w-4 h-4 sm:w-5 sm:h-5 text-[#01502E] flex-shrink-0" />
-            <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900">
               Create New Property
             </h2>
           </div>
           <div className="mb-2 sm:mb-3 md:mb-4">
             <Link
               to="/dashboard/provider/rooms"
-              className="inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-xs sm:text-sm"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300"
             >
               Manage Room Types
             </Link>
@@ -1302,27 +1302,27 @@ export default function ProviderDashboard() {
               <p className="text-xs text-muted-foreground mt-1">General property facilities (separate from room amenities)</p>
             </div>
             <div className="md:col-span-2 w-full min-w-0 col-span-1 md:col-span-2">
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900">
                 Main Image URL (Primary display image)
               </label>
               <input
                 name="mainImage"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
+                className="w-full border border-gray-300"
                 placeholder="https://.../main-image.jpg"
               />
             </div>
             <div className="md:col-span-2 w-full min-w-0 col-span-1 md:col-span-2">
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900">
                 Cover Image URL (Additional images)
               </label>
               <input
                 name="imageUrl"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
+                className="w-full border border-gray-300"
                 placeholder="https://.../image.jpg"
               />
             </div>
             <div className="md:col-span-2 w-full min-w-0 col-span-1 md:col-span-2">
-              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900 dark:text-white">
+              <label className="block text-xs md:text-sm font-medium mb-1 text-gray-900">
                 Upload Images (optional)
               </label>
               <input
@@ -1330,15 +1330,15 @@ export default function ProviderDashboard() {
                 type="file"
                 multiple
                 accept="image/jpeg,image/png,image/webp"
-                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#01502E]"
+                className="w-full border border-gray-300"
               />
             </div>
             <div className="md:col-span-2 w-full min-w-0 col-span-1 md:col-span-2">
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4">
-                <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-200 font-medium mb-1">
+              <div className="bg-blue-50">
+                <p className="text-xs sm:text-sm text-blue-800">
                   💡 Next Step: Add Rooms
                 </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300">
+                <p className="text-xs text-blue-700">
                   After creating the property, use the "Manage Rooms" button on the property card to add room types with diverse pricing, capacity, and amenities.
                 </p>
               </div>
