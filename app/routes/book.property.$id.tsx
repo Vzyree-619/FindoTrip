@@ -9,6 +9,7 @@ import { Label } from "~/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { Calendar } from "~/components/ui/calendar";
+import { DatePicker } from "~/components/ui/date-picker";
 // import { Separator } from "~/components/ui/separator";
 // import { Checkbox } from "~/components/ui/checkbox";
 // import { Alert, AlertDescription } from "~/components/ui/alert";
@@ -18,81 +19,149 @@ import { createAndDispatchNotification } from "~/lib/notifications.server";
 import { publishToUser } from "~/lib/realtime.server";
 import { sendEmail } from "~/lib/email/email.server";
 import { calculateCommission, createCommission } from "~/lib/utils/commission.server";
+import { checkDateRangeAvailability, getRoomAvailabilityCalendar } from "~/lib/availability.server";
+import { calculateRoomPrice } from "~/lib/pricing.server";
 import type { PaymentMethod } from "@prisma/client";
 
+// Helper function to generate confirmation code
+function generateConfirmationCode(): string {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substr(2, 6);
+  return `CONF${timestamp}${random}`.toUpperCase();
+}
+
 export async function loader({ params, request }: LoaderFunctionArgs) {
-  const userId = await requireUserId(request);
-  const propertyId = params.id;
-  
-  if (!propertyId) {
-    throw new Response("Property ID is required", { status: 400 });
-  }
+  try {
+    const userId = await requireUserId(request);
+    const propertyId = params.id;
+    
+    if (!propertyId) {
+      throw new Response("Property ID is required", { status: 400 });
+    }
 
-  const url = new URL(request.url);
-  const checkIn = url.searchParams.get("checkIn");
-  const checkOut = url.searchParams.get("checkOut");
-  const guests = url.searchParams.get("guests");
-  const adults = parseInt(url.searchParams.get("adults") || "2");
-  const children = parseInt(url.searchParams.get("children") || "0");
-  const roomId = url.searchParams.get("roomId") || url.searchParams.get("roomTypeId") || undefined;
+    const url = new URL(request.url);
+    const checkIn = url.searchParams.get("checkIn");
+    const checkOut = url.searchParams.get("checkOut");
+    const guests = url.searchParams.get("guests");
+    const adults = parseInt(url.searchParams.get("adults") || "2");
+    const children = parseInt(url.searchParams.get("children") || "0");
+    const roomId = url.searchParams.get("roomId") || url.searchParams.get("roomTypeId") || undefined;
 
-  const property = await prisma.property.findUnique({
-    where: { id: propertyId },
-    include: {
-      owner: {
+    // Log for debugging
+    console.log('🔵 [Book Property Loader] Request:', {
+      method: request.method,
+      propertyId,
+      roomId,
+      checkIn,
+      checkOut,
+      guests,
+      url: url.toString()
+    });
+
+    let property;
+    try {
+      property = await prisma.property.findUnique({
+        where: { id: propertyId },
         include: {
-          user: {
+          owner: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                  phone: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
+          reviews: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  avatar: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 5,
+          },
+          unavailableDates: {
+            where: {
+              startDate: { gte: new Date() },
+            },
+            orderBy: {
+              startDate: "asc",
+            },
+          },
+          roomTypes: {
             select: {
+              id: true,
               name: true,
-              email: true,
-              phone: true,
-              avatar: true,
+              basePrice: true,
             },
           },
         },
-      },
-      reviews: {
-        include: {
-          user: {
-            select: {
-              name: true,
-              avatar: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 5,
-      },
-      unavailableDates: {
-        where: {
-          startDate: { gte: new Date() },
-        },
-        orderBy: {
-          startDate: "asc",
-        },
-      },
-    },
-  });
+      });
+    } catch (dbError: any) {
+      console.error('❌ [Book Property Loader] Database error fetching property:', dbError);
+      throw new Response(`Database error: ${dbError?.message || 'Unknown error'}`, { status: 500 });
+    }
 
-  if (!property) {
-    throw new Response("Property not found", { status: 404 });
-  }
+    if (!property) {
+      throw new Response("Property not found", { status: 404 });
+    }
 
   // Validate required parameters
+  // During form submissions, Remix re-fetches the loader via .data endpoint
+  // If params are missing, return minimal data instead of throwing
   if (!roomId || !checkIn || !checkOut) {
-    throw new Response("Missing booking parameters: roomId, checkIn, and checkOut are required", { status: 400 });
+    console.log('⚠️ [Book Property Loader] Missing params, returning minimal data:', { 
+      roomId, checkIn, checkOut, method: request.method, 
+      url: url.toString(),
+      hasRoomId: !!roomId,
+      hasCheckIn: !!checkIn,
+      hasCheckOut: !!checkOut
+    });
+    return json({
+      property,
+      isAvailable: false,
+      pricingBreakdown: {
+        roomRate: 0,
+        totalRoomCost: 0,
+        cleaningFee: 0,
+        serviceFee: 0,
+        taxAmount: 0,
+        totalAmount: 0,
+        numberOfNights: 0,
+      },
+      totalPrice: 0,
+      nights: 0,
+      searchParams: { checkIn: checkIn || "", checkOut: checkOut || "", guests: parseInt(guests || "1"), roomTypeId: roomId || "" },
+      availabilityPreview: {},
+      pricePreview: {},
+      suggestedRange: null,
+    });
   }
 
-  // Fetch specific room
-  const room = await prisma.roomType.findUnique({
-    where: { id: roomId }
-  });
+    // Fetch specific room
+    let room;
+    try {
+      room = await prisma.roomType.findUnique({
+        where: { id: roomId }
+      });
+    } catch (dbError: any) {
+      console.error('❌ [Book Property Loader] Database error fetching room:', dbError);
+      throw new Response(`Database error: ${dbError?.message || 'Unknown error'}`, { status: 500 });
+    }
 
-  if (!room || room.propertyId !== propertyId) {
-    throw new Response("Room not found or does not belong to this property", { status: 404 });
-  }
+    if (!room || room.propertyId !== propertyId) {
+      console.error('❌ [Book Property Loader] Room not found:', { roomId, propertyId, roomExists: !!room, roomPropertyId: room?.propertyId });
+      throw new Response("Room not found or does not belong to this property", { status: 404 });
+    }
 
   // Check availability for the requested dates
   let isAvailable = true;
@@ -105,6 +174,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     
     // Validate dates
     if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime()) || checkOutDate <= checkInDate) {
+      console.error('❌ [Book Property Loader] Invalid date range:', { checkIn, checkOut, checkInDate, checkOutDate });
       throw new Response("Invalid date range", { status: 400 });
     }
     
@@ -141,7 +211,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     isAvailable = availableUnits > 0;
 
     // Check unavailable dates
-    const unavailablePeriods = property.unavailableDates.filter(period => {
+    const unavailablePeriods = (property.unavailableDates || []).filter(period => {
+      if (!period || !period.startDate || !period.endDate) return false;
       const periodStart = new Date(period.startDate);
       const periodEnd = new Date(period.endDate);
       return (
@@ -153,20 +224,38 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
 
   if (!isAvailable || availableUnits < 1) {
+    console.error('❌ [Book Property Loader] Room not available:', { 
+      isAvailable, 
+      availableUnits, 
+      totalUnits: room.totalUnits,
+      conflictingBookings: conflictingBookings.length,
+      checkIn,
+      checkOut
+    });
     throw new Response("Room not available for selected dates", { status: 400 });
   }
 
-  // Calculate pricing
-  const checkInDate = new Date(checkIn);
-  const checkOutDate = new Date(checkOut);
-  const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  const roomRate = room.basePrice;
-  const totalRoomCost = roomRate * numberOfNights;
-  const cleaningFee = property.cleaningFee || 0;
-  const serviceFee = property.serviceFee || (totalRoomCost * 0.10); // 10% service fee if not set
-  const taxAmount = (totalRoomCost + cleaningFee + serviceFee) * ((property.taxRate || 8) / 100); // 8% tax default
-  const totalAmount = totalRoomCost + cleaningFee + serviceFee + taxAmount;
+    // Calculate pricing
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    
+    // Validate dates are valid
+    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
+      throw new Response("Invalid date format", { status: 400 });
+    }
+    
+    const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (!room || !room.basePrice) {
+      throw new Response("Room pricing information is missing", { status: 500 });
+    }
+    
+    const roomRate = room.basePrice || 0;
+    const totalRoomCost = roomRate * numberOfNights;
+    const cleaningFee = property?.cleaningFee || 0;
+    const serviceFee = property?.serviceFee || (totalRoomCost * 0.10); // 10% service fee if not set
+    const taxAmount = (totalRoomCost + cleaningFee + serviceFee) * ((property?.taxRate || 8) / 100); // 8% tax default
+    const totalAmount = totalRoomCost + cleaningFee + serviceFee + taxAmount;
 
   const pricingBreakdown = {
     roomRate,
@@ -178,24 +267,51 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     totalAmount
   };
 
-  return json({
-    property,
-    room,
-    isAvailable,
-    availableUnits,
-    conflictingBookings,
-    pricingBreakdown,
-    totalPrice: totalAmount,
-    nights: numberOfNights,
-    searchParams: {
-      checkIn,
-      checkOut,
-      adults,
-      children,
-      guests: adults + children,
-      roomId: room.id,
-    },
-  });
+    // Availability calendar preview - disabled for now to prevent 500 errors
+    // TODO: Optimize or fetch client-side via API endpoint
+    // The calendar will still display but without color coding until we optimize this
+    const availabilityPreview: Record<string, number> = {};
+    const pricePreview: Record<string, number> = {};
+
+    return json({
+      property,
+      room,
+      isAvailable,
+      availableUnits,
+      conflictingBookings,
+      pricingBreakdown,
+      totalPrice: totalAmount,
+      nights: numberOfNights,
+      availabilityPreview,
+      pricePreview,
+      suggestedRange: null,
+      searchParams: {
+        checkIn,
+        checkOut,
+        adults,
+        children,
+        guests: adults + children,
+        roomId: room.id,
+        roomTypeId: room.id, // Also include as roomTypeId for compatibility
+      },
+    });
+  } catch (error: any) {
+    // Catch any unhandled errors and return a proper response
+    console.error('❌ [Book Property Loader] Unhandled error:', error);
+    console.error('❌ [Book Property Loader] Error stack:', error?.stack);
+    
+    // If it's already a Response, re-throw it
+    if (error instanceof Response) {
+      throw error;
+    }
+    
+    // Otherwise return a 500 error with details
+    return json({
+      error: "Failed to load booking page",
+      message: error?.message || "An unexpected error occurred",
+      details: process.env.NODE_ENV === "development" ? error?.stack : undefined
+    }, { status: 500 });
+  }
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -212,7 +328,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (intent === "createBooking") {
     const checkIn = formData.get("checkIn") as string;
     const checkOut = formData.get("checkOut") as string;
-    const roomId = formData.get("roomId") as string;
+    const roomId = (formData.get("roomId") || formData.get("roomTypeId")) as string;
     const adults = parseInt(formData.get("adults") as string);
     const children = parseInt(formData.get("children") as string) || 0;
     const guestName = formData.get("guestName") as string;
@@ -226,13 +342,39 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const taxAmount = parseFloat(formData.get("taxAmount") as string);
     const totalAmount = parseFloat(formData.get("totalAmount") as string);
 
+    // Log all form data for debugging
+    console.log('🔵 [Book Property Action] Form data received:', {
+      checkIn: checkIn || 'MISSING',
+      checkOut: checkOut || 'MISSING',
+      roomId: roomId || 'MISSING',
+      guestName: guestName || 'MISSING',
+      guestEmail: guestEmail || 'MISSING',
+      guestPhone: guestPhone || 'MISSING',
+      adults,
+      children,
+      roomRate: roomRate || 'MISSING',
+      totalRoomCost: totalRoomCost || 'MISSING',
+    });
+
     if (!checkIn || !checkOut || !roomId || !guestName || !guestEmail || !guestPhone) {
-      return json({ error: "All required fields must be filled" }, { status: 400 });
+      const missingFields = [];
+      if (!checkIn) missingFields.push('checkIn');
+      if (!checkOut) missingFields.push('checkOut');
+      if (!roomId) missingFields.push('roomId');
+      if (!guestName) missingFields.push('guestName');
+      if (!guestEmail) missingFields.push('guestEmail');
+      if (!guestPhone) missingFields.push('guestPhone');
+      
+      console.error('❌ [Book Property Action] Missing required fields:', missingFields);
+      return json({ 
+        error: "All required fields must be filled",
+        missingFields,
+        details: `Missing: ${missingFields.join(', ')}`
+      }, { status: 400 });
     }
 
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
-    const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
 
     // Verify room exists and belongs to property
     const room = await prisma.roomType.findUnique({
@@ -243,73 +385,93 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return json({ error: "Room not found or invalid" }, { status: 404 });
     }
 
-    // Re-check availability
-    const bookedUnits = await prisma.propertyBooking.count({
-      where: {
-        roomTypeId: room.id,
-        status: { not: 'CANCELLED' },
-        OR: [
-          { checkIn: { gte: checkInDate, lt: checkOutDate } },
-          { checkOut: { gt: checkInDate, lte: checkOutDate } },
-          { AND: [{ checkIn: { lte: checkInDate } }, { checkOut: { gte: checkOutDate } }] }
-        ]
-      }
-    });
+    // CRITICAL: Final availability check before creating booking
+    const finalAvailabilityCheck = await checkDateRangeAvailability(
+      roomId,
+      checkInDate,
+      checkOutDate,
+      1 // Check for 1 room
+    );
 
-    const availableUnits = (room.totalUnits || 1) - bookedUnits;
-    if (availableUnits < 1) {
-      return json({ error: "Room no longer available for selected dates" }, { status: 400 });
+    if (!finalAvailabilityCheck.isAvailable) {
+      // Someone booked it while user was filling form - return detailed conflict info
+      return json({
+        error: 'BOOKING_CONFLICT',
+        message: 'Sorry, this room was just booked by another guest. Please select different dates.',
+        conflicts: finalAvailabilityCheck.conflicts,
+        reason: finalAvailabilityCheck.reason
+      }, { status: 409 }); // 409 Conflict status
     }
 
-    // Generate booking number
+    // Generate booking identifiers
     const bookingNumber = `PB${Date.now()}${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-    
-    // Generate confirmation code
-    const confirmationCode = `CONF${Date.now()}${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+    const confirmationCode = generateConfirmationCode();
+
+    const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
 
     try {
-      const booking = await prisma.propertyBooking.create({
-        data: {
-          bookingNumber,
-          checkIn: checkInDate,
-          checkOut: checkOutDate,
-          numberOfNights,
-          adults,
-          children,
-          roomRate,
-          totalRoomCost,
-          cleaningFee,
-          serviceFee,
-          taxAmount,
-          totalAmount,
-          currency: room.currency || 'PKR',
-          status: "PENDING_PAYMENT",
-          paymentStatus: "PENDING",
-          guestName,
-          guestEmail,
-          guestPhone,
-          specialRequests,
-          userId,
-          propertyId,
-          roomTypeId: roomId,
-        },
-        include: {
-          property: {
-            select: {
-              name: true,
-              address: true,
-              city: true,
-              country: true,
-              ownerId: true,
-              owner: {
-                include: {
-                  user: { select: { id: true, name: true, email: true } },
+      // Use database transaction to prevent race conditions
+      const booking = await prisma.$transaction(async (tx) => {
+        // Double-check availability within transaction to prevent race conditions
+        const transactionAvailabilityCheck = await checkDateRangeAvailability(
+          roomId,
+          checkInDate,
+          checkOutDate,
+          1
+        );
+
+        if (!transactionAvailabilityCheck.isAvailable) {
+          throw new Error('ROOM_FULLY_BOOKED');
+        }
+
+        // Create booking within transaction
+        return await tx.propertyBooking.create({
+          data: {
+            bookingNumber,
+            checkIn: checkInDate,
+            checkOut: checkOutDate,
+            numberOfNights,
+            adults,
+            children,
+            guests: adults + children,
+            basePrice: totalRoomCost, // basePrice is total base price (roomRate × nights)
+            roomRate,
+            cleaningFee,
+            serviceFee,
+            taxes: taxAmount, // Use 'taxes' instead of 'taxAmount'
+            discounts: 0,
+            totalPrice: totalAmount, // Final total amount
+            currency: room.currency || 'PKR',
+            status: "PENDING", // Use PENDING instead of PENDING_PAYMENT (BookingStatus enum)
+            paymentStatus: "PENDING",
+            guestName,
+            guestEmail,
+            guestPhone,
+            specialRequests,
+            userId,
+            propertyId,
+            roomTypeId: roomId,
+          },
+          include: {
+            property: {
+              select: {
+                name: true,
+                address: true,
+                city: true,
+                country: true,
+                ownerId: true,
+                owner: {
+                  include: {
+                    user: { select: { id: true, name: true, email: true } },
+                  },
                 },
               },
             },
+            roomType: true,
           },
-          roomType: true,
-        },
+        });
+      }, {
+        timeout: 10000 // 10 second timeout
       });
 
       // 1) Create a pending payment record (will be updated on payment step)
@@ -438,8 +600,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
       } catch {}
 
       return redirect(`/book/payment/${booking.id}?type=property`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating booking:", error);
+
+      // Handle specific booking conflict errors
+      if (error.message === 'ROOM_FULLY_BOOKED') {
+        return json({
+          error: 'BOOKING_CONFLICT',
+          message: 'This room was just booked by another guest. Please select different dates.',
+          conflicts: [],
+          reason: 'Room became unavailable during booking process'
+        }, { status: 409 });
+      }
+
       return json({ error: "Failed to create booking. Please try again." }, { status: 500 });
     }
   }
@@ -468,9 +641,22 @@ export default function PropertyBooking() {
   });
   const [specialRequests, setSpecialRequests] = useState("");
   const [insurance, setInsurance] = useState(false);
-  const [roomTypeId, setRoomTypeId] = useState<string | undefined>(searchParams.roomTypeId);
+  const [roomTypeId, setRoomTypeId] = useState<string | undefined>(
+    searchParams.roomId || searchParams.roomTypeId || searchParamsUrl.get("roomTypeId") || searchParamsUrl.get("roomId") || undefined
+  );
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [rangeWarning, setRangeWarning] = useState<string | null>(null);
+  const today = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+  const [checkInDate, setCheckInDate] = useState<Date | undefined>(
+    searchParams.checkIn ? new Date(searchParams.checkIn) : undefined
+  );
+  const [checkOutDate, setCheckOutDate] = useState<Date | undefined>(
+    searchParams.checkOut ? new Date(searchParams.checkOut) : undefined
+  );
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -493,8 +679,19 @@ export default function PropertyBooking() {
     }
     setRangeWarning(ok ? null : 'Selected dates include fully booked nights. Please adjust or use the suggested range.');
   }, [roomTypeId, selectedDates, availabilityPreview]);
-  const handleDateChange = (field: string, value: string) => {
-    setSelectedDates(prev => ({ ...prev, [field]: value }));
+  const handleDateSelect = (field: "checkIn" | "checkOut", date: Date | undefined) => {
+    const iso = date ? date.toISOString().split("T")[0] : "";
+    setSelectedDates(prev => ({ ...prev, [field]: iso }));
+    if (field === "checkIn") {
+      setCheckInDate(date || undefined);
+      if (date && checkOutDate && date >= checkOutDate) {
+        setCheckOutDate(undefined);
+        setSelectedDates(prev => ({ ...prev, checkOut: "" }));
+      }
+    } else {
+      setCheckOutDate(date || undefined);
+    }
+    console.log('🔵 [Book Property] Date selected:', { field, date, iso });
   };
 
   const handleGuestChange = (field: string, value: number) => {
@@ -644,65 +841,109 @@ export default function PropertyBooking() {
                   )}
                   {/* Availability Calendar Preview */}
                   {roomTypeId && (
-                    <div>
-                      <Label>Availability Preview</Label>
-                      <Calendar
-                        mode="single"
-                        numberOfMonths={2}
-                        selected={selectedDate}
-                        onSelect={(d: Date | undefined) => setSelectedDate(d)}
-                        footer={<div className="text-sm text-gray-600">Choose dates with better availability.</div>}
-                        components={{
-                          DayButton: ({ className, day, modifiers, ...props }: any) => {
-                            const key = day.date.toISOString().split('T')[0];
-                            const avail = availabilityPreview?.[key] ?? undefined;
-                            const price = pricePreview?.[key];
-                            let color = '';
-                            if (typeof avail === 'number') {
-                              color = avail <= 0 ? 'bg-red-100 text-red-700' : avail <= 1 ? 'bg-orange-100 text-orange-700' : 'bg-green-50 text-green-700';
-                            }
-                            return (
-                              <button className={`aspect-square w-full rounded-md flex flex-col items-center justify-center ${color}`} {...props}>
-                                <span>{day.date.getDate()}</span>
-                                {typeof price === 'number' && (
-                                  <span className="text-[10px] text-gray-700">{property.currency} {price}</span>
-                                )}
-                              </button>
-                            );
-                          }
-                        }}
-                      />
+                    <div className="w-full">
+                      <Label className="mb-2 block text-sm font-medium">Availability Preview</Label>
+                      <div className="w-full border rounded-lg p-3 bg-white shadow-sm">
+                        <div className="w-full overflow-x-auto -mx-3 px-3">
+                          <div className="inline-block min-w-fit">
+                            <Calendar
+                              mode="single"
+                              numberOfMonths={2}
+                              selected={selectedDate}
+                              onSelect={(d: Date | undefined) => setSelectedDate(d)}
+                              disabled={(date: Date) => date < today}
+                              footer={<div className="text-xs text-gray-500 mt-3 pt-2 border-t">Choose dates with better availability.</div>}
+                              className="w-fit"
+                              classNames={{
+                                root: "w-fit",
+                                months: "flex flex-col xl:flex-row gap-3 xl:gap-4",
+                                month: "w-[280px] flex-shrink-0 relative",
+                                nav: "relative flex items-center justify-between mb-2",
+                                caption: "mb-2 flex items-center justify-center",
+                                month_caption: "flex items-center justify-center",
+                                table: "w-full",
+                                week: "flex w-full",
+                                day: "w-full"
+                              }}
+                              components={{
+                                DayButton: ({ className, day, modifiers, ...props }: any) => {
+                                  const key = day.date.toISOString().split('T')[0];
+                                  const avail = availabilityPreview?.[key] ?? undefined;
+                                  const price = pricePreview?.[key];
+                                  let color = '';
+                                  if (typeof avail === 'number') {
+                                    color = avail <= 0 ? 'bg-red-100 text-red-700 hover:bg-red-200' : avail <= 1 ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' : 'bg-green-50 text-green-700 hover:bg-green-100';
+                                  }
+                                  return (
+                                    <button 
+                                      className={`aspect-square w-full h-[--cell-size] min-w-[--cell-size] max-w-[--cell-size] rounded-md flex flex-col items-center justify-center text-xs p-0.5 transition-colors ${color} ${className || ''}`}
+                                      {...props}
+                                    >
+                                      <span className="font-medium text-xs leading-none">{day.date.getDate()}</span>
+                                      {typeof price === 'number' && (
+                                        <span className="text-[8px] leading-tight mt-0.5 font-semibold">{property.currency} {price}</span>
+                                      )}
+                                    </button>
+                                  );
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded bg-green-50 border border-green-200"></div>
+                            <span className="text-gray-600">Available</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded bg-orange-100 border border-orange-200"></div>
+                            <span className="text-gray-600">Limited</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded bg-red-100 border border-red-200"></div>
+                            <span className="text-gray-600">Booked</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                   {rangeWarning && (
                     <div className="p-3 border border-red-200 bg-red-50 text-red-700 rounded text-sm">{rangeWarning}</div>
                   )}
                   {/* Date Selection */}
-                  <div>
-                    <Label htmlFor="checkIn">Check-in Date</Label>
-                    <Input
-                      id="checkIn"
-                      name="checkIn"
-                      type="date"
-                      value={selectedDates.checkIn}
-                      onChange={(e) => handleDateChange("checkIn", e.target.value)}
-                      min={new Date().toISOString().split("T")[0]}
-                      required
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="checkIn">Check-in Date</Label>
+                      <DatePicker
+                        date={checkInDate}
+                        onSelect={(d) => handleDateSelect("checkIn", d)}
+                        className="w-full"
+                        minDate={today}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="checkOut">Check-out Date</Label>
+                      <DatePicker
+                        date={checkOutDate}
+                        onSelect={(d) => handleDateSelect("checkOut", d)}
+                        className="w-full"
+                        minDate={checkInDate || today}
+                      />
+                    </div>
                   </div>
-
-                  <div>
-                    <Label htmlFor="checkOut">Check-out Date</Label>
-                    <Input
-                      id="checkOut"
-                      name="checkOut"
-                      type="date"
-                      value={selectedDates.checkOut}
-                      onChange={(e) => handleDateChange("checkOut", e.target.value)}
-                      min={selectedDates.checkIn || new Date().toISOString().split("T")[0]}
-                      required
-                    />
-                  </div>
+                  <input type="hidden" name="checkIn" value={selectedDates.checkIn || checkInDate?.toISOString().split("T")[0] || searchParams.checkIn || searchParamsUrl.get("checkIn") || ""} />
+                  <input type="hidden" name="checkOut" value={selectedDates.checkOut || checkOutDate?.toISOString().split("T")[0] || searchParams.checkOut || searchParamsUrl.get("checkOut") || ""} />
+                  <input type="hidden" name="roomId" value={roomTypeId || searchParams.roomId || searchParams.roomTypeId || searchParamsUrl.get("roomTypeId") || searchParamsUrl.get("roomId") || ""} />
+                  {pricingBreakdown && (
+                    <>
+                      <input type="hidden" name="roomRate" value={pricingBreakdown.roomRate?.toString() || "0"} />
+                      <input type="hidden" name="totalRoomCost" value={pricingBreakdown.totalRoomCost?.toString() || "0"} />
+                      <input type="hidden" name="cleaningFee" value={pricingBreakdown.cleaningFee?.toString() || "0"} />
+                      <input type="hidden" name="serviceFee" value={pricingBreakdown.serviceFee?.toString() || "0"} />
+                      <input type="hidden" name="taxAmount" value={pricingBreakdown.taxAmount?.toString() || "0"} />
+                      <input type="hidden" name="totalAmount" value={((pricingBreakdown.totalAmount || 0) + (insurance ? 50 : 0)).toString()} />
+                    </>
+                  )}
 
                   {/* Guest Selection */}
                   <div>
@@ -816,8 +1057,8 @@ export default function PropertyBooking() {
                       <h3 className="font-semibold mb-2">Price Breakdown</h3>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span>{property.currency} {property.basePrice.toFixed(2)} × {nights} nights</span>
-                          <span>{property.currency} {pricingBreakdown.basePrice.toFixed(2)}</span>
+                          <span>{property.currency} {pricingBreakdown.roomRate.toFixed(2)} × {pricingBreakdown.numberOfNights} nights</span>
+                          <span>{property.currency} {pricingBreakdown.totalRoomCost.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Cleaning fee</span>
@@ -835,12 +1076,12 @@ export default function PropertyBooking() {
                         )}
                         <div className="flex justify-between">
                           <span>Taxes</span>
-                          <span>{property.currency} {pricingBreakdown.taxes.toFixed(2)}</span>
+                          <span>{property.currency} {pricingBreakdown.taxAmount.toFixed(2)}</span>
                         </div>
                         <hr className="my-2" />
                         <div className="flex justify-between font-semibold">
                           <span>Total</span>
-                          <span>{property.currency} {(pricingBreakdown.total + (insurance ? 50 : 0)).toFixed(2)}</span>
+                          <span>{property.currency} {(pricingBreakdown.totalAmount + (insurance ? 50 : 0)).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
@@ -849,7 +1090,19 @@ export default function PropertyBooking() {
                   {/* Error Messages */}
                   {actionData && 'error' in actionData && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                      <p className="text-red-800">{actionData.error}</p>
+                      <p className="text-red-800 font-medium">{actionData.message || actionData.error}</p>
+                      {actionData.error === 'BOOKING_CONFLICT' && actionData.conflicts && actionData.conflicts.length > 0 && (
+                        <div className="mt-2 text-sm">
+                          <p className="font-medium">Unavailable dates:</p>
+                          <ul className="list-disc list-inside mt-1">
+                            {actionData.conflicts.slice(0, 3).map((conflict: any, idx: number) => (
+                              <li key={idx}>
+                                {new Date(conflict.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {conflict.reason}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
 

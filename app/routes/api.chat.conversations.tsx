@@ -229,12 +229,15 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Create conversation
     console.log('🔵 [API] Creating/getting conversation...');
+    // Determine relatedId and relatedType
+    const relatedId = body.relatedBookingId || body.relatedServiceId;
+    const relatedType = body.relatedBookingId ? "booking" : (body.relatedServiceId ? "PROPERTY" : undefined);
     const conversation = await getOrCreateConversation(
       userId,
       body.targetUserId,
       body.type,
-      body.relatedBookingId,
-      body.relatedServiceId
+      relatedId,
+      relatedType
     );
     console.log('🟢 [API] Conversation created/fetched:', conversation.id);
 

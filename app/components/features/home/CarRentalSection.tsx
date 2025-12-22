@@ -129,6 +129,25 @@ export default function CarRentalSection({ vehicles = [] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [favorites, setFavorites] = useState<number[]>([]);
 
+  // Load initial favorites
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const response = await fetch('/dashboard/favorites', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const vehicleIds = data.favorites?.vehicles?.map((v: any) => parseInt(v.id)) || [];
+          setFavorites(vehicleIds);
+        }
+      } catch (error) {
+        // Silently fail - user might not be logged in
+      }
+    };
+    loadFavorites();
+  }, []);
+
   // Normalize incoming data to a safe array
   const provided = Array.isArray(vehicles) ? vehicles : [];
   
@@ -168,12 +187,50 @@ export default function CarRentalSection({ vehicles = [] }) {
     setCurrentIndex(prev => Math.max(prev - 1, 0));
   };
 
-  const toggleFavorite = (vehicleId: number) => {
+  const toggleFavorite = async (vehicleId: number) => {
+    const isCurrentlyFavorite = favorites.includes(vehicleId);
+    const newFavoriteState = !isCurrentlyFavorite;
+    
+    // Optimistic update
     setFavorites(prev => 
-      prev.includes(vehicleId) 
-        ? prev.filter(id => id !== vehicleId)
-        : [...prev, vehicleId]
+      newFavoriteState
+        ? [...prev, vehicleId]
+        : prev.filter(id => id !== vehicleId)
     );
+    
+    try {
+      const response = await fetch('/api/wishlist-toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          serviceType: 'vehicle',
+          serviceId: vehicleId.toString(),
+          action: newFavoriteState ? 'add' : 'remove'
+        })
+      });
+
+      if (!response.ok) {
+        // Revert on error
+        setFavorites(prev => 
+          isCurrentlyFavorite
+            ? [...prev, vehicleId]
+            : prev.filter(id => id !== vehicleId)
+        );
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update favorites' }));
+        console.error('Failed to update favorites:', errorData.error);
+      }
+    } catch (error) {
+      // Revert on error
+      setFavorites(prev => 
+        isCurrentlyFavorite
+          ? [...prev, vehicleId]
+          : prev.filter(id => id !== vehicleId)
+      );
+      console.error('Error updating favorites:', error);
+    }
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {

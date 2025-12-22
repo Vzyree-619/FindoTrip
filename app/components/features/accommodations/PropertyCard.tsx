@@ -1,6 +1,6 @@
 import { Link } from "@remix-run/react";
 import { MapPin, Users, Bed, Bath, Star, Heart, Wifi, Car, Dumbbell, Utensils } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface PropertyCardProps {
   id: string;
@@ -64,6 +64,25 @@ export default function PropertyCard({
   const [imageError, setImageError] = useState(false);
   const mainImageUrl = mainImage || images[0] || "/landingPageImg.jpg";
   const fallbackImage = "/landingPageImg.jpg";
+
+  // Load initial favorite state
+  useEffect(() => {
+    const loadFavoriteState = async () => {
+      try {
+        const response = await fetch('/dashboard/favorites', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const propertyIds = data.favorites?.properties?.map((p: any) => p.id) || [];
+          setIsFavorite(propertyIds.includes(id));
+        }
+      } catch (error) {
+        // Silently fail - user might not be logged in
+      }
+    };
+    loadFavoriteState();
+  }, [id]);
   
   // Format price
   const formattedPrice = `${currency} ${pricePerNight.toLocaleString()}`;
@@ -100,11 +119,38 @@ export default function PropertyCard({
     };
   });
 
-  const handleFavoriteClick = (e: React.MouseEvent) => {
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsFavorite(!isFavorite);
-    // TODO: Implement favorite API call
+    
+    const newFavoriteState = !isFavorite;
+    setIsFavorite(newFavoriteState); // Optimistic update
+    
+    try {
+      const response = await fetch('/api/wishlist-toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          serviceType: 'property',
+          serviceId: id,
+          action: newFavoriteState ? 'add' : 'remove'
+        })
+      });
+
+      if (!response.ok) {
+        // Revert on error
+        setIsFavorite(!newFavoriteState);
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update favorites' }));
+        console.error('Failed to update favorites:', errorData.error);
+      }
+    } catch (error) {
+      // Revert on error
+      setIsFavorite(!newFavoriteState);
+      console.error('Error updating favorites:', error);
+    }
   };
 
   return (

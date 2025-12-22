@@ -238,7 +238,7 @@ export default function NewRoomType() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
@@ -246,7 +246,7 @@ export default function NewRoomType() {
             type="button"
             variant="ghost"
             onClick={() => navigate(-1)}
-            className="mb-4 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            className="mb-4 text-gray-600 hover:text-gray-900"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Rooms
@@ -256,15 +256,15 @@ export default function NewRoomType() {
               <Home className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Add New Room Type</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">Property: <span className="font-medium text-[#01502E] dark:text-[#4ade80]">{property.name}</span></p>
+              <h1 className="text-3xl font-bold text-gray-900">Add New Room Type</h1>
+              <p className="text-gray-600">Property: <span className="font-medium text-[#01502E]">{property.name}</span></p>
             </div>
           </div>
         </div>
 
         {/* Error Message */}
         {actionData?.error && (
-          <div className="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 text-red-700 dark:text-red-300 px-4 py-3 rounded-r-lg shadow-sm">
+          <div className="mb-6 bg-red-50">
             <div className="flex items-center gap-2">
               <X className="w-5 h-5" />
               <p className="font-medium">{actionData.error}</p>
@@ -509,8 +509,8 @@ export default function NewRoomType() {
             <CardContent className="pt-6">
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Main Image</label>
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center hover:border-[#01502E] dark:hover:border-[#4ade80] transition-colors bg-gray-50 dark:bg-gray-800/50">
+                <label className="block text-sm font-medium text-gray-700">Main Image</label>
+                <div className="border-2 border-dashed border-gray-300">
                   <div className="flex flex-col items-center">
                     <div className="p-4 bg-gradient-to-br from-[#01502E] to-[#013d23] rounded-full mb-4">
                       <Upload className="w-8 h-8 text-white" />
@@ -525,11 +525,11 @@ export default function NewRoomType() {
                     />
                     <label
                       htmlFor="image-upload"
-                      className="cursor-pointer text-[#01502E] dark:text-[#4ade80] hover:text-[#013d23] dark:hover:text-[#22c55e] font-semibold text-base mb-2"
+                      className="cursor-pointer text-[#01502E]"
                     >
                       Click to upload or drag and drop
                     </label>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">PNG, JPG, GIF up to 10MB each</p>
+                    <p className="text-sm text-gray-500">PNG, JPG, GIF up to 10MB each</p>
                   </div>
                 </div>
               </div>
@@ -538,7 +538,7 @@ export default function NewRoomType() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
                   {images.map((img, idx) => (
                     <div key={idx} className="relative group">
-                      <div className="aspect-video rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700">
+                      <div className="aspect-video rounded-lg overflow-hidden border-2 border-gray-200">
                         <img src={img} alt={`Room ${idx + 1}`} className="w-full h-full object-cover" />
                       </div>
                       <Button
@@ -571,18 +571,18 @@ export default function NewRoomType() {
             <div className="space-y-6">
               {Object.entries(commonAmenities).map(([category, items]) => (
                 <div key={category} className="mb-6 last:mb-0">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 capitalize border-b border-gray-200 dark:border-gray-700 pb-2">{category.replace(/([A-Z])/g, ' $1').trim()}</h3>
+                  <h3 className="text-sm font-semibold text-gray-900">{category.replace(/([A-Z])/g, ' $1').trim()}</h3>
                   <div className="flex flex-wrap gap-3">
                     {items.map((item) => (
                       <label
                         key={item}
-                        className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-gray-200"
                       >
                         <Checkbox
                           checked={selectedAmenities.includes(item)}
                           onCheckedChange={() => toggleAmenity(item)}
                         />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{item}</span>
+                        <span className="text-sm text-gray-700">{item}</span>
                       </label>
                     ))}
                   </div>
@@ -590,7 +590,7 @@ export default function NewRoomType() {
               ))}
 
               {/* Custom Amenity */}
-              <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex gap-2 pt-4 border-t border-gray-200">
                 <Input
                   type="text"
                   value={customAmenity}
@@ -744,18 +744,18 @@ export default function NewRoomType() {
             </CardHeader>
             <CardContent className="pt-6">
             <div className="space-y-3">
-              <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200">
                 <Checkbox
                   name="smokingAllowed"
                 />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Smoking Allowed</span>
+                <span className="text-sm font-medium text-gray-700">Smoking Allowed</span>
               </label>
 
-              <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200">
                 <Checkbox
                   name="petsAllowed"
                 />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Pets Allowed</span>
+                <span className="text-sm font-medium text-gray-700">Pets Allowed</span>
               </label>
             </div>
             </CardContent>

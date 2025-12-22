@@ -28,7 +28,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     recentUsers,
     recentBookings,
     platformRevenue,
-    activeConversations
+    activeConversations,
+    adminConversations
   ] = await Promise.all([
     // User statistics
     prisma.user.count(),
@@ -73,12 +74,30 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }),
     
     // Active conversations
-    prisma.conversation.count({ where: { updatedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } })
+    prisma.conversation.count({ where: { updatedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
+    
+    // Get unread message count for admin
+    prisma.conversation.findMany({
+      where: {
+        participants: { has: user.id },
+        type: "CUSTOMER_ADMIN",
+        isActive: true,
+      },
+      select: {
+        unreadCount: true,
+      },
+    })
   ]);
 
   const totalBookingsCount = propertyBookings + vehicleBookings + tourBookings;
   const pendingApprovalsCount = pendingProperties + pendingVehicles + pendingTours;
   const totalRevenue = platformRevenue._sum.totalPrice || 0;
+  
+  // Calculate unread messages count
+  const unreadMessagesCount = adminConversations.reduce((total: number, conv: any) => {
+    const unread = (conv.unreadCount as Record<string, number> || {})[user.id] || 0;
+    return total + unread;
+  }, 0);
 
   return json({ 
     user,
@@ -97,18 +116,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
       activeConversations
     },
     recentUsers,
-    recentBookings
+    recentBookings,
+    unreadMessagesCount
   });
 }
 
 export default function AdminDashboard() {
-  const { user, stats, recentUsers, recentBookings } = useLoaderData<typeof loader>();
+  const { user, stats, recentUsers, recentBookings, unreadMessagesCount } = useLoaderData<typeof loader>();
 
   const sections = [
     { href: "/admin/users/all", icon: Users, title: "User Management", desc: "Manage all platform users" },
     { href: "/admin/approvals/providers", icon: Shield, title: "Content Moderation", desc: "Review and approve content", count: stats.pendingApprovals },
     { href: "/admin/analytics/platform", icon: BarChart3, title: "Analytics", desc: "Platform metrics and trends" },
     { href: "/admin/support/tickets", icon: Users, title: "Support Center", desc: "Tickets and provider support" },
+    { href: "/dashboard/messages", icon: MessagesSquare, title: "Messages", desc: "Chat with users and visitors", count: unreadMessagesCount > 0 ? unreadMessagesCount : undefined },
     { href: "/admin/bookings/all", icon: Calendar, title: "Booking Management", desc: "Manage all platform bookings" },
     { href: "/admin/financial/revenue", icon: DollarSign, title: "Financial Overview", desc: "Revenue and commission tracking" },
   ];
@@ -127,13 +148,6 @@ export default function AdminDashboard() {
             >
               <Shield className="w-4 h-4 mr-2" />
               Access Full Admin Panel
-            </Link>
-            <Link 
-              to="/admin-access" 
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Admin Access Center
             </Link>
           </div>
         </div>

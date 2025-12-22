@@ -1,15 +1,15 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link, useRevalidator, useNavigate } from "@remix-run/react";
-import { ChatInterface } from "~/components/chat";
+import { useLoaderData, Link, useRevalidator, useNavigate, useSearchParams, useOutlet } from "@remix-run/react";
 import ShareModal from "~/components/common/ShareModal";
 import FloatingShareButton from "~/components/common/FloatingShareButton";
 import PropertyDetailTabs from "~/components/property/PropertyDetailTabs";
 import PropertySearchWidget from "~/components/property/PropertySearchWidget";
-import { useState } from "react";
+import { ChatInterface } from "~/components/chat/ChatInterface";
+import { useEffect, useState } from "react";
 import { prisma } from "~/lib/db/db.server";
 import { getUser, getUserId } from "~/lib/auth/auth.server";
 import { calculateStayPrice } from "~/lib/pricing.server";
-import { checkRoomAvailability } from "~/lib/availability.server";
+import { checkRoomAvailability, getRoomAvailabilityCalendar, checkDateRangeAvailability, suggestAlternativeDates } from "~/lib/availability.server";
 import {
   MapPin,
   Users,
@@ -41,6 +41,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const checkOut = url.searchParams.get('checkOut');
   const adults = parseInt(url.searchParams.get('adults') || '2');
   const children = parseInt(url.searchParams.get('children') || '0');
+
 
   const property = await prisma.property.findUnique({
     where: { id },
@@ -120,8 +121,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   // Fetch room types with full details
   let roomTypes: any[] = [];
   try {
-    roomTypes = await prisma.roomType.findMany({ 
-      where: { 
+    roomTypes = await prisma.roomType.findMany({
+      where: {
         propertyId: id,
         available: true
       },
@@ -136,11 +137,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   // If dates provided, check availability for each room
   let roomsWithAvailability = roomTypes;
   let numberOfNights = 0;
-  
+
   if (checkIn && checkOut) {
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
-    
+
     // Validate dates
     if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime()) || checkOutDate <= checkInDate) {
       // Invalid dates, return rooms without availability
@@ -149,58 +150,79 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      // For each room, check availability and calculate dynamic pricing
+      // For each room, get 12 months of availability data and check specific dates
       roomsWithAvailability = await Promise.all(
         roomTypes.map(async (room) => {
           try {
-            // Check availability using the availability checker
-            const availability = await checkRoomAvailability(
+            // Check specific date range availability
+            const dateRangeAvailability = await checkDateRangeAvailability(
               room.id,
               checkInDate,
               checkOutDate,
               1 // Check for 1 room
             );
 
-            // Calculate dynamic pricing for the stay
-            let dynamicPricing = null;
-            let totalPrice = room.basePrice * numberOfNights;
-            let avgPricePerNight = room.basePrice;
+            let dateRangeInfo = null;
 
-            if (availability.isAvailable) {
-              try {
-                dynamicPricing = await calculateStayPrice(
+            try {
+              if (dateRangeAvailability.isAvailable) {
+                // Calculate dynamic pricing for the stay
+                const dynamicPricing = await calculateStayPrice(
                   room.id,
                   checkInDate,
-                  checkOutDate,
-                  new Date() // Booking date (now)
+                  checkOutDate
                 );
-                totalPrice = dynamicPricing.total;
-                avgPricePerNight = dynamicPricing.averagePricePerNight;
-              } catch (error) {
-                console.error(`Error calculating pricing for room ${room.id}:`, error);
-                // Fallback to base price calculation
-                dynamicPricing = null;
+
+                dateRangeInfo = {
+                  isAvailable: true,
+                  pricing: {
+                    nights: [],
+                    subtotal: room.basePrice * numberOfNights,
+                    cleaningFee: 0,
+                    serviceFee: 0,
+                    taxAmount: 0,
+                    total: room.basePrice * numberOfNights,
+                    averagePricePerNight: room.basePrice
+                  },
+                  numberOfNights: dateRangeAvailability.numberOfNights
+                };
+              } else {
+                dateRangeInfo = {
+                  isAvailable: false,
+                  conflicts: dateRangeAvailability.conflicts,
+                  reason: dateRangeAvailability.reason,
+                  suggestions: []
+                };
               }
+            } catch (error) {
+              console.error(`Error processing availability for room ${room.id}:`, error);
+              // Always provide some dateRangeInfo so the UI knows dates were processed
+              dateRangeInfo = {
+                isAvailable: false,
+                reason: 'Unable to check availability'
+              };
             }
 
             return {
               ...room,
-              availableUnits: availability.availableUnits || 0,
-              isAvailable: availability.isAvailable,
-              dynamicPricing,
-              totalPrice,
-              avgPricePerNight,
-              availabilityDetails: availability.availabilityDetails,
+              availabilityCalendar: [],
+              dateRangeInfo
             };
           } catch (error) {
             console.error(`Error checking availability for room ${room.id}:`, error);
+            console.error('Error stack:', error.stack);
+            console.error('Error details:', {
+              message: error.message,
+              name: error.name,
+              code: error.code
+            });
             return {
               ...room,
-              availableUnits: room.totalUnits || 1,
-              isAvailable: true,
-              dynamicPricing: null,
-              totalPrice: room.basePrice * numberOfNights,
-              avgPricePerNight: room.basePrice,
+              availabilityCalendar: [],
+              dateRangeInfo: {
+                isAvailable: false,
+                reason: `Unable to check availability`
+              }
             };
           }
         })
@@ -209,11 +231,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
 
   // Map property -> accommodation shape used by UI
-  const accommodation = { 
-    ...property, 
-    roomTypes: roomsWithAvailability, 
-    pricePerNight: property.basePrice, 
-    currency: (property as any).currency || 'PKR' 
+  const accommodation = {
+    ...property,
+    roomTypes: roomsWithAvailability,
+    pricePerNight: property.basePrice,
+    currency: (property as any).currency || 'PKR'
   } as any;
 
   return json({ 
@@ -234,20 +256,73 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 }
 
 export default function AccommodationDetail() {
-  const { accommodation, user, isWishlisted, reviews, ratingBreakdown, similarProperties } = useLoaderData<typeof loader>();
+  const { accommodation, user, isWishlisted, reviews, ratingBreakdown, similarProperties, searchParams } = useLoaderData<typeof loader>();
+  const outlet = useOutlet();
   const navigate = useNavigate();
   const revalidator = useRevalidator();
+  const [urlSearchParams] = useSearchParams();
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
-  const [guests, setGuests] = useState(1);
   const [wishlisted, setWishlisted] = useState(isWishlisted);
   const [chatOpen, setChatOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [roomTypeId, setRoomTypeId] = useState<string | undefined>(undefined);
   const [numberOfRooms, setNumberOfRooms] = useState(1);
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
+  
+  // Read roomTypeId from URL
+  const urlRoomTypeId = urlSearchParams.get("roomTypeId");
+  const [roomTypeId, setRoomTypeId] = useState<string | undefined>(urlRoomTypeId || undefined);
+
+  // Derive the most up-to-date dates/guests from the URL (fallback to loader data)
+  const urlCheckIn = urlSearchParams.get("checkIn");
+  const urlCheckOut = urlSearchParams.get("checkOut");
+  const urlAdults = urlSearchParams.get("adults");
+  const urlChildren = urlSearchParams.get("children");
+
+  const checkInDate = urlCheckIn
+    ? new Date(urlCheckIn)
+    : searchParams?.checkIn
+      ? new Date(searchParams.checkIn)
+      : null;
+  const checkOutDate = urlCheckOut
+    ? new Date(urlCheckOut)
+    : searchParams?.checkOut
+      ? new Date(searchParams.checkOut)
+      : null;
+
+  const parsedAdults = Number.isNaN(parseInt(urlAdults || "", 10)) ? undefined : parseInt(urlAdults || "0", 10);
+  const parsedChildren = Number.isNaN(parseInt(urlChildren || "", 10)) ? undefined : parseInt(urlChildren || "0", 10);
+  const totalGuests =
+    (searchParams?.adults ?? parsedAdults ?? 0) +
+    (searchParams?.children ?? parsedChildren ?? 0);
+
+  // Force a revalidation when URL dates change so availability/pricing refreshes
+  useEffect(() => {
+    const loaderCheckIn = searchParams?.checkIn || null;
+    const loaderCheckOut = searchParams?.checkOut || null;
+
+    if (urlCheckIn !== loaderCheckIn || urlCheckOut !== loaderCheckOut) {
+      revalidator.revalidate();
+    }
+  }, [urlCheckIn, urlCheckOut, searchParams?.checkIn, searchParams?.checkOut, revalidator]);
+
+  // Sync roomTypeId from URL and scroll to rooms section
+  useEffect(() => {
+    if (urlRoomTypeId && urlRoomTypeId !== roomTypeId) {
+      setRoomTypeId(urlRoomTypeId);
+      // Scroll to rooms section after a brief delay to ensure rendering
+      setTimeout(() => {
+        if (typeof window !== "undefined") {
+          const roomsSection = document.getElementById("rooms-section");
+          if (roomsSection) {
+            roomsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+      }, 300);
+    }
+  }, [urlRoomTypeId]);
 
   const images = accommodation.images.length > 0 
     ? accommodation.images 
@@ -267,19 +342,27 @@ export default function AccommodationDetail() {
       return;
     }
     
+    const checkInValue = checkInDate
+      ? checkInDate.toISOString().split("T")[0]
+      : urlCheckIn || searchParams?.checkIn || "";
+    const checkOutValue = checkOutDate
+      ? checkOutDate.toISOString().split("T")[0]
+      : urlCheckOut || searchParams?.checkOut || "";
+
     const params = new URLSearchParams({
-      checkIn,
-      checkOut,
-      guests: guests.toString(),
+      checkIn: checkInValue,
+      checkOut: checkOutValue,
+      guests: Math.max(totalGuests, 1).toString(),
     });
     if (roomTypeId) params.set('roomTypeId', roomTypeId);
     navigate(`/book/property/${accommodation.id}?${params.toString()}`);
   };
 
   const calculateNights = () => {
-    if (!checkIn || !checkOut) return 0;
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
+    if (!checkInDate || !checkOutDate) return 0;
+    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime()) || checkOutDate <= checkInDate) return 0;
+    const start = checkInDate;
+    const end = checkOutDate;
     const diff = end.getTime() - start.getTime();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
@@ -288,6 +371,42 @@ export default function AccommodationDetail() {
   const selectedRoomType = (accommodation.roomTypes || []).find((rt: any) => rt.id === roomTypeId);
   const pricePerNight = selectedRoomType?.basePrice || accommodation.pricePerNight;
   const totalPrice = nights * pricePerNight;
+
+  const handleBookRoom = (roomId: string) => {
+    if (!checkInDate || !checkOutDate) return;
+    const params = new URLSearchParams({
+      roomTypeId: roomId,
+      checkIn: checkInDate.toISOString().split("T")[0],
+      checkOut: checkOutDate.toISOString().split("T")[0],
+      guests: Math.max(totalGuests, 1).toString(),
+    });
+    navigate(`/book/property/${accommodation.id}?${params.toString()}`);
+  };
+
+  const handleViewRoomDetails = (roomId: string) => {
+    console.log('handleViewRoomDetails called with roomId:', roomId);
+    
+    const checkInValue = checkInDate
+      ? checkInDate.toISOString().split("T")[0]
+      : urlCheckIn || "";
+    const checkOutValue = checkOutDate
+      ? checkOutDate.toISOString().split("T")[0]
+      : urlCheckOut || "";
+
+    const params = new URLSearchParams();
+    if (checkInValue) params.set('checkIn', checkInValue);
+    if (checkOutValue) params.set('checkOut', checkOutValue);
+    params.set('adults', urlAdults || searchParams?.adults?.toString() || '2');
+    params.set('children', urlChildren || searchParams?.children?.toString() || '0');
+    
+    const targetUrl = `/accommodations/${accommodation.id}/rooms/${roomId}?${params.toString()}`;
+    console.log('Navigating to:', targetUrl);
+    
+    navigate(targetUrl);
+  };
+
+  // If a nested route is active (e.g., room details), render it instead of the parent page
+  if (outlet) return outlet;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -402,11 +521,12 @@ export default function AccommodationDetail() {
               Save
             </button>
             <button
-              onClick={() => setChatOpen(true)}
-              className="flex items-center gap-2 px-6 py-3 border-2 border-[#01502E] rounded-lg bg-[#01502E] text-white hover:bg-[#013d23] hover:border-[#013d23] transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+              onClick={() => accommodation?.owner?.user?.id && user?.id && setChatOpen(true)}
+              disabled={!accommodation?.owner?.user?.id || !user?.id}
+              className="flex items-center gap-2 px-6 py-3 border-2 border-[#01502E] rounded-lg bg-[#01502E] text-white hover:bg-[#013d23] hover:border-[#013d23] transition-all duration-200 shadow-lg hover:shadow-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <MessageCircle className="w-5 h-5" />
-              Contact Host
+              {user?.id ? "Contact Host" : "Login to message"}
             </button>
           </div>
         </div>
@@ -415,9 +535,9 @@ export default function AccommodationDetail() {
         <PropertySearchWidget propertyId={accommodation.id} />
 
         {/* Main Content with Tabs */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-8 mb-8">
           {/* Tabs Content */}
-          <div className="lg:col-span-2" data-rooms-tab>
+          <div id="rooms-section" data-rooms-tab>
             <PropertyDetailTabs
               property={{
                 id: accommodation.id,
@@ -436,171 +556,20 @@ export default function AccommodationDetail() {
               }}
               roomTypes={accommodation.roomTypes || []}
               reviews={reviews}
-              checkIn={checkIn ? new Date(checkIn) : null}
-              checkOut={checkOut ? new Date(checkOut) : null}
-              numberOfNights={nights}
+            checkIn={checkInDate}
+            checkOut={checkOutDate}
+            numberOfNights={nights || 1}
               numberOfRooms={numberOfRooms}
               selectedRoomId={roomTypeId || null}
               onRoomSelect={(roomId) => setRoomTypeId(roomId)}
-              onDateChange={(newCheckIn, newCheckOut) => {
-                setCheckIn(newCheckIn ? newCheckIn.toISOString().split('T')[0] : '');
-                setCheckOut(newCheckOut ? newCheckOut.toISOString().split('T')[0] : '');
-              }}
-              onGuestsChange={(adults, children) => {
-                setGuests(adults + children);
-              }}
+            onBook={handleBookRoom}
+            onViewDetails={handleViewRoomDetails}
             />
-          </div>
-
-          {/* Quick Booking Card (Sidebar) */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
-              <div className="mb-4">
-                {roomTypeId && accommodation.roomTypes?.find((rt: any) => rt.id === roomTypeId) ? (() => {
-                  const selectedRoom = accommodation.roomTypes.find((rt: any) => rt.id === roomTypeId);
-                  const displayPrice = nights > 0 && selectedRoom?.avgPricePerNight 
-                    ? selectedRoom.avgPricePerNight 
-                    : selectedRoom?.basePrice || 0;
-                  const isDynamicPrice = nights > 0 && selectedRoom?.dynamicPricing;
-                  
-                  return (
-                    <>
-                      <div className="text-xs text-gray-600 mb-1">Selected Room</div>
-                      <div className="text-sm font-semibold text-gray-900 mb-2">
-                        {selectedRoom?.name}
-                      </div>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold text-[#01502E]">
-                          {accommodation.currency} {displayPrice.toLocaleString()}
-                        </span>
-                        <span className="text-gray-600">/ night</span>
-                      </div>
-                      {isDynamicPrice && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Average price for selected dates
-                        </div>
-                      )}
-                    </>
-                  );
-                })() : (
-                  <>
-                    <div className="text-xs text-gray-600 mb-1">Starting from</div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold text-[#01502E]">
-                        {accommodation.currency} {accommodation.basePrice.toLocaleString()}
-                      </span>
-                      <span className="text-gray-600">/ night</span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {nights > 0 && roomTypeId && (() => {
-                const selectedRoom = accommodation.roomTypes?.find((rt: any) => rt.id === roomTypeId);
-                const dynamicPricing = selectedRoom?.dynamicPricing;
-                const displayTotal = dynamicPricing?.total || selectedRoom?.totalPrice || totalPrice;
-                const displayAvg = dynamicPricing?.averagePricePerNight || selectedRoom?.avgPricePerNight || pricePerNight;
-                
-                return (
-                  <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-600 mb-3">
-                      {nights} night{nights !== 1 ? 's' : ''}: {checkIn && checkOut ? `${new Date(checkIn).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(checkOut).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
-                    </div>
-                    
-                    {dynamicPricing && dynamicPricing.nights ? (
-                      <>
-                        {/* Per-night breakdown */}
-                        <div className="space-y-1 mb-3 text-sm">
-                          {dynamicPricing.nights.slice(0, 3).map((night: any, idx: number) => (
-                            <div key={idx} className="flex justify-between">
-                              <span className="text-gray-600">
-                                Night {idx + 1} ({new Date(night.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}):
-                              </span>
-                              <span className="font-medium">
-                                {accommodation.currency} {night.finalPrice.toLocaleString()}
-                              </span>
-                            </div>
-                          ))}
-                          {dynamicPricing.nights.length > 3 && (
-                            <div className="text-xs text-gray-500 italic">
-                              ... and {dynamicPricing.nights.length - 3} more night{dynamicPricing.nights.length - 3 !== 1 ? 's' : ''}
-                            </div>
-                          )}
-                        </div>
-                        <div className="border-t pt-2 mb-2"></div>
-                        
-                        {/* Fees breakdown */}
-                        <div className="space-y-1 mb-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Subtotal:</span>
-                            <span>{accommodation.currency} {dynamicPricing.subtotal.toLocaleString()}</span>
-                          </div>
-                          {dynamicPricing.cleaningFee > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Cleaning fee:</span>
-                              <span>{accommodation.currency} {dynamicPricing.cleaningFee.toLocaleString()}</span>
-                            </div>
-                          )}
-                          {dynamicPricing.serviceFee > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Service fee:</span>
-                              <span>{accommodation.currency} {dynamicPricing.serviceFee.toLocaleString()}</span>
-                            </div>
-                          )}
-                          {dynamicPricing.taxAmount > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Taxes:</span>
-                              <span>{accommodation.currency} {dynamicPricing.taxAmount.toLocaleString()}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="border-t pt-2 mb-2"></div>
-                        
-                        {/* Total and average */}
-                        <div className="flex justify-between text-lg font-bold mb-2">
-                          <span>Total:</span>
-                          <span className="text-[#01502E]">
-                            {accommodation.currency} {displayTotal.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600 text-center">
-                          Avg: {accommodation.currency} {displayAvg.toLocaleString()}/night
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                          <span>Total:</span>
-                          <span className="text-[#01502E]">
-                            {accommodation.currency} {displayTotal.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600 text-center mt-2">
-                          Avg: {accommodation.currency} {displayAvg.toLocaleString()}/night
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })()}
-
-              <button
-                onClick={handleBooking}
-                disabled={!checkIn || !checkOut || guests < 1 || !roomTypeId}
-                className="w-full py-3 bg-[#01502E] text-white rounded-lg font-semibold hover:bg-[#013d23] disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-              >
-                {!roomTypeId ? "Select a Room First" : user ? "Reserve Now" : "Sign in to book"}
-              </button>
-
-              <p className="text-center text-sm text-gray-600 mt-3">
-                You won't be charged yet
-              </p>
-            </div>
           </div>
         </div>
 
         {/* Image Gallery */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-8 h-[300px] md:h-[400px]">
+        <div id="accommodation-gallery" className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-8 h-[300px] md:h-[400px]" data-gallery-top>
           <div
             className="col-span-2 row-span-2 cursor-pointer overflow-hidden rounded-l-lg"
             onClick={() => {
@@ -708,138 +677,340 @@ export default function AccommodationDetail() {
           </div>
         )}
       </div>
-      {/* Chat Interface Modal */}
-      {accommodation?.owner?.user?.id && (
+      {/* Chat Interface */}
+      {accommodation?.owner?.user?.id && user?.id && chatOpen && (
         <ChatInterface
           isOpen={chatOpen}
           onClose={() => setChatOpen(false)}
+          conversationId={conversationId}
           targetUserId={accommodation.owner.user.id}
-          currentUserId={user?.id}
-          fetchConversation={async ({ targetUserId, conversationId }) => {
-            console.log('🔵 [Accommodation] Fetching conversation:', { targetUserId, conversationId });
-            
-            // Get owner name from accommodation data as fallback
-            const ownerName = accommodation?.owner?.user?.name;
-            const ownerAvatar = accommodation?.owner?.user?.avatar;
-            const ownerId = accommodation?.owner?.user?.id;
-            
-            // If we have conversationId, fetch it directly
-            if (conversationId) {
-              const response = await fetch(`/api/chat/conversations/${conversationId}`);
-              if (!response.ok) throw new Error("Failed to fetch conversation");
-              const json = await response.json();
+          targetUserName={accommodation.owner.user.name || "Property Owner"}
+          targetUserAvatar={accommodation.owner.user.avatar || undefined}
+          currentUserId={user.id}
+          variant="modal"
+          fetchConversation={async ({ conversationId: convId, targetUserId }) => {
+            try {
+              console.log('🔵 [Accommodation] fetchConversation called:', { convId, targetUserId, storedConvId: conversationId });
               
-              // Ensure owner name is correct in participants
-              const participants = (json.data?.participants || []).map((p: any) => {
-                if (p.id === ownerId && ownerName) {
-                  return { ...p, name: ownerName, avatar: ownerAvatar || p.avatar };
+              // If we have a conversationId, fetch it directly
+              if (convId || conversationId) {
+                const idToFetch = convId || conversationId;
+                console.log('🟢 [Accommodation] Fetching conversation by ID:', idToFetch);
+                const response = await fetch(`/api/chat/conversations/${idToFetch}`);
+                if (!response.ok) throw new Error("Failed to fetch conversation");
+                const data = await response.json();
+                const conversationData = data.data;
+                
+                if (!conversationData) {
+                  return { conversation: null, messages: [] };
                 }
-                return p;
-              });
-              
-              return {
-                conversation: {
-                  id: json.data?.id,
-                  participants: participants,
-                  updatedAt: json.data?.lastMessageAt,
-                  lastMessage: json.data?.messages?.[json.data.messages.length - 1],
-                  unreadCount: 0
-                },
-                messages: json.data?.messages || []
-              };
-            }
-            
-            // Otherwise create/get conversation by targetUserId
-            if (targetUserId) {
-              const createRes = await fetch(`/api/chat/conversations`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ targetUserId, type: 'CUSTOMER_PROVIDER' })
-              });
-              if (!createRes.ok) throw new Error("Failed to create conversation");
-              const createJson = await createRes.json();
-              const convId = createJson.data?.id;
-              
-              console.log('🟢 [Accommodation] Conversation created:', convId);
-              
-              // Fetch the full conversation details
-              const response = await fetch(`/api/chat/conversations/${convId}`);
-              if (!response.ok) throw new Error("Failed to fetch conversation");
-              const json = await response.json();
-              
-              // Ensure owner name is correct in participants
-              const participants = (json.data?.participants || []).map((p: any) => {
-                if (p.id === ownerId && ownerName) {
-                  return { ...p, name: ownerName, avatar: ownerAvatar || p.avatar };
+                
+                // Format messages properly
+                const messages = conversationData.messages || [];
+                const formattedMessages = messages.map((m: any) => {
+                  const senderName = m.senderName || m.sender?.name || "Unknown";
+                  const senderAvatar = m.senderAvatar || m.sender?.avatar || null;
+                  const messageType = m.type ? (typeof m.type === 'string' ? m.type.toLowerCase() : m.type.toString().toLowerCase()) : "text";
+                  const createdAt = m.createdAt instanceof Date 
+                    ? m.createdAt.toISOString() 
+                    : (typeof m.createdAt === 'string' ? m.createdAt : new Date().toISOString());
+                  
+                  return {
+                    id: m.id,
+                    conversationId: conversationId,
+                    senderId: m.senderId,
+                    senderName,
+                    senderAvatar,
+                    content: m.content || "",
+                    type: messageType,
+                    attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                    createdAt,
+                    status: "sent" as const,
+                  };
+                });
+                
+                return { 
+                  conversation: conversationData.conversation || conversationData, 
+                  messages: formattedMessages 
+                };
+              }
+
+              // Otherwise, try to get or create conversation
+              if (targetUserId) {
+                const response = await fetch("/api/chat/conversations", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    targetUserId,
+                    type: "CUSTOMER_PROVIDER",
+                    relatedServiceId: accommodation.id,
+                    relatedServiceType: "PROPERTY",
+                  }),
+                });
+
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({}));
+                  throw new Error(errorData.error || "Failed to create conversation");
                 }
-                return p;
-              });
-              
-              return {
-                conversation: {
-                  id: json.data?.id,
-                  participants: participants,
-                  updatedAt: json.data?.lastMessageAt,
-                  lastMessage: json.data?.messages?.[json.data.messages.length - 1],
-                  unreadCount: 0
-                },
-                messages: json.data?.messages || []
-              };
+
+                const data = await response.json();
+                const conv = data.data;
+                
+                console.log('🟢 [Accommodation] Conversation created/fetched:', { id: conv?.id, participants: conv?.participants?.length });
+                
+                // Store the conversation ID for future use
+                if (conv?.id && conv.id !== conversationId) {
+                  console.log('💾 [Accommodation] Storing conversation ID:', conv.id);
+                  setConversationId(conv.id);
+                }
+
+                // Now fetch messages for this conversation
+                if (conv?.id) {
+                  const messagesResponse = await fetch(`/api/chat/conversations/${conv.id}`);
+                  if (messagesResponse.ok) {
+                    const messagesData = await messagesResponse.json();
+                    const conversationData = messagesData.data || conv;
+                    
+                    // Ensure messages are properly formatted from MessageWithSender to Message
+                    // The conversationData should have a messages array
+                    let messages = conversationData.messages || [];
+                    
+                    // If messages array is empty or missing, try to fetch them separately
+                    if (!messages || messages.length === 0) {
+                      try {
+                        const messagesOnlyResponse = await fetch(`/api/chat/conversations/${conv.id}/messages?limit=100`);
+                        if (messagesOnlyResponse.ok) {
+                          const messagesOnlyData = await messagesOnlyResponse.json();
+                          messages = messagesOnlyData.data?.messages || [];
+                        }
+                      } catch (err) {
+                        console.error("Error fetching messages separately:", err);
+                      }
+                    }
+                    
+                    // Sort messages by createdAt to ensure chronological order
+                    messages.sort((a: any, b: any) => {
+                      const dateA = new Date(a.createdAt || a.createdAt).getTime();
+                      const dateB = new Date(b.createdAt || b.createdAt).getTime();
+                      return dateA - dateB;
+                    });
+                    
+                    const formattedMessages = messages.map((m: any) => {
+                      // Handle both MessageWithSender and Message formats
+                      const senderName = m.senderName || m.sender?.name || "Unknown";
+                      const senderAvatar = m.senderAvatar || m.sender?.avatar || null;
+                      const messageType = m.type ? (typeof m.type === 'string' ? m.type.toLowerCase() : m.type.toString().toLowerCase()) : "text";
+                      const createdAt = m.createdAt instanceof Date 
+                        ? m.createdAt.toISOString() 
+                        : (typeof m.createdAt === 'string' ? m.createdAt : new Date().toISOString());
+                      
+                      return {
+                        id: m.id,
+                        conversationId: conv.id,
+                        senderId: m.senderId,
+                        senderName,
+                        senderAvatar,
+                        content: m.content || "",
+                        type: messageType,
+                        attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                        createdAt,
+                        status: "sent" as const,
+                        isEdited: m.isEdited || false,
+                        editedAt: m.editedAt ? (m.editedAt instanceof Date ? m.editedAt.toISOString() : m.editedAt) : undefined,
+                        isDeleted: m.isDeleted || false,
+                      };
+                    });
+                    
+                    // Ensure conversation has participants
+                    const conversation = conversationData.conversation || conversationData;
+                    if (!conversation.participants || conversation.participants.length === 0) {
+                      // If participants are missing, add them from the property owner
+                      conversation.participants = [
+                        { id: user.id, name: user.name, avatar: user.avatar, role: user.role },
+                        { id: accommodation.owner.user.id, name: accommodation.owner.user.name, avatar: accommodation.owner.user.avatar, role: "PROPERTY_OWNER" }
+                      ];
+                    }
+                    
+                    return { 
+                      conversation, 
+                      messages: formattedMessages 
+                    };
+                  }
+                }
+
+                return { conversation: conv, messages: [] };
+              }
+
+              return { conversation: null, messages: [] };
+            } catch (error) {
+              console.error("Error fetching conversation:", error);
+              return { conversation: null, messages: [] };
             }
-            
-            throw new Error('No conversationId or targetUserId provided');
           }}
-          onSendMessage={async ({ conversationId, targetUserId, text }) => {
-            console.log('🔵 [Accommodation] Sending message:', { conversationId, targetUserId, text: text?.substring(0, 20) });
-            let cid = conversationId;
-            
-            // Create conversation if needed
-            if (!cid && targetUserId) {
-              const convRes = await fetch(`/api/chat/conversations`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ targetUserId, type: 'CUSTOMER_PROVIDER' })
+          onSendMessage={async ({ conversationId, targetUserId, text, files }) => {
+            try {
+              let response;
+              let jsonData;
+
+              // If we have a conversationId, send to that conversation
+              if (conversationId) {
+                response = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ content: text }),
+                });
+
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({}));
+                  throw new Error(errorData.error || "Failed to send message");
+                }
+
+                jsonData = await response.json();
+                const m = jsonData.data || jsonData;
+                
+                // Normalize message format
+                return {
+                  id: m.id,
+                  conversationId: conversationId,
+                  senderId: m.senderId,
+                  senderName: m.senderName || m.sender?.name || "Unknown",
+                  senderAvatar: m.senderAvatar || m.sender?.avatar || null,
+                  content: m.content,
+                  type: (m.type || "text").toString().toLowerCase(),
+                  attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                  createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : (m.createdAt || new Date().toISOString()),
+                  status: "sent",
+                };
+              }
+
+              // Otherwise, use the chat.send endpoint which creates conversation if needed
+              const formData = new FormData();
+              if (targetUserId) formData.append("targetUserId", targetUserId);
+              formData.append("text", text);
+              if (files) {
+                files.forEach((file) => formData.append("files", file));
+              }
+
+              response = await fetch("/api/chat/send", {
+                method: "POST",
+                body: formData,
               });
-              if (!convRes.ok) throw new Error('Failed to create conversation');
-              const convJson = await convRes.json();
-              cid = convJson?.data?.id;
-              console.log('🟢 [Accommodation] Conversation created:', cid);
+
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('❌ [Accommodation] Failed to send message:', { 
+                  status: response.status, 
+                  statusText: response.statusText,
+                  error: errorData 
+                });
+                throw new Error(errorData.error || `Failed to send message (${response.status})`);
+              }
+
+              jsonData = await response.json();
+              const m = jsonData.data || jsonData;
+              
+              console.log('🟢 [Accommodation] Message sent successfully:', { id: m.id, conversationId: m.conversationId });
+              
+              // Store the conversation ID if we got one
+              if (m.conversationId && m.conversationId !== conversationId) {
+                console.log('💾 [Accommodation] Storing conversation ID from message:', m.conversationId);
+                setConversationId(m.conversationId);
+              }
+              
+              // Normalize message format
+              const normalizedMessage = {
+                id: m.id,
+                conversationId: m.conversationId || conversationId,
+                senderId: m.senderId,
+                senderName: m.senderName || "Unknown",
+                senderAvatar: m.senderAvatar || null,
+                content: m.content,
+                type: (m.type || "text").toString().toLowerCase(),
+                attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : (m.createdAt || new Date().toISOString()),
+                status: "sent" as const,
+              };
+              
+              return normalizedMessage;
+            } catch (error) {
+              console.error("❌ [Accommodation] Error sending message:", error);
+              console.error("❌ [Accommodation] Context:", { conversationId, targetUserId, textLength: text?.length });
+              throw error;
             }
-            
-            if (!cid) throw new Error('Missing conversation ID');
-            
-            const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ content: text })
-            });
-            
-            if (!res.ok) {
-              const errorText = await res.text();
-              console.error('🔴 [Accommodation] Failed to send message:', res.status, errorText);
-              throw new Error('Failed to send message');
+          }}
+          onLoadMore={async ({ conversationId, before }) => {
+            if (!conversationId) return [];
+            try {
+              const url = new URL(`/api/chat/conversations/${conversationId}/messages`, window.location.origin);
+              if (before) url.searchParams.set("before", before);
+              
+              const response = await fetch(url.toString());
+              if (!response.ok) throw new Error("Failed to load messages");
+              const data = await response.json();
+              return data.data?.messages || [];
+            } catch (error) {
+              console.error("Error loading more messages:", error);
+              return [];
             }
-            
-            const json = await res.json();
-            if (!json?.success) throw new Error('Failed to send message');
-            
-            const m = json.data;
-            console.log('🟢 [Accommodation] Message sent:', m.id);
-            
-            return {
-              id: m.id,
-              conversationId: m.conversationId || cid,
-              senderId: m.senderId,
-              senderName: m.senderName || m.sender?.name || 'Unknown',
-              senderAvatar: m.senderAvatar || m.sender?.avatar,
-              content: m.content,
-              type: (m.type || 'text').toString().toLowerCase(),
-              attachments: Array.isArray(m.attachments) ? m.attachments : [],
-              createdAt: m.createdAt,
-              status: 'sent',
-            };
           }}
         />
+      )}
+
+      {/* Fallback for non-logged-in users */}
+      {(!user?.id || !accommodation?.owner?.user?.id) && chatOpen && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center px-4"
+          onClick={() => setChatOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Contact Host</h3>
+                <p className="text-sm text-gray-600">Send a message or email the host.</p>
+              </div>
+              <button
+                className="text-gray-500 hover:text-gray-700"
+                onClick={() => setChatOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-3 text-sm text-gray-700">
+              {!user?.id ? (
+                <div>
+                  <p className="mb-4">Please log in to message the host.</p>
+                  <Link
+                    to={`/login?redirectTo=/accommodations/${accommodation.id}`}
+                    className="inline-block px-4 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23] font-semibold"
+                  >
+                    Log In
+                  </Link>
+                </div>
+              ) : (
+                <p>Unable to load chat. Please try again later.</p>
+              )}
+              {accommodation.owner.user.email && (
+                <p className="mt-4">
+                  Or email:{" "}
+                  <a className="text-[#01502E] font-semibold hover:underline" href={`mailto:${accommodation.owner.user.email}`}>
+                    {accommodation.owner.user.email}
+                  </a>
+                </p>
+              )}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                className="px-4 py-2 bg-[#01502E] text-white rounded-lg hover:bg-[#013d23]"
+                onClick={() => setChatOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Share Modal */}

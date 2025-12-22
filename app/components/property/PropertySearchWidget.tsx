@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "@remix-run/react";
+import { useSearchParams, useNavigate, useNavigation } from "@remix-run/react";
 import { Calendar as CalendarIcon, Users } from "lucide-react";
 import { DatePicker } from "~/components/ui/date-picker";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
+import { cn } from "~/lib/utils";
 import {
   Select,
   SelectContent,
@@ -20,6 +21,25 @@ interface PropertySearchWidgetProps {
 export default function PropertySearchWidget({ propertyId, sticky = true }: PropertySearchWidgetProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const navigation = useNavigation();
+  const isRouteNavigation = navigation.location?.pathname === `/accommodations/${propertyId}`;
+  const navBusy = navigation.state !== "idle" && isRouteNavigation;
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Mirror Remix navigation state but avoid getting stuck; also add a timeout guard
+  useEffect(() => {
+    if (navBusy) {
+      setIsUpdating(true);
+    } else {
+      setIsUpdating(false);
+    }
+  }, [navBusy]);
+
+  useEffect(() => {
+    if (!isUpdating) return;
+    const t = setTimeout(() => setIsUpdating(false), 15000); // fallback if something hangs
+    return () => clearTimeout(t);
+  }, [isUpdating]);
 
   const checkInParam = searchParams.get('checkIn');
   const checkOutParam = searchParams.get('checkOut');
@@ -64,6 +84,7 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
     if (!validateDates()) {
       return;
     }
+    setIsUpdating(true);
 
     const params = new URLSearchParams();
     if (checkIn) params.set('checkIn', checkIn.toISOString().split('T')[0]);
@@ -98,13 +119,13 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
 
   return (
     <div
-      className={`bg-white border-b border-gray-200 shadow-sm ${sticky ? 'sticky top-0 z-50' : ''}`}
+      className={`bg-white border-b border-gray-200 shadow-sm ${sticky ? 'sticky top-16 z-40' : ''}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
           {/* Check-in */}
-          <div className="space-y-2">
-            <Label htmlFor="check-in" className="flex items-center gap-1">
+          <div className="space-y-2 opacity-100 min-w-0">
+            <Label htmlFor="check-in" className="flex items-center gap-1 text-sm">
               <CalendarIcon className="w-4 h-4" />
               Check-in
             </Label>
@@ -116,7 +137,8 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
               }}
               placeholder="Select check-in date"
               minDate={today}
-              className={errors.checkIn ? 'border-red-500' : ''}
+              className={cn(errors.checkIn ? 'border-red-500' : '', 'min-w-0')}
+              disabled={!!isUpdating}
             />
             {errors.checkIn && (
               <p className="text-xs text-red-600">{errors.checkIn}</p>
@@ -124,8 +146,8 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
           </div>
 
           {/* Check-out */}
-          <div className="space-y-2">
-            <Label htmlFor="check-out" className="flex items-center gap-1">
+          <div className="space-y-2 opacity-100 min-w-0">
+            <Label htmlFor="check-out" className="flex items-center gap-1 text-sm">
               <CalendarIcon className="w-4 h-4" />
               Check-out
             </Label>
@@ -136,9 +158,9 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
                 if (errors.checkOut) setErrors({ ...errors, checkOut: undefined });
               }}
               placeholder="Select check-out date"
-              disabled={!checkIn}
               minDate={minCheckOut}
-              className={errors.checkOut ? 'border-red-500' : ''}
+              className={cn(errors.checkOut ? 'border-red-500' : '', 'min-w-0')}
+              disabled={!!isUpdating || !checkIn}
             />
             {errors.checkOut && (
               <p className="text-xs text-red-600">{errors.checkOut}</p>
@@ -146,12 +168,12 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
           </div>
 
           {/* Adults */}
-          <div className="space-y-2">
+          <div className="space-y-2 opacity-100">
             <Label htmlFor="adults" className="flex items-center gap-1">
               <Users className="w-4 h-4" />
               Adults
             </Label>
-            <Select value={adults} onValueChange={setAdults}>
+            <Select value={adults} onValueChange={setAdults} disabled={!!isUpdating}>
               <SelectTrigger id="adults">
                 <SelectValue placeholder="Adults" />
               </SelectTrigger>
@@ -166,12 +188,12 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
           </div>
 
           {/* Children */}
-          <div className="space-y-2">
+          <div className="space-y-2 opacity-100">
             <Label htmlFor="children" className="flex items-center gap-1">
               <Users className="w-4 h-4" />
               Children
             </Label>
-            <Select value={children} onValueChange={setChildren}>
+            <Select value={children} onValueChange={setChildren} disabled={!!isUpdating}>
               <SelectTrigger id="children">
                 <SelectValue placeholder="Children" />
               </SelectTrigger>
@@ -189,9 +211,13 @@ export default function PropertySearchWidget({ propertyId, sticky = true }: Prop
           <div className="flex items-end">
             <Button
               onClick={handleUpdate}
-              className="w-full bg-[#01502E] hover:bg-[#013d23] text-white"
+              className="w-full bg-[#01502E] hover:bg-[#013d23] text-white flex items-center justify-center gap-2"
+              disabled={!!isUpdating}
             >
-              Update Search
+              {isUpdating && (
+                <span className="h-4 w-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+              )}
+              {isUpdating ? "Updating..." : "Update Search"}
             </Button>
           </div>
         </div>

@@ -2,12 +2,12 @@ import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from
 import { useLoaderData, Form, useActionData, useNavigation } from "@remix-run/react";
 import { prisma } from "~/lib/db/db.server";
 import { requireUserId } from "~/lib/auth/auth.server";
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { Select } from "~/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { Badge } from "~/components/ui/badge";
 import { Separator } from "~/components/ui/separator";
 import { Alert, AlertDescription } from "~/components/ui/alert";
@@ -22,8 +22,11 @@ import {
   CheckCircle, 
   AlertCircle,
   CreditCard,
-  Star
+  Star,
+  Wallet
 } from "lucide-react";
+import { createAndDispatchNotification } from "~/lib/notifications.server";
+import type { PaymentMethod } from "@prisma/client";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
@@ -83,11 +86,25 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const pickupLocation = (form.get("pickupLocation") as string) || "";
     const insuranceSelected = form.get("insuranceSelected") === "on";
     const driverSelected = form.get("driverSelected") === "on";
+    const paymentMethod = (form.get("paymentMethod") as string) || "stripe";
+    
     if (!startDate || !endDate) return json({ error: "Pick start and end date" }, { status: 400 });
     if (new Date(endDate) <= new Date(startDate)) return json({ error: "Dropoff must be after pickup" }, { status: 400 });
 
     // Basic conflict check
-    const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId }, include: { unavailableDates: true } });
+    const vehicle = await prisma.vehicle.findUnique({ 
+      where: { id: vehicleId }, 
+      include: { 
+        unavailableDates: true,
+        owner: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        }
+      } 
+    });
     if (!vehicle) return json({ error: "Vehicle not found" }, { status: 404 });
     const start = new Date(startDate), end = new Date(endDate);
     const overlapping = vehicle.unavailableDates.some((p: any) => new Date(p.startDate) <= end && new Date(p.endDate) >= start);
@@ -99,39 +116,140 @@ export async function action({ request, params }: ActionFunctionArgs) {
       select: { name: true, email: true, phone: true }
     });
     
+    // Calculate pricing
+    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000*60*60*24)));
+    const dailyRate = vehicle.basePrice;
+    const insuranceDaily = vehicle.insuranceFee || 0;
+    const driverDaily = vehicle.driverFee || 2000;
+    const rental = dailyRate * days;
+    const insurance = insuranceSelected ? (insuranceDaily * days) : 0;
+    const driver = driverSelected ? (driverDaily * days) : 0;
+    const service = Math.round(0.05 * (rental + insurance + driver));
+    const taxes = Math.round(0.1 * (rental + insurance + driver));
+    const totalPrice = rental + insurance + driver + service + taxes;
+    
     // Generate unique booking number
     const bookingNumber = `VB-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     
-    // Create booking and redirect to payment
-    const booking = await prisma.vehicleBooking.create({
-      data: {
-        bookingNumber,
+    try {
+      // Create booking
+      const booking = await prisma.vehicleBooking.create({
+        data: {
+          bookingNumber,
+          userId,
+          vehicleId,
+          startDate: start,
+          endDate: end,
+          pickupTime: "10:00",
+          returnTime: "10:00",
+          pickupLocation,
+          returnLocation: pickupLocation,
+          driverRequired: driverSelected,
+          driverIncluded: driverSelected,
+          basePrice: rental,
+          driverFee: driver,
+          insuranceFee: insurance,
+          securityDeposit: 5000,
+          extraFees: service + taxes,
+          totalPrice,
+          status: "PENDING",
+          paymentStatus: paymentMethod === "pay_on_pickup" ? "PENDING" : "PENDING",
+          renterName: user?.name || "Unknown",
+          renterEmail: user?.email || "unknown@example.com",
+          renterPhone: user?.phone || "000-000-0000",
+          licenseNumber: "TEMP-LICENSE-123",
+          licenseExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        },
+        include: {
+          vehicle: {
+            select: {
+              name: true,
+              ownerId: true,
+            }
+          }
+        }
+      });
+
+      // Create payment record
+      const pendingTxnId = `PENDING-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      await prisma.payment.create({
+        data: {
+          amount: booking.totalPrice,
+          currency: "PKR",
+          method: paymentMethod === "pay_on_pickup" ? "CASH" : "CREDIT_CARD",
+          transactionId: pendingTxnId,
+          status: paymentMethod === "pay_on_pickup" ? "PENDING" : "PENDING",
+          paymentGateway: paymentMethod === "pay_on_pickup" ? "offline" : null,
+          gatewayResponse: paymentMethod === "pay_on_pickup" ? { note: "Pay on pickup" } : null,
+          userId,
+          bookingId: booking.id,
+          bookingType: "vehicle",
+        },
+      });
+
+      // Block dates
+      try {
+        await prisma.unavailableDate.create({
+          data: {
+            serviceId: vehicleId,
+            serviceType: "vehicle",
+            startDate: start,
+            endDate: end,
+            reason: "booked",
+            ownerId: vehicle.ownerId,
+          },
+        });
+      } catch (e) {
+        console.error("Failed to block dates for vehicle booking", e);
+      }
+
+      // Notifications
+      const providerUserId = vehicle.owner?.user?.id;
+      if (providerUserId) {
+        await createAndDispatchNotification({
+          userId: providerUserId,
+          userRole: "VEHICLE_OWNER",
+          type: "BOOKING_CONFIRMED",
+          title: "New Vehicle Booking",
+          message: `You have a new vehicle booking (#${booking.bookingNumber}). ${paymentMethod === "pay_on_pickup" ? "Customer will pay on pickup." : "Payment pending."}`,
+          actionUrl: `/dashboard/vehicle-owner`,
+          data: {
+            bookingId: booking.id,
+            bookingType: "vehicle",
+            bookingNumber: booking.bookingNumber,
+            serviceName: booking.vehicle.name,
+          },
+          priority: "HIGH",
+        });
+      }
+
+      await createAndDispatchNotification({
         userId,
-        vehicleId,
-        startDate: start,
-        endDate: end,
-        pickupTime: "10:00",
-        returnTime: "10:00",
-        pickupLocation,
-        returnLocation: pickupLocation,
-        driverRequired: driverSelected,
-        driverIncluded: driverSelected,
-        basePrice: vehicle.basePrice,
-        driverFee: driverSelected ? 2000 : 0,
-        insuranceFee: insuranceSelected ? 1000 : 0,
-        securityDeposit: 5000,
-        extraFees: 0,
-        totalPrice: vehicle.basePrice + (driverSelected ? 2000 : 0) + (insuranceSelected ? 1000 : 0) + 5000,
-        status: "PENDING",
-        renterName: user?.name || "Unknown",
-        renterEmail: user?.email || "unknown@example.com",
-        renterPhone: user?.phone || "000-000-0000",
-        licenseNumber: "TEMP-LICENSE-123", // This should be collected from user profile or form
-        licenseExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
-      },
-      select: { id: true },
-    });
-    return redirect(`/book/payment/${booking.id}?type=vehicle`);
+        userRole: "CUSTOMER",
+        type: "BOOKING_CONFIRMED",
+        title: "Booking Created",
+        message: `Your vehicle booking for ${booking.vehicle.name} is created. ${paymentMethod === "pay_on_pickup" ? "You'll pay on pickup." : "Please complete payment to confirm."}`,
+        actionUrl: paymentMethod === "pay_on_pickup" ? `/book/confirmation/${booking.id}?type=vehicle` : `/book/payment/${booking.id}?type=vehicle`,
+        data: {
+          bookingId: booking.id,
+          bookingType: "vehicle",
+          bookingNumber: booking.bookingNumber,
+          serviceName: booking.vehicle.name,
+        },
+        priority: "HIGH",
+      });
+
+      // If pay on pickup, redirect to confirmation
+      if (paymentMethod === "pay_on_pickup") {
+        return redirect(`/book/confirmation/${booking.id}?type=vehicle`);
+      }
+
+      // Otherwise redirect to payment page
+      return redirect(`/book/payment/${booking.id}?type=vehicle`);
+    } catch (error) {
+      console.error("Error creating vehicle booking:", error);
+      return json({ error: "Failed to create booking. Please try again." }, { status: 500 });
+    }
   }
   return json({ error: "Invalid action" }, { status: 400 });
 }
@@ -140,6 +258,7 @@ export default function VehicleBookingPage() {
   const { vehicle, isAvailable, pricing, startDate, endDate, pickupLocation } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const nav = useNavigation();
+  const [paymentMethod, setPaymentMethod] = useState("stripe");
 
   const disabled = nav.state !== "idle";
   const days = pricing.days;
@@ -239,6 +358,7 @@ export default function VehicleBookingPage() {
               <CardContent className="space-y-6">
                 <Form method="post" replace>
                   <input type="hidden" name="intent" value="book" />
+                  <input type="hidden" name="paymentMethod" value={paymentMethod} />
                   
                   {/* Date Selection */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -324,6 +444,69 @@ export default function VehicleBookingPage() {
                     </Alert>
                   )}
 
+                  {/* Payment Method Selection */}
+                  <div className="space-y-4 pt-4 border-t">
+                    <Label className="text-base font-semibold">Payment Method</Label>
+                    <div className="space-y-3">
+                      <div 
+                        onClick={() => setPaymentMethod("stripe")}
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                          paymentMethod === "stripe" 
+                            ? "border-[#01502E] bg-[#01502E]/5" 
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <CreditCard className="h-5 w-5 text-[#01502E]" />
+                          <div className="flex-1">
+                            <div className="font-medium">Pay Online</div>
+                            <div className="text-sm text-gray-600">Secure payment with credit/debit card</div>
+                          </div>
+                          <input 
+                            type="radio" 
+                            name="paymentMethod" 
+                            value="stripe" 
+                            checked={paymentMethod === "stripe"}
+                            onChange={() => setPaymentMethod("stripe")}
+                            className="w-4 h-4"
+                          />
+                        </div>
+                      </div>
+                      <div 
+                        onClick={() => setPaymentMethod("pay_on_pickup")}
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                          paymentMethod === "pay_on_pickup" 
+                            ? "border-[#01502E] bg-[#01502E]/5" 
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Wallet className="h-5 w-5 text-[#01502E]" />
+                          <div className="flex-1">
+                            <div className="font-medium">Pay on Pickup</div>
+                            <div className="text-sm text-gray-600">Pay the driver when you pick up the vehicle</div>
+                          </div>
+                          <input 
+                            type="radio" 
+                            name="paymentMethod" 
+                            value="pay_on_pickup" 
+                            checked={paymentMethod === "pay_on_pickup"}
+                            onChange={() => setPaymentMethod("pay_on_pickup")}
+                            className="w-4 h-4"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {paymentMethod === "pay_on_pickup" && (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-sm">
+                          Your booking will be confirmed after the vehicle owner approves. You'll pay when you pick up the vehicle.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+
                   {/* Submit Button */}
                   <div className="pt-4">
                     <Button 
@@ -338,8 +521,17 @@ export default function VehicleBookingPage() {
                         </>
                       ) : (
                         <>
-                          <CreditCard className="h-5 w-5 mr-2" />
-                          Proceed to Payment
+                          {paymentMethod === "pay_on_pickup" ? (
+                            <>
+                              <Wallet className="h-5 w-5 mr-2" />
+                              Book Now (Pay on Pickup)
+                            </>
+                          ) : (
+                            <>
+                              <CreditCard className="h-5 w-5 mr-2" />
+                              Proceed to Payment
+                            </>
+                          )}
                         </>
                       )}
                     </Button>

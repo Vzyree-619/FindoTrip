@@ -303,7 +303,7 @@ export default function RevenueDashboard() {
   const actionData = useActionData<typeof action>();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6">
@@ -315,8 +315,8 @@ export default function RevenueDashboard() {
           </Link>
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Revenue Dashboard</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm sm:text-base">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Revenue Dashboard</h1>
+              <p className="text-gray-600">
                 Track your earnings and manage commission payments
               </p>
             </div>
@@ -325,18 +325,18 @@ export default function RevenueDashboard() {
 
         {/* Success/Error Messages */}
         {actionData?.success && (
-          <div className="mb-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-            <p className="text-sm font-medium text-green-800 dark:text-green-200">
+          <div className="mb-4 bg-green-50">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <p className="text-sm font-medium text-green-800">
               {actionData.message}
             </p>
           </div>
         )}
 
         {actionData?.error && (
-          <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-            <p className="text-sm font-medium text-red-800 dark:text-red-200">
+          <div className="mb-4 bg-red-50">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <p className="text-sm font-medium text-red-800">
               {actionData.error}
             </p>
           </div>
@@ -344,27 +344,27 @@ export default function RevenueDashboard() {
 
         {/* Revenue Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="bg-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                <p className="text-sm text-gray-600">Total Revenue</p>
+                <p className="text-2xl font-bold text-gray-900">
                   PKR {totalRevenue.toLocaleString()}
                 </p>
               </div>
-              <DollarSign className="w-8 h-8 text-[#01502E] dark:text-[#4ade80]" />
+              <DollarSign className="w-8 h-8 text-[#01502E]" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="bg-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">This Month</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                <p className="text-sm text-gray-600">This Month</p>
+                <p className="text-2xl font-bold text-gray-900">
                   PKR {monthlyRevenue.toLocaleString()}
                 </p>
                 {lastMonthRevenue > 0 && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-xs text-gray-500">
                     {((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1)}% vs last month
                   </p>
                 )}
@@ -373,14 +373,14 @@ export default function RevenueDashboard() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="bg-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Pending Commissions</p>
-                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-1">
+                <p className="text-sm text-gray-600">Pending Commissions</p>
+                <p className="text-2xl font-bold text-orange-600">
                   PKR {pendingCommissions.toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-xs text-gray-500">
                   {payAtPropertyCommissions.length} from pay-at-property
                 </p>
               </div>
@@ -388,11 +388,11 @@ export default function RevenueDashboard() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="bg-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Bookings</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                <p className="text-sm text-gray-600">Total Bookings</p>
+                <p className="text-2xl font-bold text-gray-900">
                   {bookingsCount}
                 </p>
               </div>
@@ -403,8 +403,8 @@ export default function RevenueDashboard() {
 
         {/* Revenue Breakdown */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <div className="bg-white">
+            <h2 className="text-lg font-semibold text-gray-900">
               Revenue by Payment Method
             </h2>
             <div className="space-y-4">
@@ -412,13 +412,13 @@ export default function RevenueDashboard() {
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2">
                     <CreditCard className="w-5 h-5 text-blue-500" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Online Payments</span>
+                    <span className="text-sm font-medium text-gray-700">Online Payments</span>
                   </div>
-                  <span className="text-lg font-bold text-gray-900 dark:text-white">
+                  <span className="text-lg font-bold text-gray-900">
                     PKR {revenueByMethod.online.toLocaleString()}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200">
                   <div
                     className="bg-blue-500 h-2 rounded-full"
                     style={{
@@ -431,13 +431,13 @@ export default function RevenueDashboard() {
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2">
                     <Wallet className="w-5 h-5 text-green-500" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Pay at Property</span>
+                    <span className="text-sm font-medium text-gray-700">Pay at Property</span>
                   </div>
-                  <span className="text-lg font-bold text-gray-900 dark:text-white">
+                  <span className="text-lg font-bold text-gray-900">
                     PKR {revenueByMethod.payAtProperty.toLocaleString()}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200">
                   <div
                     className="bg-green-500 h-2 rounded-full"
                     style={{
@@ -449,32 +449,32 @@ export default function RevenueDashboard() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <div className="bg-white">
+            <h2 className="text-lg font-semibold text-gray-900">
               Commission Summary
             </h2>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Total Commissions</span>
-                <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                <span className="text-sm text-gray-600">Total Commissions</span>
+                <span className="text-lg font-semibold text-gray-900">
                   PKR {totalCommissions.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Paid</span>
-                <span className="text-lg font-semibold text-green-600 dark:text-green-400">
+                <span className="text-sm text-gray-600">Paid</span>
+                <span className="text-lg font-semibold text-green-600">
                   PKR {paidCommissions.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Pending</span>
-                <span className="text-lg font-semibold text-orange-600 dark:text-orange-400">
+                <span className="text-sm text-gray-600">Pending</span>
+                <span className="text-lg font-semibold text-orange-600">
                   PKR {pendingCommissions.toLocaleString()}
                 </span>
               </div>
               {pendingCommissions > 0 && (
-                <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                <div className="pt-3 border-t border-gray-200">
+                  <p className="text-xs text-gray-500">
                     Pay-at-property bookings require manual commission payment
                   </p>
                   <Form method="post" className="flex gap-2">
@@ -507,43 +507,43 @@ export default function RevenueDashboard() {
 
         {/* Pending Commissions for Pay-at-Property */}
         {payAtPropertyCommissions.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+          <div className="bg-white">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-lg font-semibold text-gray-900">
                 Pending Commissions (Pay at Property)
               </h2>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-sm text-gray-600">
                 {payAtPropertyCommissions.length} commission(s)
               </span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
                       Booking ID
                     </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
                       Amount
                     </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
                       Calculated
                     </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
                       Action
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {payAtPropertyCommissions.map((commission) => (
-                    <tr key={commission.id} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
+                    <tr key={commission.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4 text-sm text-gray-900">
                         {commission.bookingId.slice(-8)}
                       </td>
-                      <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">
+                      <td className="py-3 px-4 text-sm font-medium text-gray-900">
                         PKR {commission.amount.toLocaleString()}
                       </td>
-                      <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
+                      <td className="py-3 px-4 text-sm text-gray-600">
                         {new Date(commission.calculatedAt).toLocaleDateString()}
                       </td>
                       <td className="py-3 px-4">
@@ -584,64 +584,64 @@ export default function RevenueDashboard() {
         )}
 
         {/* Recent Bookings */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="bg-white">
+          <h2 className="text-lg font-semibold text-gray-900">
             Recent Bookings
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
                     Booking #
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
                     Property
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
                     Guest
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
                     Amount
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
                     Status
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
                     Date
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {recentBookings.map((booking) => (
-                  <tr key={booking.id} className="border-b border-gray-100 dark:border-gray-800">
-                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
+                  <tr key={booking.id} className="border-b border-gray-100">
+                    <td className="py-3 px-4 text-sm text-gray-900">
                       {booking.bookingNumber}
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
+                    <td className="py-3 px-4 text-sm text-gray-900">
                       {booking.property.name}
                       {booking.roomType && ` - ${booking.roomType.name}`}
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
+                    <td className="py-3 px-4 text-sm text-gray-600">
                       {booking.user.name}
                     </td>
-                    <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">
+                    <td className="py-3 px-4 text-sm font-medium text-gray-900">
                       PKR {booking.totalPrice.toLocaleString()}
                     </td>
                     <td className="py-3 px-4">
                       <span
                         className={`px-2 py-1 rounded text-xs font-medium ${
                           booking.status === "COMPLETED"
-                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                            ? "bg-green-100 text-green-800"
                             : booking.status === "CONFIRMED"
-                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                            : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-gray-100 text-gray-800"
                         }`}
                       >
                         {booking.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
+                    <td className="py-3 px-4 text-sm text-gray-600">
                       {new Date(booking.createdAt).toLocaleDateString()}
                     </td>
                   </tr>

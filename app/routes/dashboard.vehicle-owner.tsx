@@ -25,6 +25,10 @@ import {
   Info,
   Camera,
   MessageCircle,
+  DollarSign,
+  TrendingUp,
+  CreditCard,
+  Calendar,
 } from "lucide-react";
 import SupportButton from "~/components/support/SupportButton";
 
@@ -75,7 +79,93 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  return json({ user, owner, vehicles, error: null });
+  // Get all bookings for this owner's vehicles
+  const vehicleIds = vehicles.map(v => v.id);
+  const bookings = await prisma.vehicleBooking.findMany({
+    where: {
+      vehicleId: { in: vehicleIds },
+    },
+    include: {
+      vehicle: {
+        select: {
+          id: true,
+          name: true,
+          city: true,
+        },
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 20,
+  });
+
+  // Calculate financial statistics
+  const confirmedCompletedBookings = bookings.filter(b => 
+    b.status === "CONFIRMED" || b.status === "COMPLETED"
+  );
+  
+  const totalRevenue = confirmedCompletedBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+  
+  // Calculate commission (10% default rate)
+  const commissionRate = 0.1;
+  const totalCommission = totalRevenue * commissionRate;
+  const netRevenue = totalRevenue - totalCommission;
+  
+  // Get commissions from database
+  const commissions = await prisma.commission.findMany({
+    where: {
+      vehicleOwnerId: owner.id,
+      bookingType: "vehicle"
+    },
+    select: {
+      amount: true,
+      status: true,
+      calculatedAt: true
+    }
+  });
+  
+  const pendingCommissions = commissions
+    .filter(c => c.status === "PENDING")
+    .reduce((sum, c) => sum + c.amount, 0);
+  
+  const paidCommissions = commissions
+    .filter(c => c.status === "PAID")
+    .reduce((sum, c) => sum + c.amount, 0);
+  
+  // Monthly revenue
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthlyRevenue = confirmedCompletedBookings
+    .filter(b => new Date(b.createdAt) >= startOfMonth)
+    .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+  const monthlyCommission = monthlyRevenue * commissionRate;
+  const monthlyNet = monthlyRevenue - monthlyCommission;
+
+  return json({ 
+    user, 
+    owner, 
+    vehicles, 
+    bookings,
+    // Financial data
+    totalRevenue,
+    totalCommission,
+    netRevenue,
+    pendingCommissions,
+    paidCommissions,
+    monthlyRevenue,
+    monthlyCommission,
+    monthlyNet,
+    error: null 
+  });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -271,7 +361,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function VehicleOwnerDashboard() {
-  const { user, owner, vehicles, error } = useLoaderData<typeof loader>();
+  const { user, owner, vehicles, totalRevenue, netRevenue, monthlyRevenue, monthlyNet, pendingCommissions, paidCommissions, error } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const submitted = searchParams.get("submitted") === "1";
@@ -281,12 +371,12 @@ export default function VehicleOwnerDashboard() {
   // Show error if user doesn't have access
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50">
         <div className="text-center max-w-md">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
             Access Restricted
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm md:text-base">
+          <p className="text-gray-600">
             {error}
           </p>
           <Link
@@ -439,6 +529,85 @@ export default function VehicleOwnerDashboard() {
         {actionError && (
           <div className="mb-6 rounded-md bg-red-50 p-4 flex items-center gap-2 text-red-800">
             <AlertCircle className="w-5 h-5" /> {actionError}
+          </div>
+        )}
+
+        {/* Financial Summary Section */}
+        {owner?.verified && (totalRevenue > 0 || monthlyRevenue > 0) && (
+          <div className="bg-white">
+            <div className="flex items-center gap-2 mb-4">
+              <DollarSign className="w-5 h-5 text-[#01502E] flex-shrink-0" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Financial Overview
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              {/* Total Revenue */}
+              <div className="bg-gradient-to-br from-green-50 to-green-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600">Total Revenue</span>
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  PKR {totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500">All time</p>
+              </div>
+
+              {/* Net Revenue */}
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600">Net Revenue</span>
+                  <TrendingUp className="w-4 h-4 text-blue-600" />
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  PKR {netRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500">After commission</p>
+              </div>
+
+              {/* Monthly Revenue */}
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600">This Month</span>
+                  <Calendar className="w-4 h-4 text-purple-600" />
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  PKR {monthlyRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Net: PKR {monthlyNet.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+              </div>
+
+              {/* Pending Commission */}
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600">Commission Due</span>
+                  <CreditCard className="w-4 h-4 text-yellow-600" />
+                </div>
+                <p className="text-xl font-bold text-gray-900">
+                  PKR {pendingCommissions.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {((pendingCommissions / totalRevenue) * 100 || 0).toFixed(1)}% of total
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Platform Commission Rate:</span>
+                <span className="font-semibold text-gray-900">10%</span>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-2">
+                <span className="text-gray-600">Total Commission Paid:</span>
+                <span className="font-semibold text-green-600">
+                  PKR {paidCommissions.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </span>
+              </div>
+            </div>
           </div>
         )}
 

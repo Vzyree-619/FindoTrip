@@ -44,17 +44,17 @@ export default function DashboardSettings() {
   const { user } = useLoaderData<typeof loader>();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Settings className="w-8 h-8 text-[#01502E]" />
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-3xl font-bold text-gray-900">
               Settings
             </h1>
           </div>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600">
             Manage your dashboard preferences and settings
           </p>
         </div>
@@ -62,7 +62,7 @@ export default function DashboardSettings() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Settings Navigation Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="bg-white">
               <nav className="space-y-2">
                 {settingsSections.map((section) => {
                   const Icon = section.icon;
@@ -74,7 +74,7 @@ export default function DashboardSettings() {
                         `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                           isActive
                             ? "bg-[#01502E] text-white"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            : "text-gray-700"
                         }`
                       }
                     >

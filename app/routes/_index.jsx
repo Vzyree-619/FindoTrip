@@ -11,6 +11,7 @@ import TourPackages from "~/components/features/home/TourPackages";
 import FAQSection from "~/components/features/home/FAQSection";
 import AddPage from "~/components/features/home/AddPage";
 import Stays from "~/components/features/home/Stays";
+import PublicChatButton from "~/components/chat/PublicChatButton";
 export default function Index() {
   const data = useLoaderData();
   // If providers somehow render the landing page, hide consumer sections
@@ -27,6 +28,9 @@ export default function Index() {
         {!isProvider && <CarRentalSection vehicles={data?.vehicles} />}
         <FAQSection />
         <Footer />
+        
+        {/* Public Live Chat Button - only show for non-logged-in users or customers */}
+        {(!user || user.role === 'CUSTOMER') && <PublicChatButton />}
       </div>
     </>
   );

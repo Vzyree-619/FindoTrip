@@ -240,15 +240,15 @@ export default function WeatherPage() {
                   {showSuggestions && suggestions.length > 0 && (
                     <div
                       ref={suggestionsRef}
-                      className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                      className="absolute z-50 w-full mt-1 bg-white"
                     >
                       {suggestions.map((suggestion, index) => (
                         <button
                           key={`${suggestion.lat}-${suggestion.lon}-${index}`}
                           type="button"
                           onClick={() => handleSelectSuggestion(suggestion)}
-                          className={`w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                            index === selectedIndex ? 'bg-gray-100 dark:bg-gray-700' : ''
+                          className={`w-full text-left px-4 py-3 hover:bg-gray-100
+                            index === selectedIndex ? 'bg-gray-100' : ''
                           } ${index === 0 ? 'rounded-t-lg' : ''} ${
                             index === suggestions.length - 1 ? 'rounded-b-lg' : ''
                           }`}
@@ -256,10 +256,10 @@ export default function WeatherPage() {
                           <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                              <p className="text-sm font-medium text-gray-900">
                                 {suggestion.displayName}
                               </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              <p className="text-xs text-gray-500">
                                 {suggestion.fullName}
                               </p>
                             </div>

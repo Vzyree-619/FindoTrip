@@ -52,9 +52,10 @@ export function ChatInput({
       if (!disabled && value.trim()) {
         const messageText = value.trim();
         const messageFiles = [...files];
-        // Clear files immediately
+        // Clear files and input immediately
         setFiles([]);
-        // onSend will handle clearing the input value
+        onChange(""); // Clear input immediately
+        // Send the message
         onSend(messageText, messageFiles);
       }
     }
@@ -87,12 +88,12 @@ export function ChatInput({
   };
 
   return (
-    <div className="border-t bg-white dark:bg-gray-800 p-2 w-full max-w-full overflow-x-hidden box-border" aria-label="Chat input area">
+    <div className="border-t bg-white" aria-label="Chat input area">
       <div className="flex items-end gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors flex-shrink-0"
+          className="p-2 text-gray-600"
           aria-label="Attach files"
         >
           <Paperclip className="w-5 h-5" />
@@ -112,13 +113,13 @@ export function ChatInput({
             maxLength={maxLength}
             rows={1}
             className={clsx(
-              "w-full max-w-full resize-none rounded-lg border bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 box-border",
+              "w-full max-w-full resize-none rounded-lg border bg-gray-50",
               "focus:outline-none focus:ring-2 focus:ring-[#01502E] px-3 py-2 text-sm"
             )}
             aria-label="Type a message"
           />
           {isEmojiOpen && (
-            <div className="absolute bottom-full mb-2 left-0 bg-white dark:bg-gray-800 border dark:border-gray-600 rounded-lg shadow p-2 grid grid-cols-8 gap-1 max-w-[200px] overflow-hidden">
+            <div className="absolute bottom-full mb-2 left-0 bg-white">
               {"😀😃😄😁😆😅😂😊😍😘😜🤗👍🙏👏🔥🎉✨🥳😎🤩".split("")
                 .filter(Boolean)
                 .map((e, i) => (
@@ -132,7 +133,7 @@ export function ChatInput({
         <button
           type="button"
           onClick={() => setIsEmojiOpen((s) => !s)}
-          className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors flex-shrink-0"
+          className="p-2 text-gray-600"
           aria-label="Emoji picker"
         >
           <Smile className="w-5 h-5" />
@@ -144,7 +145,10 @@ export function ChatInput({
             if (value.trim()) {
               const messageText = value.trim();
               const messageFiles = [...files];
+              // Clear files and input immediately
               setFiles([]);
+              onChange(""); // Clear input immediately
+              // Send the message
               onSend(messageText, messageFiles);
             }
           }}

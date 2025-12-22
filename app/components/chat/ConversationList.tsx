@@ -31,9 +31,9 @@ export function ConversationList({
 
   return (
     <div className={clsx("h-full flex flex-col min-h-0 w-full max-w-full", className)}>
-      <div className="p-3 border-b bg-white dark:bg-gray-800 dark:border-gray-700 flex-shrink-0 w-full max-w-full">
-        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-md px-2 py-1 w-full max-w-full">
-          <Search className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+      <div className="p-3 border-b bg-white">
+        <div className="flex items-center gap-2 bg-gray-100">
+          <Search className="w-4 h-4 text-gray-500" />
           <input
             value={q}
             onChange={(e) => {
@@ -41,7 +41,7 @@ export function ConversationList({
               onSearch?.(e.target.value);
             }}
             placeholder="Search conversations"
-            className="flex-1 min-w-0 bg-transparent outline-none text-sm py-1 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+            className="flex-1 min-w-0 bg-transparent outline-none text-sm py-1 text-gray-900"
           />
         </div>
       </div>
@@ -50,11 +50,11 @@ export function ConversationList({
         {loading ? (
           <div className="p-3 space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-12 bg-gray-100 dark:bg-gray-700 rounded" />
+              <div key={i} className="h-12 bg-gray-100" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="p-6 text-center text-gray-500 dark:text-gray-400">No conversations</div>
+          <div className="p-6 text-center text-gray-500">No conversations</div>
         ) : (
           filtered
             .slice()
@@ -75,21 +75,21 @@ export function ConversationList({
                 <button
                   key={conv.id}
                   onClick={() => onSelect?.(conv.id)}
-                  className="w-full max-w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 focus:bg-gray-50 dark:focus:bg-gray-700"
+                  className="w-full max-w-full text-left p-3 hover:bg-gray-50"
                 >
                   <div className="flex items-center gap-3 w-full max-w-full min-w-0">
                     <img src={p?.avatar || "/avatar.png"} alt="avatar" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
                     <div className="flex-1 min-w-0 max-w-full">
                       <div className="flex items-center justify-between gap-2 min-w-0">
-                        <div className="truncate font-medium text-gray-900 dark:text-gray-100 min-w-0 flex-1">{p?.name || "Unknown"}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap flex-shrink-0">{formatTimeAgo(conv.updatedAt || new Date())}</div>
+                        <div className="truncate font-medium text-gray-900">{p?.name || "Unknown"}</div>
+                        <div className="text-xs text-gray-500">{formatTimeAgo(conv.updatedAt || new Date())}</div>
                       </div>
                       {isServiceProvider && serviceType && (
                         <div className="text-xs text-[#01502E] font-medium mb-1 truncate">
                           {serviceType}
                         </div>
                       )}
-                      <div className="text-sm text-gray-500 dark:text-gray-400 truncate">{conv.lastMessage?.content || "No messages yet"}</div>
+                      <div className="text-sm text-gray-500">{conv.lastMessage?.content || "No messages yet"}</div>
                     </div>
                     {conv.unreadCount ? (
                       <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-[#01502E] text-white flex-shrink-0">

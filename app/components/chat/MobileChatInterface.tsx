@@ -239,7 +239,7 @@ export function MobileChatInterface({
         <div className="flex items-end gap-2">
           <button
             onClick={handleCameraCapture}
-            className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 rounded-full hover:bg-gray-100"
+            className="p-2 text-gray-600"
             aria-label="Camera"
           >
             <Camera className="w-6 h-6" />
@@ -281,7 +281,7 @@ export function MobileChatInterface({
               onMouseUp={handleVoiceRecord}
               className={clsx(
                 "p-2 rounded-full transition-colors",
-                isRecording ? "bg-red-500 text-white" : "text-gray-600 dark:text-gray-300 hover:text-gray-900"
+                isRecording ? "bg-red-500 text-white" : "text-gray-600"
               )}
               aria-label="Voice message"
             >

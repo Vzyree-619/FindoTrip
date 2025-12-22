@@ -448,7 +448,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       // Stripe integration (server-side intent creation)
       if (paymentMethod === 'stripe') {
-        if (process.env.STRIPE_SECRET) {
+        if (process.env.STRIPE_SECRET_KEY) {
           try {
             const stripeModule = await import('stripe' as any).catch(() => null);
             if (!stripeModule) {
@@ -472,7 +472,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
                 warning: 'Stripe package not installed. Please contact admin to set up payment processing.'
               });
             }
-            const stripe = new stripeModule.default(process.env.STRIPE_SECRET as string, { apiVersion: '2023-10-16' });
+            const stripe = new stripeModule.default(process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET as string, { apiVersion: '2023-10-16' });
             const amountMinor = Math.round((booking.totalPrice || 0) * 100);
             const currency = (booking.currency || 'PKR').toLowerCase();
             const intent = await stripe.paymentIntents.create({
@@ -627,30 +627,31 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
 
       // Update booking status
-      if (paymentMethod === 'pay_at_pickup' || paymentMethod === 'bank_transfer') {
-        // Keep status as PENDING for provider approval/payment later
-      } else if (bookingType === "property") {
+      // Keep status as PENDING for property owner verification, even after payment
+      // Property owners will confirm bookings through their dashboard
+      if (bookingType === "property") {
         await prisma.propertyBooking.update({
           where: { id: bookingId },
           data: {
-            status: "CONFIRMED",
-            paymentStatus: "COMPLETED",
+            // Keep status as PENDING - property owner will confirm
+            status: "PENDING",
+            paymentStatus: paymentMethod === 'pay_at_pickup' || paymentMethod === 'bank_transfer' ? "PENDING" : "COMPLETED",
           },
         });
       } else if (bookingType === "vehicle") {
         await prisma.vehicleBooking.update({
           where: { id: bookingId },
           data: {
-            status: "CONFIRMED",
-            paymentStatus: "COMPLETED",
+            status: "PENDING",
+            paymentStatus: paymentMethod === 'pay_at_pickup' || paymentMethod === 'bank_transfer' ? "PENDING" : "COMPLETED",
           },
         });
       } else if (bookingType === "tour") {
         await prisma.tourBooking.update({
           where: { id: bookingId },
           data: {
-            status: "CONFIRMED",
-            paymentStatus: "COMPLETED",
+            status: "PENDING",
+            paymentStatus: paymentMethod === 'pay_at_pickup' || paymentMethod === 'bank_transfer' ? "PENDING" : "COMPLETED",
           },
         });
       }
@@ -770,16 +771,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
           
           // Create commission with proper provider relationship
           const commissionData: any = {
-            amount: commissionAmount,
-            percentage: commissionRate * 100,
-            currency: booking.currency,
+              amount: commissionAmount,
+              percentage: commissionRate * 100,
+              currency: booking.currency,
             status: commissionStatus,
-            bookingId,
-            bookingType,
-            serviceId,
-            serviceType: bookingType,
+              bookingId,
+              bookingType,
+              serviceId,
+              serviceType: bookingType,
             userId: providerUserId || providerId,
-            calculatedAt: new Date(),
+              calculatedAt: new Date(),
           };
           
           // Link to specific provider model

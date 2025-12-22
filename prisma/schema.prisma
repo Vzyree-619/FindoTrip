@@ -348,6 +348,7 @@ model User {
   errorLogs        ErrorLog[] @relation("ErrorLogUser")
   activityLogs     ActivityLog[] @relation("ActivityLogUser")
   emailTemplates   EmailTemplate[] @relation("EmailTemplateCreator")
+  jobsCreated      Job[] @relation("JobCreator")
 
   @@index([role])
   @@index([verified])
@@ -3072,4 +3073,46 @@ model SecuritySetting {
 
   @@index([category])
   @@index([isEnabled])
+}
+
+// Job Postings
+model Job {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  department      String   // "Engineering", "Design", "Operations", "Marketing", etc.
+  location        String   // "Remote", "Skardu, Pakistan", "Remote / Skardu, Pakistan"
+  type            String   // "Full-time", "Part-time", "Contract", "Internship"
+  description     String
+  requirements    String[] // Array of requirement strings
+  responsibilities String[] // Array of responsibility strings
+  benefits        String[] // Array of benefit strings
+  salaryRange     String?  // e.g., "PKR 100,000 - PKR 200,000"
+  applicationEmail String  @default("careers@findotrip.com")
+  applicationUrl  String?  // Optional external application URL
+  
+  // Status
+  isActive        Boolean  @default(true)
+  isPublished     Boolean  @default(true)
+  
+  // Metadata
+  viewCount       Int      @default(0)
+  applicationCount Int     @default(0)
+  
+  // Creator
+  createdById     String   @db.ObjectId
+  createdBy       User     @relation("JobCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  
+  // Dates
+  postedAt        DateTime @default(now())
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([isPublished])
+  @@index([department])
+  @@index([type])
+  @@index([createdById])
+  @@index([postedAt])
+  @@index([expiresAt])
 }

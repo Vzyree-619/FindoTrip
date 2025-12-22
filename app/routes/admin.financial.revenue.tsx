@@ -90,9 +90,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const fromDate = dateFrom ? new Date(dateFrom) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const toDate = dateTo ? new Date(dateTo) : new Date();
   
-  // Build where clause for revenue data
-  const whereClause: any = {
+  // Build where clause for bookings
+  const bookingWhereClause: any = {
     status: { in: ['CONFIRMED', 'COMPLETED'] },
+    createdAt: {
+      gte: fromDate,
+      lte: toDate
+    }
+  };
+
+  // Build where clause for payments
+  const paymentWhereClause: any = {
+    status: 'COMPLETED',
     createdAt: {
       gte: fromDate,
       lte: toDate
@@ -100,163 +109,256 @@ export async function loader({ request }: LoaderFunctionArgs) {
   };
   
   if (serviceType !== 'all') {
-    whereClause.serviceType = serviceType.toUpperCase();
+    paymentWhereClause.bookingType = serviceType.toUpperCase();
   }
   
+  // Map payment method filter to valid enum values
   if (paymentMethod !== 'all') {
-    whereClause.paymentMethod = paymentMethod.toUpperCase();
+    const methodMap: Record<string, string> = {
+      'credit_card': 'CREDIT_CARD',
+      'debit_card': 'DEBIT_CARD',
+      'bank_transfer': 'BANK_TRANSFER',
+      'mobile_wallet': 'MOBILE_WALLET',
+      'cash': 'CASH',
+      'crypto': 'CRYPTO',
+    };
+    const mappedMethod = methodMap[paymentMethod.toLowerCase()] || paymentMethod.toUpperCase();
+    // Only set if it's a valid PaymentMethod enum value
+    const validMethods = ['CREDIT_CARD', 'DEBIT_CARD', 'BANK_TRANSFER', 'MOBILE_WALLET', 'CASH', 'CRYPTO'];
+    if (validMethods.includes(mappedMethod)) {
+      paymentWhereClause.method = mappedMethod as any;
+    }
   }
   
-  // Get revenue statistics
-  const revenueStats = await Promise.all([
-    // Total bookings
-    prisma.booking.aggregate({
-      where: whereClause,
-      _sum: { totalAmount: true },
+  // Get revenue statistics from bookings
+  const [propertyBookings, vehicleBookings, tourBookings] = await Promise.all([
+    prisma.propertyBooking.aggregate({
+      where: bookingWhereClause,
+      _sum: { totalPrice: true },
       _count: { id: true }
     }),
-    
-    // Platform commission
-    prisma.booking.aggregate({
-      where: whereClause,
-      _sum: { platformCommission: true }
+    prisma.vehicleBooking.aggregate({
+      where: bookingWhereClause,
+      _sum: { totalPrice: true },
+      _count: { id: true }
     }),
-    
-    // Paid to providers
-    prisma.booking.aggregate({
-      where: whereClause,
-      _sum: { providerAmount: true }
+    prisma.tourBooking.aggregate({
+      where: bookingWhereClause,
+      _sum: { totalPrice: true },
+      _count: { id: true }
+    })
+  ]);
+
+  // Get payment statistics
+  const paymentStats = await prisma.payment.aggregate({
+    where: paymentWhereClause,
+    _sum: { amount: true },
+    _count: { id: true }
+  });
+
+  // Previous period bookings
+  const prevBookingWhereClause = {
+    ...bookingWhereClause,
+    createdAt: {
+      gte: new Date(fromDate.getTime() - (toDate.getTime() - fromDate.getTime())),
+      lte: fromDate
+    }
+  };
+
+  const [prevPropertyBookings, prevVehicleBookings, prevTourBookings] = await Promise.all([
+    prisma.propertyBooking.aggregate({
+      where: prevBookingWhereClause,
+      _sum: { totalPrice: true }
     }),
-    
-    // Previous period for comparison
-    prisma.booking.aggregate({
-      where: {
-        ...whereClause,
-        createdAt: {
-          gte: new Date(fromDate.getTime() - (toDate.getTime() - fromDate.getTime())),
-          lte: fromDate
-        }
-      },
-      _sum: { totalAmount: true }
+    prisma.vehicleBooking.aggregate({
+      where: prevBookingWhereClause,
+      _sum: { totalPrice: true }
+    }),
+    prisma.tourBooking.aggregate({
+      where: prevBookingWhereClause,
+      _sum: { totalPrice: true }
     })
   ]);
   
   // Get revenue by service type
-  const revenueByService = await Promise.all([
-    prisma.booking.aggregate({
-      where: { ...whereClause, serviceType: 'PROPERTY' },
-      _sum: { totalAmount: true },
-      _count: { id: true }
-    }),
-    prisma.booking.aggregate({
-      where: { ...whereClause, serviceType: 'VEHICLE' },
-      _sum: { totalAmount: true },
-      _count: { id: true }
-    }),
-    prisma.booking.aggregate({
-      where: { ...whereClause, serviceType: 'TOUR' },
-      _sum: { totalAmount: true },
-      _count: { id: true }
-    })
-  ]);
+  const revenueByService = [
+    {
+      serviceType: 'PROPERTY',
+      totalRevenue: propertyBookings._sum.totalPrice || 0,
+      totalBookings: propertyBookings._count.id || 0
+    },
+    {
+      serviceType: 'VEHICLE',
+      totalRevenue: vehicleBookings._sum.totalPrice || 0,
+      totalBookings: vehicleBookings._count.id || 0
+    },
+    {
+      serviceType: 'TOUR',
+      totalRevenue: tourBookings._sum.totalPrice || 0,
+      totalBookings: tourBookings._count.id || 0
+    }
+  ];
   
-  // Get revenue by payment method
+  // Get revenue by payment method (using valid enum values)
   const revenueByPayment = await Promise.all([
-    prisma.booking.aggregate({
-      where: { ...whereClause, paymentMethod: 'CREDIT_CARD' },
-      _sum: { totalAmount: true },
+    prisma.payment.aggregate({
+      where: { ...paymentWhereClause, method: 'CREDIT_CARD' as any },
+      _sum: { amount: true },
       _count: { id: true }
     }),
-    prisma.booking.aggregate({
-      where: { ...whereClause, paymentMethod: 'PAYPAL' },
-      _sum: { totalAmount: true },
+    prisma.payment.aggregate({
+      where: { ...paymentWhereClause, method: 'DEBIT_CARD' as any },
+      _sum: { amount: true },
       _count: { id: true }
     }),
-    prisma.booking.aggregate({
-      where: { ...whereClause, paymentMethod: 'BANK_TRANSFER' },
-      _sum: { totalAmount: true },
+    prisma.payment.aggregate({
+      where: { ...paymentWhereClause, method: 'BANK_TRANSFER' as any },
+      _sum: { amount: true },
+      _count: { id: true }
+    }),
+    prisma.payment.aggregate({
+      where: { ...paymentWhereClause, method: 'MOBILE_WALLET' as any },
+      _sum: { amount: true },
+      _count: { id: true }
+    }),
+    prisma.payment.aggregate({
+      where: { ...paymentWhereClause, method: 'CASH' as any },
+      _sum: { amount: true },
       _count: { id: true }
     })
   ]);
   
-  // Get top earning services
-  const topEarningServices = await prisma.booking.groupBy({
-    by: ['serviceId', 'serviceType'],
-    where: whereClause,
-    _sum: { totalAmount: true },
+  // Get top earning properties
+  const topProperties = await prisma.propertyBooking.groupBy({
+    by: ['propertyId'],
+    where: bookingWhereClause,
+    _sum: { totalPrice: true },
     _count: { id: true },
     orderBy: {
       _sum: {
-        totalAmount: 'desc'
+        totalPrice: 'desc'
       }
     },
     take: 10
   });
+
+  // Get property details for top earners
+  const topPropertyIds = topProperties.map(p => p.propertyId);
+  const topPropertyDetails = await prisma.property.findMany({
+    where: { id: { in: topPropertyIds } },
+    select: { id: true, name: true, city: true }
+  });
+
+  const topEarningServices = topProperties.map(p => ({
+    serviceId: p.propertyId,
+    serviceType: 'PROPERTY',
+    serviceName: topPropertyDetails.find(prop => prop.id === p.propertyId)?.name || 'Unknown',
+    city: topPropertyDetails.find(prop => prop.id === p.propertyId)?.city || 'Unknown',
+    totalRevenue: p._sum.totalPrice || 0,
+    totalBookings: p._count.id || 0
+  }));
   
-  // Get daily revenue for chart
-  const dailyRevenue = await prisma.booking.groupBy({
+  // Get daily revenue for chart from payments
+  const dailyPayments = await prisma.payment.groupBy({
     by: ['createdAt'],
-    where: whereClause,
-    _sum: { totalAmount: true },
+    where: paymentWhereClause,
+    _sum: { amount: true },
     orderBy: { createdAt: 'asc' }
   });
+
+  const dailyRevenue = dailyPayments.map(p => ({
+    createdAt: p.createdAt,
+    totalAmount: p._sum.amount || 0
+  }));
   
-  // Get revenue by location
-  const revenueByLocation = await prisma.booking.groupBy({
-    by: ['city'],
-    where: whereClause,
-    _sum: { totalAmount: true },
-    _count: { id: true },
-    orderBy: {
-      _sum: {
-        totalAmount: 'desc'
+  // Get revenue by location from properties
+  const propertyBookingsWithLocation = await prisma.propertyBooking.findMany({
+    where: bookingWhereClause,
+    include: {
+      property: {
+        select: { city: true }
       }
-    },
-    take: 10
+    }
   });
+
+  const revenueByLocationMap = new Map<string, { revenue: number; count: number }>();
+  propertyBookingsWithLocation.forEach(booking => {
+    const city = booking.property?.city || 'Unknown';
+    const existing = revenueByLocationMap.get(city) || { revenue: 0, count: 0 };
+    revenueByLocationMap.set(city, {
+      revenue: existing.revenue + (booking.totalPrice || 0),
+      count: existing.count + 1
+    });
+  });
+
+  const revenueByLocation = Array.from(revenueByLocationMap.entries())
+    .map(([city, data]) => ({
+      city,
+      totalRevenue: data.revenue,
+      totalBookings: data.count
+    }))
+    .sort((a, b) => b.totalRevenue - a.totalRevenue)
+    .slice(0, 10);
+  
+  // Calculate totals
+  const totalBookings = (propertyBookings._count.id || 0) + (vehicleBookings._count.id || 0) + (tourBookings._count.id || 0);
+  const totalRevenue = (propertyBookings._sum.totalPrice || 0) + (vehicleBookings._sum.totalPrice || 0) + (tourBookings._sum.totalPrice || 0);
+  const previousRevenue = (prevPropertyBookings._sum.totalPrice || 0) + (prevVehicleBookings._sum.totalPrice || 0) + (prevTourBookings._sum.totalPrice || 0);
   
   // Calculate growth percentage
-  const currentRevenue = revenueStats[0]._sum.totalAmount || 0;
-  const previousRevenue = revenueStats[3]._sum.totalAmount || 0;
+  const currentRevenue = totalRevenue;
   const growthPercentage = previousRevenue > 0 
     ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 
     : 0;
   
+  // Calculate platform commission (typically 10-15% of total revenue)
+  const commissionRate = 0.12; // 12% platform commission
+  const platformCommission = currentRevenue * commissionRate;
+  const paidToProviders = currentRevenue - platformCommission;
+  
   return json({
     admin,
     revenueStats: {
-      totalBookings: revenueStats[0]._count.id || 0,
+      totalBookings,
       totalRevenue: currentRevenue,
-      platformCommission: revenueStats[1]._sum.platformCommission || 0,
-      paidToProviders: revenueStats[2]._sum.providerAmount || 0,
+      platformCommission,
+      paidToProviders,
       growthPercentage
     },
     revenueByService: {
       properties: {
-        amount: revenueByService[0]._sum.totalAmount || 0,
-        count: revenueByService[0]._count.id || 0
+        amount: revenueByService[0].totalRevenue || 0,
+        count: revenueByService[0].totalBookings || 0
       },
       vehicles: {
-        amount: revenueByService[1]._sum.totalAmount || 0,
-        count: revenueByService[1]._count.id || 0
+        amount: revenueByService[1].totalRevenue || 0,
+        count: revenueByService[1].totalBookings || 0
       },
       tours: {
-        amount: revenueByService[2]._sum.totalAmount || 0,
-        count: revenueByService[2]._count.id || 0
+        amount: revenueByService[2].totalRevenue || 0,
+        count: revenueByService[2].totalBookings || 0
       }
     },
     revenueByPayment: {
       creditCard: {
-        amount: revenueByPayment[0]._sum.totalAmount || 0,
+        amount: revenueByPayment[0]._sum.amount || 0,
         count: revenueByPayment[0]._count.id || 0
       },
-      paypal: {
-        amount: revenueByPayment[1]._sum.totalAmount || 0,
+      debitCard: {
+        amount: revenueByPayment[1]._sum.amount || 0,
         count: revenueByPayment[1]._count.id || 0
       },
       bankTransfer: {
-        amount: revenueByPayment[2]._sum.totalAmount || 0,
+        amount: revenueByPayment[2]._sum.amount || 0,
         count: revenueByPayment[2]._count.id || 0
+      },
+      mobileWallet: {
+        amount: revenueByPayment[3]._sum.amount || 0,
+        count: revenueByPayment[3]._count.id || 0
+      },
+      cash: {
+        amount: revenueByPayment[4]._sum.amount || 0,
+        count: revenueByPayment[4]._count.id || 0
       }
     },
     topEarningServices,
@@ -313,17 +415,23 @@ export default function RevenueOverview() {
   const getPaymentIcon = (method: string) => {
     switch (method) {
       case 'CREDIT_CARD': return CreditCard;
-      case 'PAYPAL': return Wallet;
+      case 'DEBIT_CARD': return CreditCard;
       case 'BANK_TRANSFER': return Banknote;
+      case 'MOBILE_WALLET': return Wallet;
+      case 'CASH': return DollarSign;
+      case 'CRYPTO': return Wallet;
       default: return DollarSign;
     }
   };
-  
+
   const getPaymentColor = (method: string) => {
     switch (method) {
       case 'CREDIT_CARD': return 'text-blue-600';
-      case 'PAYPAL': return 'text-yellow-600';
+      case 'DEBIT_CARD': return 'text-indigo-600';
       case 'BANK_TRANSFER': return 'text-green-600';
+      case 'MOBILE_WALLET': return 'text-yellow-600';
+      case 'CASH': return 'text-gray-600';
+      case 'CRYPTO': return 'text-purple-600';
       default: return 'text-gray-600';
     }
   };
@@ -411,8 +519,11 @@ export default function RevenueOverview() {
             >
               <option value="all">All Methods</option>
               <option value="credit_card">Credit Card</option>
-              <option value="paypal">PayPal</option>
+              <option value="debit_card">Debit Card</option>
               <option value="bank_transfer">Bank Transfer</option>
+              <option value="mobile_wallet">Mobile Wallet</option>
+              <option value="cash">Cash</option>
+              <option value="crypto">Crypto</option>
             </select>
           </div>
         </div>
@@ -571,15 +682,45 @@ export default function RevenueOverview() {
           
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center space-x-3">
-              <Wallet className="w-5 h-5 text-yellow-600" />
-              <span className="font-medium text-gray-900">PayPal</span>
+              <CreditCard className="w-5 h-5 text-indigo-600" />
+              <span className="font-medium text-gray-900">Debit Card</span>
             </div>
             <div className="text-right">
               <div className="font-semibold text-gray-900">
-                {formatCurrency(revenueByPayment.paypal.amount)}
+                {formatCurrency(revenueByPayment.debitCard.amount)}
               </div>
               <div className="text-sm text-gray-600">
-                {revenueByPayment.paypal.count} transactions
+                {revenueByPayment.debitCard.count} transactions
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <Wallet className="w-5 h-5 text-yellow-600" />
+              <span className="font-medium text-gray-900">Mobile Wallet</span>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold text-gray-900">
+                {formatCurrency(revenueByPayment.mobileWallet.amount)}
+              </div>
+              <div className="text-sm text-gray-600">
+                {revenueByPayment.mobileWallet.count} transactions
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <DollarSign className="w-5 h-5 text-gray-600" />
+              <span className="font-medium text-gray-900">Cash</span>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold text-gray-900">
+                {formatCurrency(revenueByPayment.cash.amount)}
+              </div>
+              <div className="text-sm text-gray-600">
+                {revenueByPayment.cash.count} transactions
               </div>
             </div>
           </div>
@@ -617,13 +758,19 @@ export default function RevenueOverview() {
                       {service.serviceType} #{service.serviceId.slice(-8)}
                     </div>
                     <div className="text-sm text-gray-600">
-                      {service._count.id} bookings
+                      {service.serviceName || `${service.serviceType} #${service.serviceId.slice(-8)}`}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {service.city}
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="font-semibold text-gray-900">
-                    {formatCurrency(service._sum.totalAmount || 0)}
+                    {formatCurrency(service.totalRevenue || 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {service.totalBookings || 0} bookings
                   </div>
                 </div>
               </div>
@@ -644,13 +791,13 @@ export default function RevenueOverview() {
                 <div>
                   <div className="font-medium text-gray-900">{location.city}</div>
                   <div className="text-sm text-gray-600">
-                    {location._count.id} bookings
+                    {location.totalBookings || 0} bookings
                   </div>
                 </div>
               </div>
               <div className="text-right">
                 <div className="font-semibold text-gray-900">
-                  {formatCurrency(location._sum.totalAmount || 0)}
+                  {formatCurrency(location.totalRevenue || 0)}
                 </div>
               </div>
             </div>

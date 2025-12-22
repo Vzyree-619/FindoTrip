@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Check, CheckCheck, MoreVertical, Edit2, Trash2, X, Save } from "lucide-react";
 import { formatTimestamp, clsx } from "./utils";
-import { useTheme } from "~/contexts/ThemeContext";
 import type { Message } from "./types";
 import MessageModal from "./MessageModal";
 
@@ -30,7 +29,6 @@ export function MessageBubble({
   isAdmin?: boolean;
   senderName?: string;
 }) {
-  const { resolvedTheme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [showActions, setShowActions] = useState(false);
@@ -104,9 +102,7 @@ export function MessageBubble({
         "rounded-2xl px-3 py-2 text-sm shadow cursor-pointer hover:opacity-90 transition-opacity",
         isSender 
           ? "bg-[#01502E] text-white" 
-          : resolvedTheme === 'dark' 
-            ? "bg-gray-800 text-gray-100 border border-gray-700" 
-            : "bg-white text-gray-900 border border-gray-200"
+          : "bg-white text-gray-900 border border-gray-200"
       )}
       onClick={handleMessageClick}
       title="Click to view message details"
@@ -216,14 +212,14 @@ export function MessageBubble({
           </button>
           
           {showActions && (
-            <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[160px] max-w-[200px] overflow-hidden">
+            <div className="absolute right-0 top-8 bg-white">
               {canEdit && (
                 <button
                   onClick={() => {
                     setIsEditing(true);
                     setShowActions(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700"
                 >
                   <Edit2 className="w-4 h-4" />
                   Edit
@@ -235,7 +231,7 @@ export function MessageBubble({
                   <button
                     onClick={() => handleDelete(false)}
                     disabled={isDeleting}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
                   >
                     <Trash2 className="w-4 h-4" />
                     {isDeleting ? "Deleting..." : "Delete for me"}
@@ -245,7 +241,7 @@ export function MessageBubble({
                     <button
                       onClick={() => handleDelete(true)}
                       disabled={isDeleting}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
                     >
                       <Trash2 className="w-4 h-4" />
                       {isDeleting ? "Deleting..." : "Delete for everyone"}

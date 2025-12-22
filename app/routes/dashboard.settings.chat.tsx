@@ -18,7 +18,6 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { ThemeProvider, updateGlobalTheme } from "~/contexts/ThemeContext";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
@@ -47,8 +46,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Parse existing settings with defaults
   const chatSettings = user.chatSettings
     ? JSON.parse(user.chatSettings)
-    : {
-        theme: "light",
+      : {
         fontSize: "medium",
         soundEnabled: true,
         notificationsEnabled: true,
@@ -57,7 +55,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
         showTypingIndicators: true,
         autoDownloadMedia: false,
         messagePreview: true,
-        darkMode: false,
       };
 
   const privacySettings = user.privacySettings
@@ -88,7 +85,6 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     if (intent === "updateChatSettings") {
       const settings = {
-        theme: formData.get("theme") as string,
         fontSize: formData.get("fontSize") as string,
         soundEnabled: formData.get("soundEnabled") === "on",
         notificationsEnabled: formData.get("notificationsEnabled") === "on",
@@ -97,7 +93,6 @@ export async function action({ request }: ActionFunctionArgs) {
         showTypingIndicators: formData.get("showTypingIndicators") === "on",
         autoDownloadMedia: formData.get("autoDownloadMedia") === "on",
         messagePreview: formData.get("messagePreview") === "on",
-        darkMode: formData.get("darkMode") === "on",
       };
 
       await prisma.user.update({
@@ -106,9 +101,6 @@ export async function action({ request }: ActionFunctionArgs) {
           chatSettings: JSON.stringify(settings),
         },
       });
-
-      // Update theme immediately
-      updateGlobalTheme(settings.theme as any);
 
       return json({
         success: true,
@@ -154,16 +146,8 @@ export default function ChatSettings() {
   const { user, chatSettings, privacySettings } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
-  const [selectedTheme, setSelectedTheme] = React.useState(chatSettings.theme);
-
-  // Handle theme changes immediately on client side
-  const handleThemeChange = (newTheme: string) => {
-    setSelectedTheme(newTheme);
-    updateGlobalTheme(newTheme as any);
-  };
 
   return (
-    <ThemeProvider initialTheme={chatSettings.theme as any}>
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
@@ -206,48 +190,6 @@ export default function ChatSettings() {
                 <input type="hidden" name="intent" value="updateChatSettings" />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Theme Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Chat Theme
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center space-x-3">
-                        <input
-                          type="radio"
-                          name="theme"
-                          value="light"
-                          checked={selectedTheme === "light"}
-                          onChange={(e) => handleThemeChange(e.target.value)}
-                          className="text-[#01502E] focus:ring-[#01502E]"
-                        />
-                        <span className="text-sm">Light Theme</span>
-                      </label>
-                      <label className="flex items-center space-x-3">
-                        <input
-                          type="radio"
-                          name="theme"
-                          value="dark"
-                          checked={selectedTheme === "dark"}
-                          onChange={(e) => handleThemeChange(e.target.value)}
-                          className="text-[#01502E] focus:ring-[#01502E]"
-                        />
-                        <span className="text-sm">Dark Theme</span>
-                      </label>
-                      <label className="flex items-center space-x-3">
-                        <input
-                          type="radio"
-                          name="theme"
-                          value="auto"
-                          checked={selectedTheme === "auto"}
-                          onChange={(e) => handleThemeChange(e.target.value)}
-                          className="text-[#01502E] focus:ring-[#01502E]"
-                        />
-                        <span className="text-sm">Auto (System)</span>
-                      </label>
-                    </div>
-                  </div>
-
                   {/* Font Size */}
                   <div>
                     <Label className="mb-3">
@@ -507,6 +449,5 @@ export default function ChatSettings() {
           </div>
         </div>
       </div>
-    </ThemeProvider>
   );
 }
