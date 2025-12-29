@@ -580,7 +580,7 @@ export async function canUserAccessConversation(
 }
 
 // Helper to replace participants string[] with user objects used by formatters
-async function hydrateParticipants(conversation: any) {
+export async function hydrateParticipants(conversation: any) {
   const users = await prisma.user.findMany({
     where: { id: { in: conversation.participants } },
     select: { id: true, name: true, role: true, avatar: true, lastActiveAt: true },
@@ -719,7 +719,7 @@ function formatConversationSummary(conversation: any, userId: string): Conversat
   };
 }
 
-function formatConversationDetails(conversation: any): ConversationDetails {
+export function formatConversationDetails(conversation: any): ConversationDetails {
   const participants = conversation.participants.map((participant: any) => ({
     id: participant.id,
     name: participant.name,

@@ -22,8 +22,8 @@ NC='\033[0m' # No Color
 APP_NAME="findotrip"
 APP_USER="findotrip"
 APP_DIR="/var/www/${APP_NAME}"
-DOMAIN_NAME="${DOMAIN_NAME:-yourdomain.com}"  # Set this before running
-GIT_REPO="${GIT_REPO:-https://github.com/yourusername/FindoTrip.git}"  # Set this before running
+DOMAIN_NAME="${DOMAIN_NAME:-findotrip.com}"  # Set this before running
+GIT_REPO="${GIT_REPO:-https://github.com/Vzyree-619/FindoTrip.git}"  # Set this before running
 BRANCH="${BRANCH:-main}"
 
 echo -e "${YELLOW}Configuration:${NC}"

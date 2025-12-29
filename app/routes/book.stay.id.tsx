@@ -6,7 +6,7 @@ import {
 } from "@remix-run/node";
 import { useLoaderData, Form, useActionData } from "@remix-run/react";
 import { requireUserId } from "~/lib/auth/auth.server";
-import { prisma, createBooking } from "~/lib/db/db.server";
+import { prisma } from "~/lib/db/db.server";
 import { Calendar, Users } from "lucide-react";
 import { differenceInDays, parseISO } from "date-fns";
 

@@ -1,6 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { isAfter, isBefore, differenceInDays, startOfDay } from "date-fns";
-import { checkDateRangeAvailability, calculateStayPrice } from "~/lib/availability.server";
+import { checkDateRangeAvailability } from "~/lib/availability.server";
+import { calculateStayPrice } from "~/lib/pricing.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
