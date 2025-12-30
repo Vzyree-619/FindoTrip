@@ -1,45 +1,11 @@
-import { createCookieSessionStorage, redirect } from '@remix-run/node';
+import { redirect } from '@remix-run/node';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { prisma } from '~/lib/db/db.server';
+import { sessionStorage, getUserId, getUserSession, createUserSession } from './session.server';
 
-// Session management
-const sessionSecret = process.env.SESSION_SECRET || 'default-secret-change-in-production';
-
-export const sessionStorage = createCookieSessionStorage({
-  cookie: {
-    name: 'findotrip_session',
-    secure: process.env.NODE_ENV === 'production',
-    secrets: [sessionSecret],
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-    httpOnly: true,
-  },
-});
-
-const storage = sessionStorage;
-
-export async function createUserSession(userId: string, redirectTo: string) {
-  const session = await storage.getSession();
-  session.set('userId', userId);
-  return redirect(redirectTo, {
-    headers: {
-      'Set-Cookie': await storage.commitSession(session),
-    },
-  });
-}
-
-export async function getUserSession(request: Request) {
-  return storage.getSession(request.headers.get('Cookie'));
-}
-
-export async function getUserId(request: Request): Promise<string | undefined> {
-  const session = await getUserSession(request);
-  const userId = session.get('userId');
-  if (!userId || typeof userId !== 'string') return undefined;
-  return userId;
-}
+// Re-export session functions
+export { sessionStorage, getUserId, getUserSession, createUserSession };
 
 export async function requireUserId(
   request: Request,

@@ -6,7 +6,16 @@ import {
 } from "@remix-run/node";
 import { Form, Link, useActionData, useNavigation, useNavigate, useLoaderData } from "@remix-run/react";
 import { useEffect, useRef, useState } from "react";
-import { register, createUserSession, getUserId } from "~/lib/auth/auth.server";
+import { register, createUserSession } from "~/lib/auth/auth.server";
+
+// Temporary inline function to avoid SSR import issues
+async function getUserId(request: Request): Promise<string | undefined> {
+  const sessionStorage = (await import("~/lib/auth/auth.server")).sessionStorage;
+  const session = await sessionStorage.getSession(request.headers.get('Cookie'));
+  const userId = session.get('userId');
+  if (!userId || typeof userId !== 'string') return undefined;
+  return userId;
+}
 import { sendWelcomeEmail } from "~/lib/email/email.server";
 import { 
   Mail, 
