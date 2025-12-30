@@ -139,6 +139,6 @@ export async function loader({ request }) {
     return json({ stays: staysOut, vehicles: vehiclesOut, tours, user: null });
   } catch (e) {
     console.warn('Home loader fallback due to DB error', e);
-    return json({ stays: null, vehicles: null, tours: null });
+    return json({ stays: [], vehicles: [], tours: [] });
   }
 }
