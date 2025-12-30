@@ -70,12 +70,12 @@ export default function InputForm() {
 
   return (
     <div className="relative h-[70%]">
-      <div className="absolute top-[16vh] left-[5vw] md:top-[30vh] md:left-[8vw] lg:top-[35vh] lg:left-[10vw] mx-auto z-10 flex justify-start font-bold text-2xl p-3 m-2">
+      <div className="absolute top-[16vh] left-[5vw] md:top-[30vh] md:left-[8vw] lg:top-[35vh] lg:left-[10vw] mx-auto z-10 flex justify-start font-bold text-2xl p-3 m-2 pointer-events-none">
         <h1 className="text-4xl text-white font-normal font-blauer sm:text-4xl md:text-5xl lg:text-6xl">
           The Best <br /> Experience Unlocked!
         </h1>
       </div>
-      <div className="absolute inset-0 bg-gradient-to-b to-black from-transparent opacity-80" />
+      <div className="absolute inset-0 bg-gradient-to-b to-black from-transparent opacity-80 pointer-events-none" />
       <img
         className="w-full h-[90vh] object-cover object-[50%_35%]"
         src="landingPageImg.jpg"
@@ -91,7 +91,7 @@ export default function InputForm() {
           </ul>
         </div>
       )}
-      <div className="absolute inset-0 mx-4 sm:mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%] max-w-full">
+      <div className="absolute inset-0 mx-4 sm:mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%] max-w-full z-30">
         <div className="w-full max-w-6xl mx-auto">
           <div className="flex w-full mx-auto border border-orange-500 rounded-t-lg bg-white">
             {activeButton.map((item, index) => (
