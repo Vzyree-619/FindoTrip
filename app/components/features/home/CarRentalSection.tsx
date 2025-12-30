@@ -476,7 +476,7 @@ export default function CarRentalSection({ vehicles = [] }) {
                   {/* Action Buttons */}
                   <div className="flex gap-2">
                     <Button asChild className="flex-1 bg-[#01502E] hover:bg-[#013d23] text-white" disabled={!vehicle.available}>
-                      <Link to={`/vehicle/${vehicle.id}`}>
+                      <Link to={vehicle.isCategory ? `/vehicles?location=${vehicle.city}` : `/vehicle/${vehicle.id}`}>
                         <Calendar className="h-4 w-4 mr-2" />
                         {vehicle.available ? "Book Now" : "Unavailable"}
                       </Link>

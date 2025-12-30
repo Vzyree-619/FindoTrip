@@ -43,7 +43,7 @@ export async function loader({ request }) {
     // Allow users to see landing page data even when logged in
     const url = new URL(request.url);
     const isDashboardRequest = url.pathname.includes('/dashboard');
-    
+
     if (user && isDashboardRequest) {
       const redirectRoutes = {
         CUSTOMER: "/dashboard",
@@ -54,89 +54,139 @@ export async function loader({ request }) {
       };
       throw new Response(null, { status: 302, headers: { Location: redirectRoutes[user.role] || "/dashboard" } });
     }
-    const [stays, vehicles, tours] = await Promise.all([
-      prisma.property.findMany({
-        where: { approvalStatus: 'APPROVED', available: true },
-        select: { id: true, name: true, city: true, country: true, basePrice: true, currency: true, images: true, rating: true, reviewCount: true },
-        orderBy: { rating: "desc" },
-        take: 8,
-      }),
-      prisma.vehicle.findMany({
-        where: { approvalStatus: 'APPROVED', available: true },
-        select: { id: true, name: true, model: true, category: true, seats: true, fuelType: true, transmission: true, basePrice: true, currency: true, images: true, location: true, rating: true, reviewCount: true, available: true, features: true },
-        orderBy: { rating: "desc" },
-        take: 8,
-      }),
-      prisma.tour.findMany({
-        where: { approvalStatus: 'APPROVED', available: true },
-        select: { id: true, title: true, city: true, country: true, pricePerPerson: true, currency: true, images: true, rating: true, reviewCount: true },
-        orderBy: { rating: "desc" },
-        take: 8,
-      }),
-    ]);
 
-    // Shape vehicles for home card component
-    const shapedVehicles = vehicles.map(v => ({
-      id: v.id,
-      name: v.name || v.model,
-      model: v.model,
-      year: v.year || new Date().getFullYear(),
-      images: v.images || ['/placeholder-vehicle.jpg'],
-      price: v.basePrice || 0,
-      originalPrice: undefined,
-      category: v.category || 'Economy',
-      transmission: v.transmission || 'Automatic',
-      fuelType: v.fuelType || 'Gasoline',
-      isElectric: v.fuelType === 'Electric',
-      owner: {
-        id: '',
-        name: '',
-        avatar: '',
-        rating: v.rating || 0,
-        reviewCount: v.reviewCount || 0,
-        isVerified: true,
+    // Use category-based content instead of database entries
+    const staysOut = [
+      {
+        id: 'cat-karachi-hotels',
+        name: 'Hotels in Karachi',
+        location: 'Karachi, Pakistan',
+        price: 'Starting from PKR 5,000',
+        rating: 4.5,
+        reviews: '2,500+ reviews',
+        image: '/karachi-hotels.jpg',
+        isCategory: true,
+        categoryType: 'hotels',
+        city: 'karachi'
       },
-      rating: v.rating || 0,
-      reviewCount: v.reviewCount || 0,
-      specs: {
-        passengers: v.seats || 4,
-        luggage: 3,
-        fuelEfficiency: 0,
-        transmission: v.transmission || 'Automatic',
+      {
+        id: 'cat-lahore-hotels',
+        name: 'Hotels in Lahore',
+        location: 'Lahore, Pakistan',
+        price: 'Starting from PKR 4,500',
+        rating: 4.3,
+        reviews: '3,200+ reviews',
+        image: '/lahore-hotels.jpg',
+        isCategory: true,
+        categoryType: 'hotels',
+        city: 'lahore'
       },
-      features: Array.isArray(v.features) ? v.features : [],
-      location: v.location || '',
-      availability: v.available ? 'Available' : 'Fully Booked',
-      isSpecialOffer: false,
-      hasDelivery: false,
-      deliveryRadius: undefined,
-      insuranceOptions: true,
-      instantBooking: true,
-      isFavorite: false,
-      onToggleFavorite: undefined,
-      onCompare: undefined,
-    }));
-
-    // Shape stays for home grid
-    const shapedStays = stays.map(s => ({
-      id: s.id,
-      name: s.name,
-      location: `${s.city}, ${s.country}`,
-      price: `Starting from PKR ${s.basePrice.toLocaleString()}`,
-      rating: s.rating || 0,
-      reviews: s.reviewCount ? `${s.reviewCount} reviews` : "",
-      image: (s.images?.[0]) || "/landingPageImg.jpg",
-    }));
-
-    // Fallback if any list is empty
-    const staysOut = shapedStays.length ? shapedStays : [
-      { id: 's1', name: 'Al Noor Starlet Hotel', location: 'Skardu, Pakistan', price: 'Starting from PKR 12000', rating: 9.5, reviews: '50 reviews', image: '/alnoor.png' },
-      { id: 's2', name: 'Sehrish Guest House', location: 'Skardu, Pakistan', price: 'Starting from PKR 10000', rating: 8.3, reviews: '65 reviews', image: '/razaqi.jpg' },
-      { id: 's3', name: 'Legend Hotel', location: 'Skardu, Pakistan', price: 'Starting from PKR 10000', rating: 9.2, reviews: '42 reviews', image: '/legend.jpg' },
-      { id: 's4', name: 'Himmel Resort', location: 'Shigar, Pakistan', price: 'Starting from PKR 35000', rating: 9.8, reviews: '28 reviews', image: '/himmel.jpg' },
+      {
+        id: 'cat-islamabad-hotels',
+        name: 'Hotels in Islamabad',
+        location: 'Islamabad, Pakistan',
+        price: 'Starting from PKR 6,000',
+        rating: 4.7,
+        reviews: '1,800+ reviews',
+        image: '/islamabad-hotels.jpg',
+        isCategory: true,
+        categoryType: 'hotels',
+        city: 'islamabad'
+      },
+      {
+        id: 'cat-peshawar-hotels',
+        name: 'Hotels in Peshawar',
+        location: 'Peshawar, Pakistan',
+        price: 'Starting from PKR 3,500',
+        rating: 4.1,
+        reviews: '950+ reviews',
+        image: '/peshawar-hotels.jpg',
+        isCategory: true,
+        categoryType: 'hotels',
+        city: 'peshawar'
+      }
     ];
-    const vehiclesOut = shapedVehicles;
-    return json({ stays: staysOut, vehicles: vehiclesOut, tours, user: null });
+
+    // Category-based vehicles
+    const vehiclesOut = [
+      {
+        id: 'cat-karachi-cars',
+        name: 'Cars in Karachi',
+        model: 'Economy to Luxury',
+        category: 'Multiple Categories',
+        transmission: 'Manual & Automatic',
+        fuelType: 'Petrol, Diesel, Electric',
+        price: 3000,
+        currency: 'PKR',
+        rating: 4.4,
+        reviewCount: 1250,
+        images: ['/karachi-cars.jpg'],
+        location: 'Karachi, Pakistan',
+        specs: {
+          passengers: 4,
+          luggage: 2,
+          fuelEfficiency: 15,
+          transmission: 'Manual/Auto'
+        },
+        features: ['AC', 'GPS', 'Insurance'],
+        availability: 'Available',
+        isCategory: true,
+        categoryType: 'cars',
+        city: 'karachi'
+      },
+      {
+        id: 'cat-lahore-cars',
+        name: 'Cars in Lahore',
+        model: 'All Types Available',
+        category: 'Sedan, SUV, Hatchback',
+        transmission: 'Manual & Automatic',
+        fuelType: 'Petrol, CNG, Electric',
+        price: 2800,
+        currency: 'PKR',
+        rating: 4.6,
+        reviewCount: 1850,
+        images: ['/lahore-cars.jpg'],
+        location: 'Lahore, Pakistan',
+        specs: {
+          passengers: 5,
+          luggage: 3,
+          fuelEfficiency: 12,
+          transmission: 'Manual/Auto'
+        },
+        features: ['AC', 'GPS', 'Music System'],
+        availability: 'Available',
+        isCategory: true,
+        categoryType: 'cars',
+        city: 'lahore'
+      },
+      {
+        id: 'cat-islamabad-cars',
+        name: 'Cars in Islamabad',
+        model: 'Premium Fleet',
+        category: 'Luxury & Economy',
+        transmission: 'Automatic',
+        fuelType: 'Petrol, Hybrid',
+        price: 4500,
+        currency: 'PKR',
+        rating: 4.8,
+        reviewCount: 980,
+        images: ['/islamabad-cars.jpg'],
+        location: 'Islamabad, Pakistan',
+        specs: {
+          passengers: 4,
+          luggage: 2,
+          fuelEfficiency: 18,
+          transmission: 'Automatic'
+        },
+        features: ['AC', 'GPS', 'Leather Seats'],
+        availability: 'Available',
+        isCategory: true,
+        categoryType: 'cars',
+        city: 'islamabad'
+      }
+    ];
+
+    return json({ stays: staysOut, vehicles: vehiclesOut, tours: [], user: null });
   } catch (e) {
     console.warn('Home loader fallback due to DB error', e);
     return json({ stays: [], vehicles: [], tours: [] });

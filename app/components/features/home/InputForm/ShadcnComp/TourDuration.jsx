@@ -88,9 +88,9 @@ function Guests() {
     <DropdownMenu>
       <DropdownMenuTrigger className="flex h-14 lg:h-auto text-left items-center justify-between py-2.5 px-3 outline-none border-[#f97316] border-r border-b w-full min-w-0">
         <div className="flex gap-1 font-normal text-xs sm:text-sm truncate">
-          <span>{adults}A</span>
-          <span>{childs}C</span>
-          <span>{room}R</span>
+          <span>{adults} Adult{adults !== 1 ? 's' : ''}</span>
+          <span>{childs > 0 && `, ${childs} Child${childs !== 1 ? 'ren' : ''}`}</span>
+          <span>, {room} Room{room !== 1 ? 's' : ''}</span>
         </div>
         <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
       </DropdownMenuTrigger>

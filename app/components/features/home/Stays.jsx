@@ -75,7 +75,7 @@ export default function Stays({ stays = [] }) {
             {displayStays.map((stay, idx) => (
               <Link
                 key={stay.id || idx}
-                to={`/accommodations/${stay.id}`}
+                to={stay.isCategory ? `/accommodations?city=${stay.city}` : `/accommodations/${stay.id}`}
                 className="group bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 transform hover:-translate-y-2 hover:shadow-xl"
               >
                 <div className="relative h-64 overflow-hidden">
