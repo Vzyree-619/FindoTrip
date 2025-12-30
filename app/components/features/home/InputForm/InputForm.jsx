@@ -91,8 +91,8 @@ export default function InputForm() {
           </ul>
         </div>
       )}
-      <div className="absolute inset-0 mx-4 sm:mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%] max-w-full z-20">
-        <form method="GET" action="#" className="w-full max-w-6xl mx-auto" onSubmit={(e) => e.preventDefault()}>
+      <div className="absolute inset-0 mx-4 sm:mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%] max-w-full">
+        <div className="w-full max-w-6xl mx-auto">
           <div className="flex w-full mx-auto border border-orange-500 rounded-t-lg bg-white">
             {activeButton.map((item, index) => (
               <button
@@ -120,7 +120,7 @@ export default function InputForm() {
           <div className="border border-orange-500 mx-auto max-w-6xl font-normal text-sm bg-white">
             {activeTabMapping[isActiveTab]}
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -129,14 +129,13 @@ export default function InputForm() {
 // Hotel Component
 function Hotel({ formConfig, navigate }) {
   const [errors, setErrors] = useState({ destination: '', checkIn: '', checkOut: '' });
-  // Use the form element to build FormData, not the button
-  const handleSubmit = (formEl) => {
-    const formData = new FormData(formEl);
-    const destination = formData.get('destination');
-    const checkIn = formData.get('checkIn');
-    const checkOut = formData.get('checkOut');
-    const adults = formData.get('adults');
-    const childs = formData.get('childs');
+  // Handle form submission with direct values
+  const handleSubmit = (formData) => {
+    const destination = formData.destination;
+    const checkIn = formData.checkIn;
+    const checkOut = formData.checkOut;
+    const adults = document.querySelector('input[name="adults"]')?.value;
+    const childs = document.querySelector('input[name="childs"]')?.value;
 
     const totalGuests = (parseInt(adults?.toString() || '0') + parseInt(childs?.toString() || '0'));
     const params = new URLSearchParams();
@@ -187,10 +186,10 @@ function Hotel({ formConfig, navigate }) {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            const form = e.currentTarget.closest('form');
-            const checkIn = form?.querySelector('input[name="checkIn"]')?.value;
-            const checkOut = form?.querySelector('input[name="checkOut"]')?.value;
-            const destination = form?.querySelector('input[name="destination"]')?.value;
+            // Get form data directly from the DOM
+            const checkIn = document.querySelector('input[name="checkIn"]')?.value;
+            const checkOut = document.querySelector('input[name="checkOut"]')?.value;
+            const destination = document.querySelector('input[name="destination"]')?.value;
             const newErrors = { destination: '', checkIn: '', checkOut: '' };
             if (!destination) newErrors.destination = 'Please enter a destination.';
             if (!checkIn) newErrors.checkIn = 'Please select a check-in date.';
@@ -199,8 +198,8 @@ function Hotel({ formConfig, navigate }) {
               setErrors(newErrors);
               return;
             }
-            const formEl = e.currentTarget.closest('form');
-            if (formEl) handleSubmit(formEl);
+            // Pass data directly to handleSubmit
+            handleSubmit({ destination, checkIn, checkOut });
           }}
           className="hidden md:block font-medium flex-1 max-w-[150px] text-lg lg:text-xl px-3 lg:px-4 py-2 text-white bg-green-900"
         >
@@ -230,10 +229,10 @@ function Hotel({ formConfig, navigate }) {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            const form = e.currentTarget.closest('form');
-            const checkIn = form?.querySelector('input[name="checkIn"]')?.value;
-            const checkOut = form?.querySelector('input[name="checkOut"]')?.value;
-            const destination = form?.querySelector('input[name="destination"]')?.value;
+            // Get form data directly from the DOM
+            const checkIn = document.querySelector('input[name="checkIn"]')?.value;
+            const checkOut = document.querySelector('input[name="checkOut"]')?.value;
+            const destination = document.querySelector('input[name="destination"]')?.value;
             const newErrors = { destination: '', checkIn: '', checkOut: '' };
             if (!destination) newErrors.destination = 'Please enter a destination.';
             if (!checkIn) newErrors.checkIn = 'Please select a check-in date.';
@@ -245,8 +244,8 @@ function Hotel({ formConfig, navigate }) {
               }
               return;
             }
-            const formEl = e.currentTarget.closest('form');
-            if (formEl) handleSubmit(formEl);
+            // Pass data directly to handleSubmit
+            handleSubmit({ destination, checkIn, checkOut });
           }}
           className="md:hidden h-14 font-medium block w-full text-lg sm:text-xl px-4 py-2 text-white bg-green-900"
         >
@@ -260,11 +259,10 @@ function Hotel({ formConfig, navigate }) {
 // CarRental Component
 function CarRental({ formConfig, navigate }) {
   const [errors, setErrors] = useState({ pickupLocation: '', pickupDate: '', dropoffDate: '' });
-  const handleSubmit = (formEl) => {
-    const formData = new FormData(formEl);
-    const pickupLocation = formData.get('pickupLocation');
-    const pickupDate = formData.get('pickupDate');
-    const dropoffDate = formData.get('dropoffDate');
+  const handleSubmit = (formData) => {
+    const pickupLocation = formData.pickupLocation;
+    const pickupDate = formData.pickupDate;
+    const dropoffDate = formData.dropoffDate;
 
     const params = new URLSearchParams();
     if (pickupLocation) params.set('location', pickupLocation.toString());
@@ -313,10 +311,10 @@ function CarRental({ formConfig, navigate }) {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            const form = e.currentTarget.closest('form');
-            const pickupDate = form?.querySelector('input[name="pickupDate"]')?.value;
-            const dropoffDate = form?.querySelector('input[name="dropoffDate"]')?.value;
-            const pickupLocation = form?.querySelector('input[name="pickupLocation"]')?.value;
+            // Get form data directly from the DOM
+            const pickupDate = document.querySelector('input[name="pickupDate"]')?.value;
+            const dropoffDate = document.querySelector('input[name="dropoffDate"]')?.value;
+            const pickupLocation = document.querySelector('input[name="pickupLocation"]')?.value;
             const newErrors = { pickupLocation: '', pickupDate: '', dropoffDate: '' };
             if (!pickupLocation) newErrors.pickupLocation = 'Please enter a pick-up location.';
             if (!pickupDate) newErrors.pickupDate = 'Please select a pick-up date.';
@@ -325,8 +323,8 @@ function CarRental({ formConfig, navigate }) {
               setErrors(newErrors);
               return;
             }
-            const formEl = e.currentTarget.closest('form');
-            if (formEl) handleSubmit(formEl);
+            // Pass data directly to handleSubmit
+            handleSubmit({ pickupLocation, pickupDate, dropoffDate });
           }}
           className="hidden md:block font-medium flex-1 max-w-[150px] text-lg lg:text-xl px-3 lg:px-4 py-2 text-white bg-green-900"
         >
@@ -353,10 +351,10 @@ function CarRental({ formConfig, navigate }) {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            const form = e.currentTarget.closest('form');
-            const pickupDate = form?.querySelector('input[name="pickupDate"]')?.value;
-            const dropoffDate = form?.querySelector('input[name="dropoffDate"]')?.value;
-            const pickupLocation = form?.querySelector('input[name="pickupLocation"]')?.value;
+            // Get form data directly from the DOM
+            const pickupDate = document.querySelector('input[name="pickupDate"]')?.value;
+            const dropoffDate = document.querySelector('input[name="dropoffDate"]')?.value;
+            const pickupLocation = document.querySelector('input[name="pickupLocation"]')?.value;
             const newErrors = { pickupLocation: '', pickupDate: '', dropoffDate: '' };
             if (!pickupLocation) newErrors.pickupLocation = 'Please enter a pick-up location.';
             if (!pickupDate) newErrors.pickupDate = 'Please select a pick-up date.';
@@ -368,8 +366,8 @@ function CarRental({ formConfig, navigate }) {
               }
               return;
             }
-            const formEl = e.currentTarget.closest('form');
-            if (formEl) handleSubmit(formEl);
+            // Pass data directly to handleSubmit
+            handleSubmit({ pickupLocation, pickupDate, dropoffDate });
           }}
           className="md:hidden h-14 font-medium block w-full text-lg sm:text-xl px-4 py-2 text-white bg-green-900"
         >
@@ -383,13 +381,12 @@ function CarRental({ formConfig, navigate }) {
 // Tours Component
 function Tours({ formConfig, navigate }) {
   const [errors, setErrors] = useState({ location: '', tourDate: '' });
-  const handleSubmit = (formEl) => {
-    const formData = new FormData(formEl);
-    const location = formData.get('location');
-    const tourDate = formData.get('tourDate');
-    const days = formData.get('days');
-    const activityType = formData.get('activityType');
-    const groupSize = formData.get('groupSize');
+  const handleSubmit = (formData) => {
+    const location = formData.location;
+    const tourDate = formData.tourDate;
+    const days = document.querySelector('input[name="days"]')?.value;
+    const activityType = document.querySelector('input[name="activityType"]')?.value;
+    const groupSize = document.querySelector('input[name="groupSize"]')?.value;
 
     const params = new URLSearchParams();
     if (location) params.set('search', location.toString());
@@ -429,9 +426,9 @@ function Tours({ formConfig, navigate }) {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            const form = e.currentTarget.closest('form');
-            const tourDate = form?.querySelector('input[name="tourDate"]')?.value;
-            const location = form?.querySelector('input[name="location"]')?.value;
+            // Get form data directly from the DOM
+            const tourDate = document.querySelector('input[name="tourDate"]')?.value;
+            const location = document.querySelector('input[name="location"]')?.value;
             const newErrors = { location: '', tourDate: '' };
             if (!location) newErrors.location = 'Please enter a location.';
             if (!tourDate) newErrors.tourDate = 'Please select a tour start date.';
@@ -439,8 +436,8 @@ function Tours({ formConfig, navigate }) {
               setErrors(newErrors);
               return;
             }
-            const formEl = e.currentTarget.closest('form');
-            if (formEl) handleSubmit(formEl);
+            // Pass data directly to handleSubmit
+            handleSubmit({ location, tourDate });
           }}
           className="hidden md:block font-medium flex-1 max-w-[150px] text-lg lg:text-xl px-3 lg:px-4 py-2 text-white bg-green-900"
         >
@@ -471,9 +468,9 @@ function Tours({ formConfig, navigate }) {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            const form = e.currentTarget.closest('form');
-            const tourDate = form?.querySelector('input[name="tourDate"]')?.value;
-            const location = form?.querySelector('input[name="location"]')?.value;
+            // Get form data directly from the DOM
+            const tourDate = document.querySelector('input[name="tourDate"]')?.value;
+            const location = document.querySelector('input[name="location"]')?.value;
             const newErrors = { location: '', tourDate: '' };
             if (!location) newErrors.location = 'Please enter a location.';
             if (!tourDate) newErrors.tourDate = 'Please select a tour start date.';
@@ -484,8 +481,8 @@ function Tours({ formConfig, navigate }) {
               }
               return;
             }
-            const formEl = e.currentTarget.closest('form');
-            if (formEl) handleSubmit(formEl);
+            // Pass data directly to handleSubmit
+            handleSubmit({ location, tourDate });
           }}
           className="md:hidden h-14 font-medium block w-full text-lg sm:text-xl px-4 py-2 text-white bg-green-900"
         >
@@ -499,10 +496,9 @@ function Tours({ formConfig, navigate }) {
 // Activities Component
 function Activities({ formConfig, navigate }) {
   const [errors, setErrors] = useState({ activity: '', activityDate: '' });
-  const handleSubmit = (formEl) => {
-    const formData = new FormData(formEl);
-    const activity = formData.get('activity');
-    const activityDate = formData.get('activityDate');
+  const handleSubmit = (formData) => {
+    const activity = formData.activity;
+    const activityDate = formData.activityDate;
 
     const params = new URLSearchParams();
     if (activity) params.set('search', activity.toString());
@@ -539,9 +535,9 @@ function Activities({ formConfig, navigate }) {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            const form = e.currentTarget.closest('form');
-            const activityDate = form?.querySelector('input[name="activityDate"]')?.value;
-            const activity = form?.querySelector('input[name="activity"]')?.value;
+            // Get form data directly from the DOM
+            const activityDate = document.querySelector('input[name="activityDate"]')?.value;
+            const activity = document.querySelector('input[name="activity"]')?.value;
             const newErrors = { activity: '', activityDate: '' };
             if (!activity) newErrors.activity = 'Please enter an activity.';
             if (!activityDate) newErrors.activityDate = 'Please select an activity date.';
@@ -549,8 +545,8 @@ function Activities({ formConfig, navigate }) {
               setErrors(newErrors);
               return;
             }
-            const formEl = e.currentTarget.closest('form');
-            if (formEl) handleSubmit(formEl);
+            // Pass data directly to handleSubmit
+            handleSubmit({ activity, activityDate });
           }}
           className="hidden md:block font-medium flex-1 max-w-[150px] text-lg lg:text-xl px-3 lg:px-4 py-2 text-white bg-green-900"
         >
@@ -578,9 +574,9 @@ function Activities({ formConfig, navigate }) {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            const form = e.currentTarget.closest('form');
-            const activityDate = form?.querySelector('input[name="activityDate"]')?.value;
-            const activity = form?.querySelector('input[name="activity"]')?.value;
+            // Get form data directly from the DOM
+            const activityDate = document.querySelector('input[name="activityDate"]')?.value;
+            const activity = document.querySelector('input[name="activity"]')?.value;
             const newErrors = { activity: '', activityDate: '' };
             if (!activity) newErrors.activity = 'Please enter an activity.';
             if (!activityDate) newErrors.activityDate = 'Please select an activity date.';
@@ -591,8 +587,8 @@ function Activities({ formConfig, navigate }) {
               }
               return;
             }
-            const formEl = e.currentTarget.closest('form');
-            if (formEl) handleSubmit(formEl);
+            // Pass data directly to handleSubmit
+            handleSubmit({ activity, activityDate });
           }}
           className="md:hidden h-14 font-medium block w-full text-lg sm:text-xl px-4 py-2 text-white bg-green-900"
         >
