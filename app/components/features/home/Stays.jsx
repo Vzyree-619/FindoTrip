@@ -36,8 +36,10 @@ const trendingStaysStatic = [
 ];
 
 export default function Stays({ stays = [] }) {
+  // Ensure stays is always an array to prevent null reference errors
+  const safeStays = Array.isArray(stays) ? stays : [];
   // Use database data if available, limit to 4 items, otherwise show empty state
-  const displayStays = stays.length > 0 ? stays.slice(0, 4) : [];
+  const displayStays = safeStays.length > 0 ? safeStays.slice(0, 4) : [];
   
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
