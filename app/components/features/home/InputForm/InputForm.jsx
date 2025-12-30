@@ -91,16 +91,16 @@ export default function InputForm() {
           </ul>
         </div>
       )}
-      <div className="absolute inset-0 mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%] lg:6xl sm:2xl">
-        <form method="GET" action="#" className="w-full" onSubmit={(e) => e.preventDefault()}>
-          <div className="flex w-full lg:w-fit mx-auto border border-orange-500 rounded-t-lg bg-white">
+      <div className="absolute inset-0 mx-4 sm:mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%] max-w-full overflow-hidden">
+        <form method="GET" action="#" className="w-full max-w-6xl mx-auto" onSubmit={(e) => e.preventDefault()}>
+          <div className="flex w-full mx-auto border border-orange-500 rounded-t-lg bg-white overflow-hidden">
             {activeButton.map((item, index) => (
               <button
                 key={item.id}
                 type="button"
                 onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
                 onClick={() => setIsActiveTab(item.id)}
-                className={`h-[8vh] w-full md:h-[6vh] lg:px-14 sm:px-8 md:px-10 text-sm lg:font-medium lg:h-[7vh] lg:w-fit
+                className={`h-12 sm:h-14 md:h-12 lg:h-14 px-2 sm:px-4 md:px-6 lg:px-14 text-xs sm:text-sm lg:text-sm font-medium flex-1 min-w-0 whitespace-nowrap
                 ${
                   index !== activeButton.length - 1
                     ? "border-r border-orange-500"
@@ -117,7 +117,7 @@ export default function InputForm() {
               </button>
             ))}
           </div>
-          <div className="border border-orange-500 mx-auto max-w-5xl font-normal text-sm bg-white">
+          <div className="border border-orange-500 mx-auto max-w-6xl font-normal text-sm bg-white overflow-hidden">
             {activeTabMapping[isActiveTab]}
           </div>
         </form>
@@ -202,18 +202,18 @@ function Hotel({ formConfig, navigate }) {
             const formEl = e.currentTarget.closest('form');
             if (formEl) handleSubmit(formEl);
           }}
-          className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="hidden md:block font-medium flex-1 max-w-[150px] text-lg lg:text-xl px-3 lg:px-4 py-2 text-white bg-green-900"
         >
           Search
         </button>
       </div>
-      <div className="grid w-full grid-cols-1 border-x border-b border-orange-500 bg-white md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-x border-b border-orange-500 bg-white">
         {formConfig.hotel.fields.slice(1).map((field) => (
           <div
             key={field.name}
             className="flex py-1 px-0 lg:px-2 md:py-2 md:px-4 items-center border-r border-orange-500 border-b"
           >
-            <div className="flex w-32 h-14 lg:h-auto md:w-full justify-start text-left">
+            <div className="flex w-full min-w-0 h-14 lg:h-auto justify-start text-left">
               <DatePicker field={field} />
             </div>
             {field.name === 'checkIn' && errors.checkIn && (
@@ -248,7 +248,7 @@ function Hotel({ formConfig, navigate }) {
             const formEl = e.currentTarget.closest('form');
             if (formEl) handleSubmit(formEl);
           }}
-          className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="md:hidden h-14 font-medium block w-full text-lg sm:text-xl px-4 py-2 text-white bg-green-900"
         >
           Search
         </button>
@@ -328,19 +328,19 @@ function CarRental({ formConfig, navigate }) {
             const formEl = e.currentTarget.closest('form');
             if (formEl) handleSubmit(formEl);
           }}
-          className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="hidden md:block font-medium flex-1 max-w-[150px] text-lg lg:text-xl px-3 lg:px-4 py-2 text-white bg-green-900"
         >
           Search
         </button>
       </div>
-      <div className="grid w-full grid-cols-1 border-x border-b border-orange-500 bg-white md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-x border-b border-orange-500 bg-white">
         {formConfig.carRental.fields.slice(1).map((field) => (
           <>
             <div
               key={field.name}
               className="flex py-1 px-0 md:px-2 md:py-2 lg:px-4 items-center border-r border-orange-500 border-b"
             >
-              <div className="flex w-32 h-14 lg:h-auto md:w-full justify-start text-left">
+              <div className="flex w-full min-w-0 h-14 lg:h-auto justify-start text-left">
                 <DatePicker field={field} />
               </div>
             </div>
@@ -371,7 +371,7 @@ function CarRental({ formConfig, navigate }) {
             const formEl = e.currentTarget.closest('form');
             if (formEl) handleSubmit(formEl);
           }}
-          className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="md:hidden h-14 font-medium block w-full text-lg sm:text-xl px-4 py-2 text-white bg-green-900"
         >
           Search
         </button>
@@ -442,18 +442,18 @@ function Tours({ formConfig, navigate }) {
             const formEl = e.currentTarget.closest('form');
             if (formEl) handleSubmit(formEl);
           }}
-          className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="hidden md:block font-medium flex-1 max-w-[150px] text-lg lg:text-xl px-3 lg:px-4 py-2 text-white bg-green-900"
         >
           Search
         </button>
       </div>
-      <div className="grid w-full grid-cols-1 border-x border-b border-orange-500 bg-white md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-x border-b border-orange-500 bg-white">
         {formConfig.tours.fields.slice(1).map((field) => (
           <div
             key={field.name}
             className="flex py-1 px-0 md:px-2 md:py-2 lg:px-4 items-center border-r border-orange-500 border-b"
           >
-            <div className="flex w-32 h-14 lg:h-auto md:w-full justify-start text-left">
+            <div className="flex w-full min-w-0 h-14 lg:h-auto justify-start text-left">
               <DatePicker field={field} />
             </div>
             {field.name === 'pickupDate' && errors.pickupDate && (
@@ -487,7 +487,7 @@ function Tours({ formConfig, navigate }) {
             const formEl = e.currentTarget.closest('form');
             if (formEl) handleSubmit(formEl);
           }}
-          className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="md:hidden h-14 font-medium block w-full text-lg sm:text-xl px-4 py-2 text-white bg-green-900"
         >
           Search
         </button>
@@ -552,18 +552,18 @@ function Activities({ formConfig, navigate }) {
             const formEl = e.currentTarget.closest('form');
             if (formEl) handleSubmit(formEl);
           }}
-          className="hidden md:block font-medium w-1/4 text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="hidden md:block font-medium flex-1 max-w-[150px] text-lg lg:text-xl px-3 lg:px-4 py-2 text-white bg-green-900"
         >
           Search
         </button>
       </div>
-      <div className="grid w-full grid-cols-1 border-x border-b border-orange-500 bg-white md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-x border-b border-orange-500 bg-white">
         {formConfig.activities.fields.slice(1).map((field) => (
           <div
             key={field.name}
             className="flex py-1 px-0 md:px-2 md:py-2 lg:px-4 items-center border-r border-orange-500 border-b"
           >
-            <div className="flex w-32 h-14 lg:h-auto md:w-full justify-start text-left">
+            <div className="flex w-full min-w-0 h-14 lg:h-auto justify-start text-left">
               <DatePicker field={field} />
             </div>
             {field.name === 'activityDate' && errors.activityDate && (
@@ -594,7 +594,7 @@ function Activities({ formConfig, navigate }) {
             const formEl = e.currentTarget.closest('form');
             if (formEl) handleSubmit(formEl);
           }}
-          className="md:hidden h-14 font-medium block w-full text-xl px-4 py-2 text-white bg-green-900 min-w-[120px]"
+          className="md:hidden h-14 font-medium block w-full text-lg sm:text-xl px-4 py-2 text-white bg-green-900"
         >
           Search
         </button>

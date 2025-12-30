@@ -29,7 +29,7 @@ function TourDuration() {
   return (
    
       <DropdownMenu>
-        <DropdownMenuTrigger className="flex h-14 lg:h-auto text-left items-center space-x-16 justify-between py-2.5 px-3 outline-none border-[#f97316] border-r border-b">
+        <DropdownMenuTrigger className="flex h-14 lg:h-auto text-left items-center justify-between py-2.5 px-3 outline-none border-[#f97316] border-r border-b w-full min-w-0">
           <div className="text-start flex flex-col gap-1 leading-none">
             <span className="text-sm leading-none font-normal  truncate max-w-[17ch]">
               {selectedWorkspace?.Days || "Tour Duration"}
@@ -86,11 +86,11 @@ function Guests() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex h-16  lg:h-auto text-left items-center  lg:space-x-16 justify-between py-1.5 px-3  md:py-2.5 md:px-3.5  lg:py-2.5 lg:px-3 outline-none border-[#f97316] border-r border-b">
-        <div className="flex md:gap-1 lg:gap-2 font-normal text-sm ">
-          <span>{adults} Adults -</span>
-          <span> {childs} Child -</span>
-          <span>{room} Room</span>
+      <DropdownMenuTrigger className="flex h-14 lg:h-auto text-left items-center justify-between py-2.5 px-3 outline-none border-[#f97316] border-r border-b w-full min-w-0">
+        <div className="flex gap-1 font-normal text-xs sm:text-sm truncate">
+          <span>{adults}A</span>
+          <span>{childs}C</span>
+          <span>{room}R</span>
         </div>
         <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
       </DropdownMenuTrigger>
@@ -168,7 +168,7 @@ function ActivityTypes() {
   return (
     
       <DropdownMenu>
-        <DropdownMenuTrigger className="flex h-16 lg:h-auto text-left items-center space-x-16 justify-between py-2.5 px-3 outline-none border-[#f97316] border-r border-b">
+        <DropdownMenuTrigger className="flex h-14 lg:h-auto text-left items-center justify-between py-2.5 px-3 outline-none border-[#f97316] border-r border-b w-full min-w-0">
             <span className="text-sm leading-none font-normal max-w-[17ch]">
               {selectedActivity?.type || "Activity Type"}
             </span>
@@ -208,7 +208,7 @@ function GroupSize() {
   return (
     
       <DropdownMenu>
-        <DropdownMenuTrigger className="flex h-16 lg:h-auto text-left items-center space-x-16 justify-between py-2.5 px-3 outline-none border-[#f97316] border-r border-b">
+        <DropdownMenuTrigger className="flex h-14 lg:h-auto text-left items-center justify-between py-2.5 px-3 outline-none border-[#f97316] border-r border-b w-full min-w-0">
           <div className="text-start flex flex-col gap-1 leading-none">
             <span className="text-sm leading-none font-normal truncate max-w-[17ch]">
               {selectedGroup?.size || "Group Size"}

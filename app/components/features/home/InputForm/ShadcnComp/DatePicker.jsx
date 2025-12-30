@@ -20,10 +20,10 @@ function DatePicker({ field }) {
   };
   return (
     <Popover>
-      <PopoverTrigger className='flex gap-0 justify-start font-normal text-sm' asChild>
+      <PopoverTrigger className='flex gap-0 justify-start font-normal text-sm w-full' asChild>
         <Button
           variant="destructive"
-          className="w-[240px] justify-start text-left font-normal py-2 px-3 m-auto"
+          className="w-full max-w-[200px] sm:max-w-[240px] justify-start text-left font-normal py-2 px-3 m-auto text-xs sm:text-sm"
         >
           <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
           {dates[field.name]
