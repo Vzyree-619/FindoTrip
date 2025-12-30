@@ -1,0 +1,56 @@
+# ========================================
+# FindoTrip - Development Docker Compose
+# ========================================
+# Development-specific overrides for docker-compose.yml
+
+version: '3.8'
+
+services:
+  # ========================================
+  # Application (Development)
+  # ========================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder  # Use builder stage for development
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    volumes:
+      # Mount source code for hot reloading
+      - .:/app
+      - /app/node_modules
+    command: npm run dev
+    ports:
+      - "3000:3000"  # Direct access for development
+
+  # ========================================
+  # MongoDB (Development)
+  # ========================================
+  mongo:
+    ports:
+      - "27017:27017"  # Expose MongoDB port
+
+  # ========================================
+  # Redis (Development)
+  # ========================================
+  redis:
+    ports:
+      - "6379:6379"  # Expose Redis port
+
+  # ========================================
+  # Nginx (Development - Disabled)
+  # ========================================
+  nginx:
+    profiles:
+      - disabled  # Disable nginx in development
+
+# ========================================
+# Development Tools
+# ========================================
+services:
+  # Development database viewer
+  mongo-express:
+    profiles:
+      - dev
