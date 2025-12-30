@@ -54,10 +54,16 @@ export async function requireUserId(
 }
 
 export async function getUser(request: Request) {
-  const userId = await getUserId(request);
-  if (!userId) return null;
-
+  console.log("getUser function called");
   try {
+    const userId = await getUserId(request);
+    console.log("getUser: userId from session:", userId);
+    if (!userId) {
+      console.log("getUser: no userId found, returning null");
+      return null;
+    }
+
+    console.log("getUser: querying database for user");
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -70,8 +76,10 @@ export async function getUser(request: Request) {
         verified: true,
       },
     });
+    console.log("getUser: database query completed, user:", user?.id);
     return user;
-  } catch {
+  } catch (error) {
+    console.error("getUser error:", error);
     // Avoid redirect loops (e.g., on /login) if the DB is unavailable.
     // Instead, return null so callers can handle unauthenticated state gracefully.
     console.error('getUser: database error; returning null to avoid redirect loop');

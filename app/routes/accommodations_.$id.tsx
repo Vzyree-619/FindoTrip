@@ -7,7 +7,51 @@ import PropertySearchWidget from "~/components/property/PropertySearchWidget";
 import { ChatInterface } from "~/components/chat/ChatInterface";
 import { useEffect, useState } from "react";
 import { prisma } from "~/lib/db/db.server";
-import { getUser, getUserId } from "~/lib/auth/auth.server";
+import { createCookieSessionStorage } from '@remix-run/node';
+
+// Temporary standalone session handling to avoid SSR import issues
+const sessionSecret = process.env.SESSION_SECRET || 'default-secret-change-in-production';
+const sessionStorage = createCookieSessionStorage({
+  cookie: {
+    name: 'findotrip_session',
+    secure: process.env.NODE_ENV === 'production',
+    secrets: [sessionSecret],
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+    httpOnly: true,
+  },
+});
+
+async function getUserId(request: Request): Promise<string | undefined> {
+  const session = await sessionStorage.getSession(request.headers.get('Cookie'));
+  const userId = session.get('userId');
+  if (!userId || typeof userId !== 'string') return undefined;
+  return userId;
+}
+
+async function getUser(request: Request) {
+  const userId = await getUserId(request);
+  if (!userId) return null;
+
+  try {
+    const user = await (await import("~/lib/db/db.server")).prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        avatar: true,
+        phone: true,
+        verified: true,
+      },
+    });
+    return user;
+  } catch {
+    return null;
+  }
+}
 import { calculateStayPrice } from "~/lib/pricing.server";
 import { checkRoomAvailability, getRoomAvailabilityCalendar, checkDateRangeAvailability, suggestAlternativeDates } from "~/lib/availability.server";
 import {
