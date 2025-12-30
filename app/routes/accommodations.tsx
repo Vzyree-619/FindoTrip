@@ -385,7 +385,7 @@ export default function AccommodationsPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left Sidebar - Filters */}
           <div className={`w-full lg:w-80 flex-shrink-0 ${showMobileFilters ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-8">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-fit max-h-[calc(100vh-12rem)] overflow-y-auto">
               <h2 className="text-lg font-semibold text-gray-900 mb-6">Filters</h2>
               
               {/* Search */}
