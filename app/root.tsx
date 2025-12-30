@@ -13,8 +13,9 @@ import type {
 } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useState, useEffect } from "react";
+
+// Layout & Components
 import NavBar from "~/components/layout/navigation/NavBarWithAuth";
-// Mobile navigation is now handled in NavBarWithAuth
 import { ErrorBoundary } from "~/components/common/ErrorBoundary";
 import {
   OfflineIndicator,
@@ -22,7 +23,6 @@ import {
 } from "~/components/common/LoadingStates";
 import {
   SkipToContent,
-  ScreenReaderAnnouncement,
 } from "~/hooks/useAccessibility";
 import { useNetwork } from "~/hooks/useNetwork";
 import { getUser } from "~/lib/auth/auth.server";
@@ -32,6 +32,8 @@ import {
   StructuredData,
 } from "~/components/common/SEOHead";
 import { FloatingChatButton } from "~/components/chat/FloatingChatButton";
+
+// CSS Imports
 import "~/styles/shared.css";
 import "~/tailwind.css";
 
@@ -39,42 +41,43 @@ export const meta: MetaFunction = () =>
   generateMeta({
     title: "FindoTrip - Your Ultimate Travel Companion",
     description:
-      "Discover amazing accommodations, rent cars, and book experienced tour guides for your perfect trip. Plan your adventure with FindoTrip.",
+      "Discover amazing accommodations, rent cars, and book experienced tour guides for your perfect trip.",
     keywords:
-      "travel, accommodation, hotels, car rental, tour guides, vacation, booking, trip planning, Pakistan travel",
+      "travel, accommodation, hotels, car rental, tour guides, vacation, booking, trip planning",
   });
 
 export const links: LinksFunction = () => [
-  // Preconnect to external domains
+  // 1. Local CSS Files
+  { rel: "stylesheet", href: "/app/tailwind.css" },
+  { rel: "stylesheet", href: "/app/styles/shared.css" },
+
+  // 2. External Fonts
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
     href: "https://fonts.gstatic.com",
     crossOrigin: "anonymous",
   },
-
-  // Fonts with display=swap for better performance
   {
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
-    media: "all",
   },
 
-  // Favicon and app icons
+  // 3. Assets & Manifest
   { rel: "icon", href: "/favicon.ico", sizes: "32x32" },
   { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
-  // Omit apple-touch-icon if not present to avoid 404
-
-  // Web app manifest
   { rel: "manifest", href: "/manifest.json" },
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
+    console.log("Root loader: Starting user fetch");
     const user = await getUser(request);
+    console.log("Root loader: User fetched successfully", user?.id);
     return json({ user });
   } catch (error) {
     console.error("Root loader error:", error);
+    // Return null user instead of throwing to prevent app crash
     return json({ user: null });
   }
 }
@@ -106,63 +109,37 @@ export default function App() {
         />
         <meta name="color-scheme" content="light" />
         <meta name="theme-color" content="#01502E" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="format-detection" content="telephone=no" />
         <Meta />
         <Links />
-
-        {/* Structured Data */}
         <StructuredData data={structuredDataTemplates.organization} />
-
-        {/* Preload critical resources */}
         <link rel="preload" href="/FindoTripLogo.png" as="image" />
       </head>
       <body className="bg-white text-gray-900 antialiased overflow-x-hidden">
-        {/* Skip to content for accessibility */}
         <SkipToContent />
 
-        {/* Main navigation */}
         <header className="sticky top-0 z-50 bg-white shadow-sm">
           <NavBar user={user} />
         </header>
 
-        {/* Mobile navigation is now handled in NavBar */}
-
-        {/* Main content */}
         <main id="main-content" className="pb-0">
           <Outlet />
         </main>
 
-        {/* Network status indicators (debounced offline) */}
-        {/* Comment out the OfflineIndicator to prevent false offline detection */}
-        {/* {!isOnline && (
-          <div className="animate-fade-in">
-            <OfflineIndicator />
-          </div>
-        )} */}
         <OnlineIndicator show={showOnlineIndicator} />
 
-        {/* Floating Chat Button - only show for authenticated users */}
         {user && <FloatingChatButton currentUserId={user.id} />}
 
-        {/* Scripts and restoration */}
         <ScrollRestoration />
         <Scripts />
 
-        {/* Service Worker Registration */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                      console.log('SW registered: ', registration);
-                    })
-                    .catch(function(registrationError) {
-                      console.log('SW registration failed: ', registrationError);
-                    });
+                    .then(function(reg) { console.log('SW registered'); })
+                    .catch(function(err) { console.log('SW failed', err); });
                 });
               }
             `,
@@ -173,6 +150,4 @@ export default function App() {
   );
 }
 
-// Root-level ErrorBoundary must render a full HTML document
-// Export error boundary component (renders inside document)
 export { ErrorBoundary };
