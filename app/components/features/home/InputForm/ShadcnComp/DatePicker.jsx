@@ -31,7 +31,7 @@ function DatePicker({ field }) {
             : field.label || "Pick a date"}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 bg-white">
+      <PopoverContent className="w-auto p-0 bg-white z-50">
         <Calendar
           mode="single"
           selected={dates[field.name]}

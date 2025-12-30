@@ -37,7 +37,7 @@ function TourDuration() {
           </div>
           <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-52 p-1 space-y-1 bg-white" align="start">
+        <DropdownMenuContent className="w-52 p-1 space-y-1 bg-white z-50" align="start">
           {workspaces.map((workspace) => (
             <DropdownMenuItem
               key={workspace.id}
@@ -175,7 +175,7 @@ function ActivityTypes() {
 
           <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-52 p-1 space-y-1 bg-white" align="start">
+        <DropdownMenuContent className="w-52 p-1 space-y-1 bg-white z-50" align="start">
           {activityTypes.map((activity) => (
             <DropdownMenuItem
               key={activity.id}
@@ -216,7 +216,7 @@ function GroupSize() {
           </div>
           <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-52 p-1 space-y-1 bg-white" align="start">
+        <DropdownMenuContent className="w-52 p-1 space-y-1 bg-white z-50" align="start">
           {groupSize.map((group) => (
             <DropdownMenuItem
               key={group.id}

@@ -91,9 +91,9 @@ export default function InputForm() {
           </ul>
         </div>
       )}
-      <div className="absolute inset-0 mx-4 sm:mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%] max-w-full overflow-hidden">
+      <div className="absolute inset-0 mx-4 sm:mx-6 lg:mx-auto top-[35vh] md:top-[45vh] lg:top-[65%] max-w-full z-20">
         <form method="GET" action="#" className="w-full max-w-6xl mx-auto" onSubmit={(e) => e.preventDefault()}>
-          <div className="flex w-full mx-auto border border-orange-500 rounded-t-lg bg-white overflow-hidden">
+          <div className="flex w-full mx-auto border border-orange-500 rounded-t-lg bg-white">
             {activeButton.map((item, index) => (
               <button
                 key={item.id}
@@ -117,7 +117,7 @@ export default function InputForm() {
               </button>
             ))}
           </div>
-          <div className="border border-orange-500 mx-auto max-w-6xl font-normal text-sm bg-white overflow-hidden">
+          <div className="border border-orange-500 mx-auto max-w-6xl font-normal text-sm bg-white">
             {activeTabMapping[isActiveTab]}
           </div>
         </form>
@@ -175,7 +175,7 @@ function Hotel({ formConfig, navigate }) {
               type={field.type}
               name={field.name}
               placeholder={field.placeholder}
-              className="px-3 py-2.5 h-14 outline-none border-r border-orange-500"
+              className="px-3 py-2.5 h-14 outline-none border-r border-orange-500 w-full"
             />
             {errors.destination && (
               <div className="text-red-600 text-xs px-3 py-1">{errors.destination}</div>
@@ -301,7 +301,7 @@ function CarRental({ formConfig, navigate }) {
               type={field.type}
               name={field.name}
               placeholder={field.placeholder}
-              className="px-3 py-2.5 h-14 outline-none border-r border-orange-500"
+              className="px-3 py-2.5 h-14 outline-none border-r border-orange-500 w-full"
             />
             {errors.pickupLocation && (
               <div className="text-red-600 text-xs px-3 py-1">{errors.pickupLocation}</div>
@@ -417,7 +417,7 @@ function Tours({ formConfig, navigate }) {
               type={field.type}
               name={field.name}
               placeholder={field.placeholder}
-              className="px-3 py-2.5 h-14 outline-none border-r border-orange-500"
+              className="px-3 py-2.5 h-14 outline-none border-r border-orange-500 w-full"
             />
             {errors.location && (
               <div className="text-red-600 text-xs px-3 py-1">{errors.location}</div>
@@ -527,7 +527,7 @@ function Activities({ formConfig, navigate }) {
               type={field.type}
               name={field.name}
               placeholder={field.placeholder}
-              className="px-3 py-2.5 h-14 outline-none border-r border-orange-500"
+              className="px-3 py-2.5 h-14 outline-none border-r border-orange-500 w-full"
             />
             {errors.activity && (
               <div className="text-red-600 text-xs px-3 py-1">{errors.activity}</div>
