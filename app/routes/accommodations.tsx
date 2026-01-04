@@ -385,12 +385,12 @@ export default function AccommodationsPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left Sidebar - Filters */}
           <div className={`w-full lg:w-80 flex-shrink-0 ${showMobileFilters ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-8">
-              <h2 className="text-lg font-semibold text-gray-900 mb-6">Filters</h2>
-              
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
+
               {/* Search */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Search
                 </label>
                 <div className="relative">
@@ -400,13 +400,13 @@ export default function AccommodationsPage() {
                     placeholder="City or hotel name..."
                     value={searchInput}
                     onChange={(e) => handleSearchInput(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                   />
                 </div>
               </div>
 
               {/* Price Range Slider */}
-              <div className="mb-6">
+              <div className="mb-4">
                 <PriceRangeSlider
                   minPrice={priceBounds?.min ?? 0}
                   maxPrice={priceBounds?.max ?? 50000}
@@ -433,8 +433,8 @@ export default function AccommodationsPage() {
               </div>
 
               {/* Guests */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Guests
                 </label>
                 <input
@@ -445,19 +445,19 @@ export default function AccommodationsPage() {
                   placeholder="Number of guests"
                   value={searchParams_.get("guests") || ""}
                   onChange={(e) => handleFilterChange("guests", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 />
               </div>
 
               {/* Property Type */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Property Type
                 </label>
                 <select
                   value={searchParams_.get("type") || ""}
                   onChange={(e) => handleFilterChange("type", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 >
                   <option value="">All Types</option>
                   {filters.types.map(type => (
@@ -467,14 +467,14 @@ export default function AccommodationsPage() {
               </div>
 
               {/* Location */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Location
                 </label>
                 <select
                   value={searchParams_.get("country") || ""}
                   onChange={(e) => handleFilterChange("country", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#01502E] focus:border-transparent"
                 >
                   <option value="">All Locations</option>
                   {filters.cities.map(city => (
